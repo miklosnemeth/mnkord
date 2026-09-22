@@ -1,0 +1,248 @@
+#pragma once
+#include <JuceHeader.h>
+#include "PluginProcessor.h"
+
+//==============================================================================
+class MnKordAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   public juce::ComboBox::Listener,
+                                   public juce::Button::Listener,
+                                   public juce::Timer
+{
+public:
+    MnKordAudioProcessorEditor(MnKordAudioProcessor&);
+    ~MnKordAudioProcessorEditor() override;
+
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    bool keyPressed(const juce::KeyPress&) override;
+
+    // Listener callbacks
+    void comboBoxChanged(juce::ComboBox*) override;
+    void buttonClicked(juce::Button*) override;
+    void timerCallback() override;
+
+    // Restricts which notes are clickable/highlighted on the INPUT keyboard, to make it
+    // easier to build diatonic mappings without hitting out-of-scale keys by accident.
+    // Public so the (free-standing) New-preset dialog content component can reference it.
+    enum class Scale
+    {
+        Chromatic,      // no restriction (all 12 notes)
+        Major,
+        NaturalMinor,
+        HarmonicMinor,
+        MelodicMinor,
+        MajorPentatonic,
+        MinorPentatonic
+    };
+
+    // Options for populateDiatonicChords(), gathered from the New-preset dialog.
+    struct DiatonicFillOptions
+    {
+        int scaleRoot = 0;
+        Scale scaleType = Scale::Chromatic;
+        int chordSize = 3;      // 3 (triad) or 4 (seventh chord)
+        int inversion = 0;      // number of times to invert upward (0-3)
+        int octaveShift = 0;    // octaves to transpose the generated chord (-2..+2)
+    };
+
+private:
+    enum class KeyboardRole
+    {
+        input,
+        output
+    };
+
+    enum class VisualTheme
+    {
+        Graphite,
+        Frost,
+        Neon
+    };
+
+    struct FlatLookAndFeel : public juce::LookAndFeel_V4
+    {
+        juce::Typeface::Ptr getTypefaceForFont(const juce::Font&) override;
+        void drawButtonBackground(juce::Graphics&,
+                                  juce::Button&,
+                                  const juce::Colour& backgroundColour,
+                                  bool shouldDrawButtonAsHighlighted,
+                                  bool shouldDrawButtonAsDown) override;
+        void drawComboBox(juce::Graphics&,
+                          int width,
+                          int height,
+                          bool isButtonDown,
+                          int buttonX,
+                          int buttonY,
+                          int buttonW,
+                          int buttonH,
+                          juce::ComboBox&) override;
+        void fillTextEditorBackground(juce::Graphics&, int width, int height, juce::TextEditor&) override;
+        void drawTextEditorOutline(juce::Graphics&, int width, int height, juce::TextEditor&) override;
+        void drawPopupMenuBackground(juce::Graphics&, int width, int height) override;
+        void drawPopupMenuBackgroundWithOptions(juce::Graphics&,
+                                                int width,
+                                                int height,
+                                                const juce::PopupMenu::Options&) override;
+        void drawPopupMenuItem(juce::Graphics&,
+                               const juce::Rectangle<int>& area,
+                               bool isSeparator,
+                               bool isActive,
+                               bool isHighlighted,
+                               bool isTicked,
+                               bool hasSubMenu,
+                               const juce::String& text,
+                               const juce::String& shortcutKeyText,
+                               const juce::Drawable* icon,
+                               const juce::Colour* textColour) override;
+        int getPopupMenuBorderSize() override;
+        int getPopupMenuBorderSizeWithOptions(const juce::PopupMenu::Options&) override;
+    };
+
+    struct MappingKeyboard : public juce::MidiKeyboardComponent
+    {
+        MappingKeyboard(MnKordAudioProcessorEditor& ownerRef,
+                        KeyboardRole roleRef,
+                        juce::MidiKeyboardState& stateRef);
+
+        bool mouseDownOnKey(int midiNoteNumber, const juce::MouseEvent& event) override;
+        bool mouseDraggedToKey(int midiNoteNumber, const juce::MouseEvent& event) override;
+        void drawWhiteNote(int midiNoteNumber,
+                           juce::Graphics& g,
+                           juce::Rectangle<float> area,
+                           bool isDown,
+                           bool isOver,
+                           juce::Colour lineColour,
+                           juce::Colour textColour) override;
+        void drawBlackNote(int midiNoteNumber,
+                           juce::Graphics& g,
+                           juce::Rectangle<float> area,
+                           bool isDown,
+                           bool isOver,
+                           juce::Colour noteFillColour) override;
+
+        MnKordAudioProcessorEditor& owner;
+        KeyboardRole role;
+    };
+
+    //==============================================================================
+    MnKordAudioProcessor& audioProcessor;
+
+    // Preset controls
+    FlatLookAndFeel flatLookAndFeel;
+    juce::ComboBox presetBox;
+    juce::ComboBox designBox;
+    juce::ComboBox scaleRootBox;
+    juce::ComboBox scaleTypeBox;
+    juce::TextButton newPresetButton;
+    juce::TextButton savePresetButton;
+    juce::TextButton deletePresetButton;
+    juce::TextButton importPresetButton;
+    juce::TextButton exportPresetButton;
+    std::unique_ptr<juce::FileChooser> fileChooser;
+    juce::TextButton undoButton;
+    juce::TextButton redoButton;
+    juce::TextButton invertDownButton;
+    juce::TextButton invertUpButton;
+    juce::TextButton octaveDownButton;
+    juce::TextButton octaveUpButton;
+    juce::TextButton compactVoicingButton;
+    juce::TextButton clearChordButton;
+    juce::TextButton deleteMappingButton;
+    juce::Label selectedInputLabel;
+    juce::Label chordNotesLabel;
+    juce::Label toolsLabel;
+    juce::Label presetInfoLabel;   // shows "group · author" of the active preset in the header
+
+    // Keyboard editor
+    juce::MidiKeyboardState inputKeyboardState;
+    juce::MidiKeyboardState outputKeyboardState;
+    MappingKeyboard inputKeyboard;
+    MappingKeyboard outputKeyboard;
+    juce::Label inputKeyboardLabel;
+    juce::Label outputKeyboardLabel;
+
+    int selectedMappingIndex = -1;
+    VisualTheme visualTheme = VisualTheme::Graphite;
+    int scaleRoot = 0;
+    Scale scaleType = Scale::Chromatic;
+
+    // Divider geometry for the TOOLS panel, computed in resized() and drawn in paint()
+    // to visually separate undo/redo, chord-transform actions, compact voicing, and
+    // destructive actions.
+    juce::Rectangle<int> toolsUndoDivider;
+    juce::Rectangle<int> toolsCompactDivider;
+    juce::Rectangle<int> toolsGroupDivider;
+
+    // Per-active-preset undo/redo history of `Preset::mappings` snapshots. Cleared whenever
+    // the active preset changes (switch/new/delete/save-as/import), since history from one
+    // preset doesn't make sense applied to another.
+    std::vector<std::vector<NoteMapping>> undoStack;
+    std::vector<std::vector<NoteMapping>> redoStack;
+
+    //==============================================================================
+    void refreshPresetBox();
+    void refreshDesignBox();
+    void refreshScaleBoxes();
+    void applyVisualTheme();
+    bool isInSelectedScale(int midiNoteNumber) const;
+    static const std::vector<int>& scaleIntervals(Scale scale);
+    // The "mnKord" header title uses Montserrat; every other piece of text in the UI goes
+    // through FlatLookAndFeel::getTypefaceForFont(), which uses Roboto Condensed.
+    static juce::Typeface::Ptr getTitleTypeface();
+    // Fills, for every in-scale INPUT note across the keyboard, a tertian-style chord built by
+    // stacking scale steps (root/+2/+4[/+6] scale degrees), then applies the requested initial
+    // inversion and octave transposition. Used when creating a new preset while a scale
+    // (other than Full range) is selected.
+    static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
+    void saveCurrentPresetAs();
+    void importPresetsFromChooser();
+    void exportPresetsFromChooser();
+    // Opens a modal dialog asking for name/group/author (and, if showGenerationOptions is set,
+    // scale + chord-size + inversion/octave controls for the diatonic auto-fill), then calls
+    // onSave with the filled-in preset and the chosen generation options.
+    void promptPresetMetadata(const Preset& seed,
+                              bool showGenerationOptions,
+                              const std::function<void(const Preset&, const DiatonicFillOptions&)>& onSave);
+    void updatePresetMetaLabel();
+    void setSelectedMappingIndex(int index);
+    // Snapshots the active preset's current mappings onto the undo stack and clears the redo
+    // stack. Call before any mutation to that preset's mappings.
+    void pushUndoSnapshot();
+    void clearUndoHistory();
+    void undo();
+    void redo();
+    void updateUndoRedoButtons();
+    void keyboardNoteClicked(KeyboardRole role, int midiNoteNumber);
+    // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu
+    // of chord templates at the current mouse position; picking one applies it.
+    void showChordTemplateMenu(int midiNoteNumber);
+    void applyChordTemplate(const std::vector<int>& intervals);
+    void invertSelectedChord(bool upwards);
+    void shiftSelectedChord(int semitones);
+    void clearSelectedChord();
+    void deleteSelectedMapping();
+    // Re-voices every mapping's chord in the active preset, processed in ascending input-note
+    // order, so each chord picks the octave placement (per pitch class) closest to the
+    // previous chord's centroid — minimising jumps between consecutive chords ("voice leading").
+    void compactVoiceLeading();
+    void refreshKeyboardHighlights();
+    void refreshSummaryLabels();
+    bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;
+    bool isMappedInputKey(int midiNoteNumber) const;
+    juce::String getOutputDegreeLabel(int midiNoteNumber) const;
+    juce::Colour getBackgroundColour() const;
+    juce::Colour getPanelColour() const;
+    juce::Colour getPanelLineColour() const;
+    juce::Colour getTextColour() const;
+    juce::Colour getMutedTextColour() const;
+    juce::Colour getAccentColour() const;
+    juce::Colour getControlColour() const;
+    juce::Colour getWhiteKeyTopColour() const;
+    juce::Colour getWhiteKeyBottomColour() const;
+    juce::Colour getBlackKeyTopColour() const;
+    juce::Colour getBlackKeyBottomColour() const;
+    NoteMapping* getSelectedMapping();
+    const NoteMapping* getSelectedMapping() const;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MnKordAudioProcessorEditor)
+};
