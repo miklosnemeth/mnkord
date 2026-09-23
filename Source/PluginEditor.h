@@ -160,6 +160,7 @@ private:
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
     juce::TextButton scaleSummaryButton;
     juce::TextButton newPresetButton;
+    juce::TextButton editPresetButton;
     juce::TextButton savePresetButton;
     juce::TextButton deletePresetButton;
     juce::TextButton importPresetButton;
@@ -227,6 +228,9 @@ private:
     // (other than Full range) is selected.
     static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
     void saveCurrentPresetAs();
+    // Renames/re-tags the active preset in place (name/group/author only), unlike
+    // saveCurrentPresetAs() which duplicates it into a new preset.
+    void editActivePresetMetadata();
     void importPresetsFromChooser();
     void exportPresetsFromChooser();
     // Opens a modal dialog asking for name/group/author (and, if showGenerationOptions is set,

@@ -734,6 +734,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(scaleSummaryButton);
 
     newPresetButton.setButtonText("New");
+    editPresetButton.setButtonText("Edit");
     savePresetButton.setButtonText("Save as");
     deletePresetButton.setButtonText("Delete");
     importPresetButton.setButtonText("Import");
@@ -747,7 +748,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     octaveDownButton.setTooltip("Octave down");
     octaveUpButton.setTooltip("Octave up");
 
-    for (auto* button : { &newPresetButton, &savePresetButton, &deletePresetButton,
+    for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
                           &compactVoicingButton,
                           &clearChordButton, &deleteMappingButton })
@@ -871,13 +872,15 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
+    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
     presetBox.setBounds(controls.removeFromLeft(180));
     controls.removeFromLeft(8);
     designBox.setBounds(controls.removeFromLeft(110));
     controls.removeFromLeft(8);
     newPresetButton.setBounds(controls.removeFromLeft(62));
+    controls.removeFromLeft(8);
+    editPresetButton.setBounds(controls.removeFromLeft(60));
     controls.removeFromLeft(8);
     savePresetButton.setBounds(controls.removeFromLeft(80));
     controls.removeFromLeft(8);
@@ -998,6 +1001,11 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
             setSelectedMappingIndex(selectedMappingIndex);
             clearUndoHistory();
         });
+    }
+    else if (button == &editPresetButton)
+    {
+        logUi("buttonClicked: Edit");
+        editActivePresetMetadata();
     }
     else if (button == &savePresetButton)
     {
@@ -1347,7 +1355,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
         textColour                                // menuText
     });
 
-    for (auto* button : { &newPresetButton, &savePresetButton, &deletePresetButton,
+    for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
                           &compactVoicingButton,
                           &clearChordButton, &deleteMappingButton })
@@ -1410,6 +1418,33 @@ void MnKordAudioProcessorEditor::saveCurrentPresetAs()
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
         clearUndoHistory();
+    });
+}
+
+void MnKordAudioProcessorEditor::editActivePresetMetadata()
+{
+    const int index = audioProcessor.getActivePresetIndex();
+    const auto& presets = audioProcessor.getPresets();
+
+    if (index < 0 || index >= (int) presets.size())
+        return;
+
+    promptPresetMetadata(presets[(size_t) index], false, [this, index](const Preset& p, const DiatonicFillOptions&)
+    {
+        {
+            const juce::ScopedLock lock(audioProcessor.getStateLock());
+            auto& mutablePresets = audioProcessor.getPresets();
+
+            if (index < 0 || index >= (int) mutablePresets.size())
+                return;
+
+            mutablePresets[(size_t) index].name = p.name;
+            mutablePresets[(size_t) index].group = p.group;
+            mutablePresets[(size_t) index].author = p.author;
+        }
+
+        refreshPresetBox();
+        updatePresetMetaLabel();
     });
 }
 
