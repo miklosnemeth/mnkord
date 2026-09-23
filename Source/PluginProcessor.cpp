@@ -308,6 +308,11 @@ void MnKordAudioProcessor::deletePreset(int index)
     if (index < 0 || index >= (int) presets.size())
         return;
 
+    // Always keep at least one preset: with zero presets there's no active preset for the
+    // editor to create mappings against, so every key click would silently do nothing.
+    if (presets.size() <= 1)
+        return;
+
     presets.erase(presets.begin() + index);
 
     if (index < activePresetIndex)
@@ -359,9 +364,12 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
     auto loaded = presetsFromXmlRoot(*root);
 
     const juce::ScopedLock lock(stateLock);
-    presets = std::move(loaded);
+    // Never leave the plugin with zero presets (e.g. a saved state from a session where every
+    // preset was deleted): the editor has no way to create a mapping without an active preset,
+    // so it would silently stop responding to any key click.
+    presets = loaded.empty() ? createFactoryPresets() : std::move(loaded);
     activePresetIndex = root->getIntAttribute("activePreset", presets.empty() ? -1 : 0);
-    if (activePresetIndex >= (int) presets.size())
+    if (activePresetIndex < 0 || activePresetIndex >= (int) presets.size())
         activePresetIndex = presets.empty() ? -1 : 0;
 
     clearActiveNotes();
