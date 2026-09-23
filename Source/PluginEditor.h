@@ -137,6 +137,18 @@ private:
         KeyboardRole role;
     };
 
+    // Content shown in the CallOutBox opened by clicking scaleSummaryButton: just the root
+    // and scale-type pickers, live-applied on change (no Save/Cancel needed).
+    struct ScalePopupContent : public juce::Component, private juce::ComboBox::Listener
+    {
+        explicit ScalePopupContent(MnKordAudioProcessorEditor& ownerRef);
+        void resized() override;
+        void comboBoxChanged(juce::ComboBox*) override;
+
+        MnKordAudioProcessorEditor& owner;
+        juce::ComboBox rootBox, typeBox;
+    };
+
     //==============================================================================
     MnKordAudioProcessor& audioProcessor;
 
@@ -144,8 +156,9 @@ private:
     FlatLookAndFeel flatLookAndFeel;
     juce::ComboBox presetBox;
     juce::ComboBox designBox;
-    juce::ComboBox scaleRootBox;
-    juce::ComboBox scaleTypeBox;
+    // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
+    // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
+    juce::TextButton scaleSummaryButton;
     juce::TextButton newPresetButton;
     juce::TextButton savePresetButton;
     juce::TextButton deletePresetButton;
@@ -193,10 +206,18 @@ private:
     //==============================================================================
     void refreshPresetBox();
     void refreshDesignBox();
-    void refreshScaleBoxes();
+    // Refreshes scaleSummaryButton's text ("Full range" / "C Major" / ...) from the current
+    // scaleRoot/scaleType.
+    void updateScaleSummaryText();
+    void showScalePopup();
     void applyVisualTheme();
     bool isInSelectedScale(int midiNoteNumber) const;
     static const std::vector<int>& scaleIntervals(Scale scale);
+    // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic), shared by
+    // updateScaleSummaryText(), ScalePopupContent and the New-preset dialog.
+    static int scaleTypeIndexFor(Scale scale);
+    static Scale scaleTypeForIndex(int index);
+    static juce::String scaleTypeName(Scale scale);
     // The "mnKord" header title uses Montserrat; every other piece of text in the UI goes
     // through FlatLookAndFeel::getTypefaceForFont(), which uses Roboto Condensed.
     static juce::Typeface::Ptr getTitleTypeface();

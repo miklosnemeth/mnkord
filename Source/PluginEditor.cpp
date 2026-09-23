@@ -700,10 +700,8 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     designBox.addListener(this);
     addAndMakeVisible(designBox);
 
-    scaleRootBox.addListener(this);
-    addAndMakeVisible(scaleRootBox);
-    scaleTypeBox.addListener(this);
-    addAndMakeVisible(scaleTypeBox);
+    scaleSummaryButton.addListener(this);
+    addAndMakeVisible(scaleSummaryButton);
 
     newPresetButton.setButtonText("New");
     savePresetButton.setButtonText("Save as");
@@ -768,7 +766,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     setSize(980, 546);
 
     refreshDesignBox();
-    refreshScaleBoxes();
+    updateScaleSummaryText();
     applyVisualTheme();
     refreshPresetBox();
     setSelectedMappingIndex(selectedMappingIndex);
@@ -866,10 +864,7 @@ void MnKordAudioProcessorEditor::resized()
     auto inputPanel = area.removeFromTop(142).reduced(14, 10);
     auto inputHeader = inputPanel.removeFromTop(24);
     inputKeyboardLabel.setBounds(inputHeader.removeFromLeft(120));
-    auto scaleControls = inputHeader.removeFromRight(226);
-    scaleRootBox.setBounds(scaleControls.removeFromLeft(64));
-    scaleControls.removeFromLeft(6);
-    scaleTypeBox.setBounds(scaleControls.removeFromLeft(156));
+    scaleSummaryButton.setBounds(inputHeader.removeFromRight(110));
     selectedInputLabel.setBounds(inputHeader);
     inputPanel.removeFromTop(8);
     inputKeyboard.setBounds(inputPanel);
@@ -946,23 +941,6 @@ void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
 
         applyVisualTheme();
     }
-    else if (box == &scaleRootBox || box == &scaleTypeBox)
-    {
-        scaleRoot = juce::jmax(0, scaleRootBox.getSelectedItemIndex());
-
-        switch (scaleTypeBox.getSelectedItemIndex())
-        {
-            case 1:  scaleType = Scale::Major; break;
-            case 2:  scaleType = Scale::NaturalMinor; break;
-            case 3:  scaleType = Scale::HarmonicMinor; break;
-            case 4:  scaleType = Scale::MelodicMinor; break;
-            case 5:  scaleType = Scale::MajorPentatonic; break;
-            case 6:  scaleType = Scale::MinorPentatonic; break;
-            default: scaleType = Scale::Chromatic; break;
-        }
-
-        inputKeyboard.repaint();
-    }
 }
 
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
@@ -980,7 +958,7 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
             // The dialog's scale choice also becomes the active INPUT-keyboard scale filter.
             scaleRoot = fillOptions.scaleRoot;
             scaleType = fillOptions.scaleType;
-            refreshScaleBoxes();
+            updateScaleSummaryText();
             inputKeyboard.repaint();
 
             audioProcessor.addPreset(preset);
@@ -1013,6 +991,10 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     else if (button == &exportPresetButton)
     {
         exportPresetsFromChooser();
+    }
+    else if (button == &scaleSummaryButton)
+    {
+        showScalePopup();
     }
     else if (button == &undoButton)
     {
@@ -1070,34 +1052,113 @@ void MnKordAudioProcessorEditor::refreshDesignBox()
     designBox.setSelectedItemIndex(0, juce::dontSendNotification);
 }
 
-void MnKordAudioProcessorEditor::refreshScaleBoxes()
+int MnKordAudioProcessorEditor::scaleTypeIndexFor(Scale scale)
 {
-    scaleRootBox.clear();
-    for (int i = 0; i < 12; ++i)
-        scaleRootBox.addItem(NoteName::pitchClassName(i), i + 1);
-    scaleRootBox.setSelectedItemIndex(scaleRoot, juce::dontSendNotification);
-
-    scaleTypeBox.clear();
-    scaleTypeBox.addItem("Full range", 1);
-    scaleTypeBox.addItem("Major", 2);
-    scaleTypeBox.addItem("Natural minor", 3);
-    scaleTypeBox.addItem("Harmonic minor", 4);
-    scaleTypeBox.addItem("Melodic minor", 5);
-    scaleTypeBox.addItem("Maj pentatonic", 6);
-    scaleTypeBox.addItem("Min pentatonic", 7);
-
-    int scaleTypeIndex = 0;
-    switch (scaleType)
+    switch (scale)
     {
-        case Scale::Major:           scaleTypeIndex = 1; break;
-        case Scale::NaturalMinor:    scaleTypeIndex = 2; break;
-        case Scale::HarmonicMinor:   scaleTypeIndex = 3; break;
-        case Scale::MelodicMinor:    scaleTypeIndex = 4; break;
-        case Scale::MajorPentatonic: scaleTypeIndex = 5; break;
-        case Scale::MinorPentatonic: scaleTypeIndex = 6; break;
-        case Scale::Chromatic:       scaleTypeIndex = 0; break;
+        case Scale::Major:           return 1;
+        case Scale::NaturalMinor:    return 2;
+        case Scale::HarmonicMinor:   return 3;
+        case Scale::MelodicMinor:    return 4;
+        case Scale::MajorPentatonic: return 5;
+        case Scale::MinorPentatonic: return 6;
+        case Scale::Chromatic:       return 0;
     }
-    scaleTypeBox.setSelectedItemIndex(scaleTypeIndex, juce::dontSendNotification);
+    return 0;
+}
+
+MnKordAudioProcessorEditor::Scale MnKordAudioProcessorEditor::scaleTypeForIndex(int index)
+{
+    switch (index)
+    {
+        case 1:  return Scale::Major;
+        case 2:  return Scale::NaturalMinor;
+        case 3:  return Scale::HarmonicMinor;
+        case 4:  return Scale::MelodicMinor;
+        case 5:  return Scale::MajorPentatonic;
+        case 6:  return Scale::MinorPentatonic;
+        default: return Scale::Chromatic;
+    }
+}
+
+juce::String MnKordAudioProcessorEditor::scaleTypeName(Scale scale)
+{
+    switch (scale)
+    {
+        case Scale::Major:           return "Major";
+        case Scale::NaturalMinor:    return "Natural minor";
+        case Scale::HarmonicMinor:   return "Harmonic minor";
+        case Scale::MelodicMinor:    return "Melodic minor";
+        case Scale::MajorPentatonic: return "Maj pentatonic";
+        case Scale::MinorPentatonic: return "Min pentatonic";
+        case Scale::Chromatic:       return "Full range";
+    }
+    return "Full range";
+}
+
+void MnKordAudioProcessorEditor::updateScaleSummaryText()
+{
+    if (scaleType == Scale::Chromatic)
+        scaleSummaryButton.setButtonText("Full range");
+    else
+        scaleSummaryButton.setButtonText(NoteName::pitchClassName(scaleRoot) + " " + scaleTypeName(scaleType));
+}
+
+MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProcessorEditor& ownerRef)
+    : owner(ownerRef)
+{
+    for (int i = 0; i < 12; ++i)
+        rootBox.addItem(NoteName::pitchClassName(i), i + 1);
+    rootBox.setSelectedItemIndex(owner.scaleRoot, juce::dontSendNotification);
+
+    typeBox.addItem("Full range", 1);
+    typeBox.addItem("Major", 2);
+    typeBox.addItem("Natural minor", 3);
+    typeBox.addItem("Harmonic minor", 4);
+    typeBox.addItem("Melodic minor", 5);
+    typeBox.addItem("Maj pentatonic", 6);
+    typeBox.addItem("Min pentatonic", 7);
+    typeBox.setSelectedItemIndex(scaleTypeIndexFor(owner.scaleType), juce::dontSendNotification);
+
+    const auto control = owner.getControlColour();
+    const auto text = owner.getTextColour();
+    const auto accent = owner.getAccentColour();
+
+    for (auto* box : { &rootBox, &typeBox })
+    {
+        box->setColour(juce::ComboBox::backgroundColourId, control);
+        box->setColour(juce::ComboBox::textColourId, text);
+        box->setColour(juce::ComboBox::outlineColourId, accent.withAlpha(0.4f));
+        box->addListener(this);
+        addAndMakeVisible(box);
+    }
+
+    setSize(226, 34);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::resized()
+{
+    auto area = getLocalBounds();
+    rootBox.setBounds(area.removeFromLeft(64));
+    area.removeFromLeft(6);
+    typeBox.setBounds(area);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboBox*)
+{
+    owner.scaleRoot = juce::jmax(0, rootBox.getSelectedItemIndex());
+    owner.scaleType = scaleTypeForIndex(typeBox.getSelectedItemIndex());
+    owner.updateScaleSummaryText();
+    owner.inputKeyboard.repaint();
+}
+
+void MnKordAudioProcessorEditor::showScalePopup()
+{
+    auto content = std::make_unique<ScalePopupContent>(*this);
+    content->setLookAndFeel(&flatLookAndFeel);
+    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content),
+        localAreaToGlobal(scaleSummaryButton.getBounds()), nullptr);
+    juce::ignoreUnused(box);
 }
 
 const std::vector<int>& MnKordAudioProcessorEditor::scaleIntervals(Scale scale)
@@ -1193,13 +1254,19 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     const auto textColour = getTextColour();
     const auto transparent = juce::Colours::transparentBlack;
 
-    for (auto* box : { &presetBox, &designBox, &scaleRootBox, &scaleTypeBox })
+    for (auto* box : { &presetBox, &designBox })
     {
         box->setColour(juce::ComboBox::backgroundColourId, control);
         box->setColour(juce::ComboBox::textColourId, textColour);
         box->setColour(juce::ComboBox::outlineColourId, transparent);
         box->setColour(juce::ComboBox::focusedOutlineColourId, transparent);
     }
+
+    // A small chip, quieter than the preset dropdowns but still visibly clickable.
+    scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
+    scaleSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
+    scaleSummaryButton.setColour(juce::TextButton::textColourOffId, getMutedTextColour());
+    scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
 
     flatLookAndFeel.setColour(juce::PopupMenu::backgroundColourId, control);
     flatLookAndFeel.setColour(juce::PopupMenu::textColourId, textColour);
