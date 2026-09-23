@@ -2088,6 +2088,26 @@ void MnKordAudioProcessorEditor::compactVoiceLeading()
                 centroid += note;
             centroid /= (double) previousNotes.size();
 
+            // The chord's root is always the input note's own pitch class (that's how both
+            // applyChordTemplate() and populateDiatonicChords() build chords -- interval 0 is
+            // always the root), regardless of any inversion already applied to it.
+            const int rootPitchClass = ((ordered[i]->inputNote % 12) + 12) % 12;
+
+            // Anchor the root to whichever octave sits closest to the previous chord, so its
+            // own movement is minimal; every other chord tone then stacks above it, keeping the
+            // root as the bass note instead of letting it drift into the middle of the voicing.
+            int rootNote = rootPitchClass;
+            double rootDistance = std::numeric_limits<double>::max();
+            for (int candidate = rootPitchClass; candidate < 128; candidate += 12)
+            {
+                const double distance = std::abs((double) candidate - centroid);
+                if (distance < rootDistance)
+                {
+                    rootDistance = distance;
+                    rootNote = candidate;
+                }
+            }
+
             std::vector<int> pitchClasses;
             for (const int note : currentNotes)
             {
@@ -2099,20 +2119,19 @@ void MnKordAudioProcessorEditor::compactVoiceLeading()
             std::vector<int> revoiced;
             for (const int pitchClass : pitchClasses)
             {
-                int closest = pitchClass;
-                double closestDistance = std::numeric_limits<double>::max();
-
-                for (int candidate = pitchClass; candidate < 128; candidate += 12)
+                if (pitchClass == rootPitchClass)
                 {
-                    const double distance = std::abs((double) candidate - centroid);
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        closest = candidate;
-                    }
+                    revoiced.push_back(rootNote);
+                    continue;
                 }
 
-                revoiced.push_back(closest);
+                // Smallest note of this pitch class at or above the root -- the closest
+                // placement that still keeps the root as the bass note.
+                int candidate = pitchClass;
+                while (candidate < rootNote)
+                    candidate += 12;
+
+                revoiced.push_back(candidate);
             }
 
             std::sort(revoiced.begin(), revoiced.end());
