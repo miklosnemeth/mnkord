@@ -96,6 +96,14 @@ private:
                                const juce::Colour* textColour) override;
         int getPopupMenuBorderSize() override;
         int getPopupMenuBorderSizeWithOptions(const juce::PopupMenu::Options&) override;
+        // Without this, JUCE sizes popup items from the raw string width, which is narrower
+        // than the 28px-per-side margin drawPopupMenuItem() reserves for the text -- causing
+        // longer labels (e.g. "Sus2", "Maj7", "Add9") to be ellipsised.
+        void getIdealPopupMenuItemSize(const juce::String& text,
+                                       bool isSeparator,
+                                       int standardMenuItemHeight,
+                                       int& idealWidth,
+                                       int& idealHeight) override;
     };
 
     enum class ToolIcon { Undo, Redo, OctaveDown, OctaveUp };

@@ -517,6 +517,25 @@ int MnKordAudioProcessorEditor::FlatLookAndFeel::getPopupMenuBorderSizeWithOptio
     return 0;
 }
 
+void MnKordAudioProcessorEditor::FlatLookAndFeel::getIdealPopupMenuItemSize(const juce::String& text,
+                                                                             bool isSeparator,
+                                                                             int standardMenuItemHeight,
+                                                                             int& idealWidth,
+                                                                             int& idealHeight)
+{
+    idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight : 24;
+
+    if (isSeparator)
+    {
+        idealWidth = 50;
+        idealHeight = idealHeight / 2;
+        return;
+    }
+
+    // Must match drawPopupMenuItem()'s row.reduced(28, 0) text area, plus a little breathing room.
+    idealWidth = juce::GlyphArrangement::getStringWidthInt(juce::Font(juce::FontOptions(14.0f)), text) + 56 + 16;
+}
+
 //==============================================================================
 MnKordAudioProcessorEditor::MappingKeyboard::MappingKeyboard(MnKordAudioProcessorEditor& ownerRef,
                                                              KeyboardRole roleRef,
