@@ -98,6 +98,19 @@ private:
         int getPopupMenuBorderSizeWithOptions(const juce::PopupMenu::Options&) override;
     };
 
+    enum class ToolIcon { Undo, Redo, OctaveDown, OctaveUp };
+
+    // A small, icon-only button for the TOOLS row's segmented pairs (Undo/Redo, Octave).
+    // Draws its own vector glyph instead of text, so pairs can sit flush together inside a
+    // shared rounded background (see segUndoRedoBounds/segOctaveBounds in paint()).
+    struct IconButton : public juce::Button
+    {
+        explicit IconButton(ToolIcon iconType) : juce::Button({}), icon(iconType) {}
+        void paintButton(juce::Graphics&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+        ToolIcon icon;
+    };
+
     struct MappingKeyboard : public juce::MidiKeyboardComponent
     {
         MappingKeyboard(MnKordAudioProcessorEditor& ownerRef,
@@ -139,12 +152,10 @@ private:
     juce::TextButton importPresetButton;
     juce::TextButton exportPresetButton;
     std::unique_ptr<juce::FileChooser> fileChooser;
-    juce::TextButton undoButton;
-    juce::TextButton redoButton;
-    juce::TextButton invertDownButton;
-    juce::TextButton invertUpButton;
-    juce::TextButton octaveDownButton;
-    juce::TextButton octaveUpButton;
+    IconButton undoButton { ToolIcon::Undo };
+    IconButton redoButton { ToolIcon::Redo };
+    IconButton octaveDownButton { ToolIcon::OctaveDown };
+    IconButton octaveUpButton { ToolIcon::OctaveUp };
     juce::TextButton compactVoicingButton;
     juce::TextButton clearChordButton;
     juce::TextButton deleteMappingButton;
@@ -166,11 +177,11 @@ private:
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
 
-    // Divider geometry for the TOOLS panel, computed in resized() and drawn in paint()
-    // to visually separate undo/redo, chord-transform actions, compact voicing, and
-    // destructive actions.
-    juce::Rectangle<int> toolsUndoDivider;
-    juce::Rectangle<int> toolsCompactDivider;
+    // Shared rounded backgrounds for the TOOLS row's segmented icon-button pairs (Undo/Redo,
+    // Octave), computed in resized() and drawn in paint(), with a 1px divider down the middle
+    // of each. toolsGroupDivider separates Compact from the Clear/Delete "danger zone".
+    juce::Rectangle<int> segUndoRedoBounds;
+    juce::Rectangle<int> segOctaveBounds;
     juce::Rectangle<int> toolsGroupDivider;
 
     // Per-active-preset undo/redo history of `Preset::mappings` snapshots. Cleared whenever
@@ -216,6 +227,9 @@ private:
     // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu
     // of chord templates at the current mouse position; picking one applies it.
     void showChordTemplateMenu(int midiNoteNumber);
+    // Right-clicking the CHORD keyboard shows a 2-item popup (Invert up / Invert down) for the
+    // selected mapping, in place of dedicated Inv +/- buttons.
+    void showInvertMenu();
     void applyChordTemplate(const std::vector<int>& intervals);
     void invertSelectedChord(bool upwards);
     void shiftSelectedChord(int semitones);

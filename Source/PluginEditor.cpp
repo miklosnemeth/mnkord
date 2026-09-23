@@ -312,6 +312,54 @@ juce::Typeface::Ptr MnKordAudioProcessorEditor::getTitleTypeface()
     return montserrat;
 }
 
+void MnKordAudioProcessorEditor::IconButton::paintButton(juce::Graphics& g,
+                                                          bool shouldDrawButtonAsHighlighted,
+                                                          bool shouldDrawButtonAsDown)
+{
+    auto bounds = getLocalBounds().toFloat();
+
+    if (shouldDrawButtonAsDown || shouldDrawButtonAsHighlighted)
+    {
+        g.setColour(findColour(juce::TextButton::buttonOnColourId).withAlpha(shouldDrawButtonAsDown ? 0.35f : 0.18f));
+        g.fillRect(bounds);
+    }
+
+    auto iconArea = bounds.reduced(9.0f);
+    auto pt = [&iconArea](float x, float y)
+    {
+        return juce::Point<float>(iconArea.getX() + (x / 24.0f) * iconArea.getWidth(),
+                                  iconArea.getY() + (y / 24.0f) * iconArea.getHeight());
+    };
+
+    juce::Path p;
+    switch (icon)
+    {
+        case ToolIcon::Undo:
+            p.startNewSubPath(pt(15, 5)); p.lineTo(pt(9, 12)); p.lineTo(pt(15, 19));
+            p.startNewSubPath(pt(9, 12)); p.lineTo(pt(19, 12));
+            break;
+        case ToolIcon::Redo:
+            p.startNewSubPath(pt(9, 5)); p.lineTo(pt(15, 12)); p.lineTo(pt(9, 19));
+            p.startNewSubPath(pt(15, 12)); p.lineTo(pt(5, 12));
+            break;
+        case ToolIcon::OctaveDown:
+            p.startNewSubPath(pt(6, 9));  p.lineTo(pt(12, 15)); p.lineTo(pt(18, 9));
+            p.startNewSubPath(pt(6, 15)); p.lineTo(pt(12, 21)); p.lineTo(pt(18, 15));
+            break;
+        case ToolIcon::OctaveUp:
+            p.startNewSubPath(pt(6, 15)); p.lineTo(pt(12, 9)); p.lineTo(pt(18, 15));
+            p.startNewSubPath(pt(6, 9));  p.lineTo(pt(12, 3)); p.lineTo(pt(18, 9));
+            break;
+    }
+
+    auto strokeColour = findColour(juce::TextButton::textColourOffId);
+    if (! isEnabled())
+        strokeColour = strokeColour.withAlpha(0.35f);
+
+    g.setColour(strokeColour);
+    g.strokePath(p, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+}
+
 void MnKordAudioProcessorEditor::FlatLookAndFeel::drawButtonBackground(juce::Graphics& g,
                                                                        juce::Button& button,
                                                                        const juce::Colour& backgroundColour,
@@ -488,6 +536,12 @@ bool MnKordAudioProcessorEditor::MappingKeyboard::mouseDownOnKey(int midiNoteNum
         return false;
     }
 
+    if (role == KeyboardRole::output && event.mods.isPopupMenu())
+    {
+        owner.showInvertMenu();
+        return false;
+    }
+
     owner.keyboardNoteClicked(role, midiNoteNumber);
     return false;
 }
@@ -656,23 +710,25 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     deletePresetButton.setButtonText("Delete");
     importPresetButton.setButtonText("Import");
     exportPresetButton.setButtonText("Export");
-    undoButton.setButtonText("Undo");
-    redoButton.setButtonText("Redo");
-    invertDownButton.setButtonText("Inv -");
-    invertUpButton.setButtonText("Inv +");
-    octaveDownButton.setButtonText("Oct -");
-    octaveUpButton.setButtonText("Oct +");
     compactVoicingButton.setButtonText("Compact");
     clearChordButton.setButtonText("Clear chord");
     deleteMappingButton.setButtonText("Delete key");
 
+    undoButton.setTooltip("Undo");
+    redoButton.setTooltip("Redo");
+    octaveDownButton.setTooltip("Octave down");
+    octaveUpButton.setTooltip("Octave up");
+
     for (auto* button : { &newPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
-                          &undoButton, &redoButton,
-                          &invertDownButton,
-                          &invertUpButton, &octaveDownButton, &octaveUpButton,
                           &compactVoicingButton,
                           &clearChordButton, &deleteMappingButton })
+    {
+        button->addListener(this);
+        addAndMakeVisible(button);
+    }
+
+    for (auto* button : { &undoButton, &redoButton, &octaveDownButton, &octaveUpButton })
     {
         button->addListener(this);
         addAndMakeVisible(button);
@@ -685,7 +741,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
     outputKeyboardLabel.setText("CHORD", juce::dontSendNotification);
-    toolsLabel.setText("TOOLS   -   right-click an INPUT key for chord templates", juce::dontSendNotification);
+    toolsLabel.setText("TOOLS   -   right-click INPUT for chord templates, CHORD to invert", juce::dontSendNotification);
     selectedInputLabel.setText("-", juce::dontSendNotification);
     chordNotesLabel.setText("-", juce::dontSendNotification);
     presetInfoLabel.setText("-", juce::dontSendNotification);
@@ -761,9 +817,19 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(rect, 8.0f);
     }
 
+    // Shared rounded backgrounds behind the Undo/Redo and Octave icon-button pairs, each split
+    // by a thin divider so the pair still reads as two distinct actions.
+    for (const auto& seg : { segUndoRedoBounds, segOctaveBounds })
+    {
+        g.setColour(getControlColour());
+        g.fillRoundedRectangle(seg.toFloat(), 8.0f);
+
+        g.setColour(getPanelLineColour());
+        g.fillRect(juce::Rectangle<float>((float) seg.getCentreX() - 0.5f, (float) seg.getY() + 5.0f,
+                                          1.0f, (float) seg.getHeight() - 10.0f));
+    }
+
     g.setColour(getPanelLineColour());
-    g.fillRect(toolsUndoDivider.toFloat());
-    g.fillRect(toolsCompactDivider.toFloat());
     g.fillRect(toolsGroupDivider.toFloat());
 }
 
@@ -815,32 +881,39 @@ void MnKordAudioProcessorEditor::resized()
     toolsPanel.removeFromTop(8);
 
     auto toolsRow = toolsPanel.removeFromTop(30);
-    undoButton.setBounds(toolsRow.removeFromLeft(60));
-    toolsRow.removeFromLeft(6);
-    redoButton.setBounds(toolsRow.removeFromLeft(60));
 
-    // Divider separating undo/redo from the chord-transform actions.
-    toolsUndoDivider = toolsRow.removeFromLeft(18).withSizeKeepingCentre(1, toolsRow.getHeight());
+    // Undo/Redo: a segmented icon-button pair sharing one rounded background.
+    auto undoRedoPair = toolsRow.removeFromLeft(64);
+    segUndoRedoBounds = undoRedoPair;
+    {
+        auto pairArea = undoRedoPair;
+        undoButton.setBounds(pairArea.removeFromLeft(32));
+        redoButton.setBounds(pairArea);
+    }
 
-    invertDownButton.setBounds(toolsRow.removeFromLeft(60));
-    toolsRow.removeFromLeft(6);
-    invertUpButton.setBounds(toolsRow.removeFromLeft(60));
-    toolsRow.removeFromLeft(6);
-    octaveDownButton.setBounds(toolsRow.removeFromLeft(60));
-    toolsRow.removeFromLeft(6);
-    octaveUpButton.setBounds(toolsRow.removeFromLeft(60));
+    toolsRow.removeFromLeft(16);
 
-    // Divider separating chord-transform actions from the preset-wide compact-voicing action.
-    toolsCompactDivider = toolsRow.removeFromLeft(18).withSizeKeepingCentre(1, toolsRow.getHeight());
+    // Octave: a segmented icon-button pair, same treatment. Invert now lives on the CHORD
+    // keyboard's right-click menu, so there's no separate Inv +/- pair here.
+    auto octavePair = toolsRow.removeFromLeft(64);
+    segOctaveBounds = octavePair;
+    {
+        auto pairArea = octavePair;
+        octaveDownButton.setBounds(pairArea.removeFromLeft(32));
+        octaveUpButton.setBounds(pairArea);
+    }
 
-    compactVoicingButton.setBounds(toolsRow.removeFromLeft(84));
+    toolsRow.removeFromLeft(16);
 
-    // Divider separating compact voicing from the destructive actions.
-    toolsGroupDivider = toolsRow.removeFromLeft(18).withSizeKeepingCentre(1, toolsRow.getHeight());
+    compactVoicingButton.setBounds(toolsRow.removeFromLeft(90));
 
-    clearChordButton.setBounds(toolsRow.removeFromLeft(104));
-    toolsRow.removeFromLeft(6);
-    deleteMappingButton.setBounds(toolsRow.removeFromLeft(96));
+    // Clear/Delete sit flush to the right edge, set off by a divider — a "danger zone"
+    // distinct from the transform actions on the left.
+    auto dangerZone = toolsRow.removeFromRight(104 + 6 + 96);
+    toolsGroupDivider = toolsRow.removeFromRight(18).withSizeKeepingCentre(1, toolsRow.getHeight());
+    clearChordButton.setBounds(dangerZone.removeFromLeft(104));
+    dangerZone.removeFromLeft(6);
+    deleteMappingButton.setBounds(dangerZone);
 
     area.removeFromTop(14);
 
@@ -948,14 +1021,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     else if (button == &redoButton)
     {
         redo();
-    }
-    else if (button == &invertDownButton)
-    {
-        invertSelectedChord(false);
-    }
-    else if (button == &invertUpButton)
-    {
-        invertSelectedChord(true);
     }
     else if (button == &octaveDownButton)
     {
@@ -1143,11 +1208,16 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
 
     for (auto* button : { &newPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
-                          &undoButton, &redoButton,
-                          &invertDownButton,
-                          &invertUpButton, &octaveDownButton, &octaveUpButton,
                           &compactVoicingButton,
                           &clearChordButton, &deleteMappingButton })
+    {
+        button->setColour(juce::TextButton::buttonColourId, control);
+        button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
+        button->setColour(juce::TextButton::textColourOffId, textColour);
+        button->setColour(juce::TextButton::textColourOnId, textColour);
+    }
+
+    for (auto* button : { &undoButton, &redoButton, &octaveDownButton, &octaveUpButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -1160,6 +1230,11 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     const auto dangerColour = control.interpolatedWith(juce::Colour(0xffcf4b41), 0.35f);
     for (auto* button : { &deletePresetButton, &deleteMappingButton })
         button->setColour(juce::TextButton::buttonColourId, dangerColour);
+
+    // Compact voicing gets a subtle accent tint so it reads as the "smart" action.
+    const auto accentPillColour = control.interpolatedWith(getAccentColour(), 0.2f);
+    compactVoicingButton.setColour(juce::TextButton::buttonColourId, accentPillColour);
+    compactVoicingButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
 
     for (auto* label : { &inputKeyboardLabel, &toolsLabel, &outputKeyboardLabel })
         label->setColour(juce::Label::textColourId, getMutedTextColour());
@@ -1588,6 +1663,26 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
             case 9: safeThis->applyChordTemplate(addNineIntervals); break;
             default: break;
         }
+    });
+}
+
+void MnKordAudioProcessorEditor::showInvertMenu()
+{
+    if (getSelectedMapping() == nullptr)
+        return;
+
+    juce::PopupMenu menu;
+    menu.addItem(1, "Invert up");
+    menu.addItem(2, "Invert down");
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+
+    menu.showMenuAsync(juce::PopupMenu::Options(), [safeThis](int result)
+    {
+        if (safeThis == nullptr || result == 0)
+            return;
+
+        safeThis->invertSelectedChord(result == 1);
     });
 }
 
