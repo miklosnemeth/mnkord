@@ -1215,7 +1215,7 @@ void MnKordAudioProcessorEditor::showScalePopup()
     content->setLookAndFeel(&flatLookAndFeel);
     auto& box = juce::CallOutBox::launchAsynchronously(std::move(content),
         localAreaToGlobal(scaleSummaryButton.getBounds()), nullptr);
-    juce::ignoreUnused(box);
+    box.setLookAndFeel(&flatLookAndFeel);
 
     logUi("showScalePopup: CallOutBox launched");
 }
@@ -1331,6 +1331,21 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::textColourId, textColour);
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
+
+    // LookAndFeel_V4's own colour scheme (not the individual setColour() calls above) drives
+    // chrome we don't paint ourselves, such as CallOutBox's bubble/outline. Without this it
+    // falls back to stock JUCE grey, clashing with the rest of the UI.
+    flatLookAndFeel.setColourScheme({
+        getBackgroundColour(),                    // windowBackground
+        getPanelColour(),                         // widgetBackground
+        control,                                  // menuBackground
+        getPanelLineColour(),                     // outline
+        textColour,                               // defaultText
+        control,                                  // defaultFill
+        textColour,                               // highlightedText
+        getAccentColour(),                        // highlightedFill
+        textColour                                // menuText
+    });
 
     for (auto* button : { &newPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
@@ -1458,6 +1473,7 @@ void MnKordAudioProcessorEditor::exportPresetsFromChooser()
     const bool exportBank = presets.size() > 1;
 
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&flatLookAndFeel);
     if (active >= 0 && active < (int) presets.size())
         menu.addItem(1, "Export current preset…");
     menu.addItem(2, "Export entire bank…");
@@ -1761,6 +1777,7 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     keyboardNoteClicked(KeyboardRole::input, midiNoteNumber);
 
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&flatLookAndFeel);
     menu.addItem(1, "Maj");
     menu.addItem(2, "Min");
     menu.addItem(3, "Sus2");
@@ -1813,6 +1830,7 @@ void MnKordAudioProcessorEditor::showInvertMenu()
         return;
 
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&flatLookAndFeel);
     menu.addItem(1, "Invert up");
     menu.addItem(2, "Invert down");
 
