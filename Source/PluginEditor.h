@@ -14,7 +14,6 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
-    bool keyPressed(const juce::KeyPress&) override;
 
     // Listener callbacks
     void comboBoxChanged(juce::ComboBox*) override;
@@ -114,19 +113,6 @@ private:
                                        int& idealHeight) override;
     };
 
-    enum class ToolIcon { Undo, Redo, OctaveDown, OctaveUp };
-
-    // A small, icon-only button for the TOOLS row's segmented pairs (Undo/Redo, Octave).
-    // Draws its own vector glyph instead of text, so pairs can sit flush together inside a
-    // shared rounded background (see segUndoRedoBounds/segOctaveBounds in paint()).
-    struct IconButton : public juce::Button
-    {
-        explicit IconButton(ToolIcon iconType) : juce::Button({}), icon(iconType) {}
-        void paintButton(juce::Graphics&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-        ToolIcon icon;
-    };
-
     struct MappingKeyboard : public juce::MidiKeyboardComponent
     {
         MappingKeyboard(MnKordAudioProcessorEditor& ownerRef,
@@ -195,16 +181,8 @@ private:
     juce::TextButton importPresetButton;
     juce::TextButton exportPresetButton;
     std::unique_ptr<juce::FileChooser> fileChooser;
-    IconButton undoButton { ToolIcon::Undo };
-    IconButton redoButton { ToolIcon::Redo };
-    IconButton octaveDownButton { ToolIcon::OctaveDown };
-    IconButton octaveUpButton { ToolIcon::OctaveUp };
-    juce::TextButton compactVoicingButton;
-    juce::TextButton clearChordButton;
-    juce::TextButton deleteMappingButton;
     juce::Label selectedInputLabel;
     juce::Label chordNotesLabel;
-    juce::Label toolsLabel;
     juce::Label presetInfoLabel;   // shows "group · author" of the active preset in the header
 
     // Keyboard editor
@@ -219,19 +197,6 @@ private:
     VisualTheme visualTheme = VisualTheme::Graphite;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
-
-    // Shared rounded backgrounds for the TOOLS row's segmented icon-button pairs (Undo/Redo,
-    // Octave), computed in resized() and drawn in paint(), with a 1px divider down the middle
-    // of each. toolsGroupDivider separates Compact from the Clear/Delete "danger zone".
-    juce::Rectangle<int> segUndoRedoBounds;
-    juce::Rectangle<int> segOctaveBounds;
-    juce::Rectangle<int> toolsGroupDivider;
-
-    // Per-active-preset undo/redo history of `Preset::mappings` snapshots. Cleared whenever
-    // the active preset changes (switch/new/delete/save-as/import), since history from one
-    // preset doesn't make sense applied to another.
-    std::vector<std::vector<NoteMapping>> undoStack;
-    std::vector<std::vector<NoteMapping>> redoStack;
 
     //==============================================================================
     void refreshPresetBox();
@@ -268,13 +233,6 @@ private:
     // a menu falls back to stock JUCE grey (see commit that fixed that for the first time).
     juce::PopupMenu makeStyledMenu();
     void setSelectedMappingIndex(int index);
-    // Snapshots the active preset's current mappings onto the undo stack and clears the redo
-    // stack. Call before any mutation to that preset's mappings.
-    void pushUndoSnapshot();
-    void clearUndoHistory();
-    void undo();
-    void redo();
-    void updateUndoRedoButtons();
     void keyboardNoteClicked(KeyboardRole role, int midiNoteNumber);
     // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu
     // of chord templates at the current mouse position; picking one applies it.
@@ -284,13 +242,6 @@ private:
     void showInvertMenu();
     void applyChordTemplate(const std::vector<int>& intervals);
     void invertSelectedChord(bool upwards);
-    void shiftSelectedChord(int semitones);
-    void clearSelectedChord();
-    void deleteSelectedMapping();
-    // Re-voices every mapping's chord in the active preset, processed in ascending input-note
-    // order, so each chord picks the octave placement (per pitch class) closest to the
-    // previous chord's centroid — minimising jumps between consecutive chords ("voice leading").
-    void compactVoiceLeading();
     void refreshKeyboardHighlights();
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;

@@ -7,7 +7,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 
 - Map any MIDI note to an arbitrary chord (click INPUT key, then CHORD keys)
 - Chord templates: Maj, Min, Sus2, Sus4, 7, Maj7, Min7, Dim, Add9
-- Invert / octave shift / clear chord / delete mapping
+- Invert a chord (right-click a CHORD key)
 - Factory preset bank (diatonic, pop progression, power chords, jazz 7ths)
 - Preset metadata: name, group, author
 - XML preset / bank **Import** and **Export**

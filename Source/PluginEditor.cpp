@@ -4,7 +4,6 @@
 #include "BinaryData.h"
 
 #include <functional>
-#include <limits>
 
 namespace
 {
@@ -306,54 +305,6 @@ juce::Typeface::Ptr MnKordAudioProcessorEditor::getTitleTypeface()
     static const juce::Typeface::Ptr montserrat = juce::Typeface::createSystemTypefaceFor(
         BinaryData::Montserrat_ttf, (size_t) BinaryData::Montserrat_ttfSize);
     return montserrat;
-}
-
-void MnKordAudioProcessorEditor::IconButton::paintButton(juce::Graphics& g,
-                                                          bool shouldDrawButtonAsHighlighted,
-                                                          bool shouldDrawButtonAsDown)
-{
-    auto bounds = getLocalBounds().toFloat();
-
-    if (shouldDrawButtonAsDown || shouldDrawButtonAsHighlighted)
-    {
-        g.setColour(findColour(juce::TextButton::buttonOnColourId).withAlpha(shouldDrawButtonAsDown ? 0.35f : 0.18f));
-        g.fillRect(bounds);
-    }
-
-    auto iconArea = bounds.reduced(9.0f);
-    auto pt = [&iconArea](float x, float y)
-    {
-        return juce::Point<float>(iconArea.getX() + (x / 24.0f) * iconArea.getWidth(),
-                                  iconArea.getY() + (y / 24.0f) * iconArea.getHeight());
-    };
-
-    juce::Path p;
-    switch (icon)
-    {
-        case ToolIcon::Undo:
-            p.startNewSubPath(pt(15, 5)); p.lineTo(pt(9, 12)); p.lineTo(pt(15, 19));
-            p.startNewSubPath(pt(9, 12)); p.lineTo(pt(19, 12));
-            break;
-        case ToolIcon::Redo:
-            p.startNewSubPath(pt(9, 5)); p.lineTo(pt(15, 12)); p.lineTo(pt(9, 19));
-            p.startNewSubPath(pt(15, 12)); p.lineTo(pt(5, 12));
-            break;
-        case ToolIcon::OctaveDown:
-            p.startNewSubPath(pt(6, 9));  p.lineTo(pt(12, 15)); p.lineTo(pt(18, 9));
-            p.startNewSubPath(pt(6, 15)); p.lineTo(pt(12, 21)); p.lineTo(pt(18, 15));
-            break;
-        case ToolIcon::OctaveUp:
-            p.startNewSubPath(pt(6, 15)); p.lineTo(pt(12, 9)); p.lineTo(pt(18, 15));
-            p.startNewSubPath(pt(6, 9));  p.lineTo(pt(12, 3)); p.lineTo(pt(18, 9));
-            break;
-    }
-
-    auto strokeColour = findColour(juce::TextButton::textColourOffId);
-    if (! isEnabled())
-        strokeColour = strokeColour.withAlpha(0.35f);
-
-    g.setColour(strokeColour);
-    g.strokePath(p, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
 void MnKordAudioProcessorEditor::FlatLookAndFeel::drawButtonBackground(juce::Graphics& g,
@@ -739,43 +690,24 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     deletePresetButton.setButtonText("Delete");
     importPresetButton.setButtonText("Import");
     exportPresetButton.setButtonText("Export");
-    compactVoicingButton.setButtonText("Compact");
-    clearChordButton.setButtonText("Clear chord");
-    deleteMappingButton.setButtonText("Delete key");
-
-    undoButton.setTooltip("Undo");
-    redoButton.setTooltip("Redo");
-    octaveDownButton.setTooltip("Octave down");
-    octaveUpButton.setTooltip("Octave up");
 
     for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
-                          &importPresetButton, &exportPresetButton,
-                          &compactVoicingButton,
-                          &clearChordButton, &deleteMappingButton })
+                          &importPresetButton, &exportPresetButton })
     {
         button->addListener(this);
         addAndMakeVisible(button);
     }
-
-    for (auto* button : { &undoButton, &redoButton, &octaveDownButton, &octaveUpButton })
-    {
-        button->addListener(this);
-        addAndMakeVisible(button);
-    }
-
-    setWantsKeyboardFocus(true);
 
     // Host/program changes and external preset edits may arrive while the editor is open.
     startTimerHz(8);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
     outputKeyboardLabel.setText("CHORD", juce::dontSendNotification);
-    toolsLabel.setText("TOOLS   -   right-click INPUT for chord templates, CHORD to invert", juce::dontSendNotification);
     selectedInputLabel.setText("-", juce::dontSendNotification);
     chordNotesLabel.setText("-", juce::dontSendNotification);
     presetInfoLabel.setText("-", juce::dontSendNotification);
 
-    for (auto* label : { &inputKeyboardLabel, &toolsLabel, &outputKeyboardLabel })
+    for (auto* label : { &inputKeyboardLabel, &outputKeyboardLabel })
     {
         label->setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(label);
@@ -794,15 +726,13 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
 
-    setSize(980, 546);
+    setSize(980, 456);
 
     refreshDesignBox();
     updateScaleSummaryText();
     applyVisualTheme();
     refreshPresetBox();
     setSelectedMappingIndex(selectedMappingIndex);
-    updateUndoRedoButtons();
-    grabKeyboardFocus();
 }
 
 MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
@@ -852,30 +782,13 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
     auto panelArea = getLocalBounds().reduced(14).withTrimmedTop(74).toFloat();
     auto topPanel = panelArea.removeFromTop(142.0f);
     panelArea.removeFromTop(14.0f);
-    auto toolsPanel = panelArea.removeFromTop(76.0f);
-    panelArea.removeFromTop(14.0f);
     auto bottomPanel = panelArea.removeFromTop(184.0f);
 
-    for (const auto rect : { topPanel, toolsPanel, bottomPanel })
+    for (const auto rect : { topPanel, bottomPanel })
     {
         g.setColour(getPanelColour());
         g.fillRoundedRectangle(rect, 8.0f);
     }
-
-    // Shared rounded backgrounds behind the Undo/Redo and Octave icon-button pairs, each split
-    // by a thin divider so the pair still reads as two distinct actions.
-    for (const auto& seg : { segUndoRedoBounds, segOctaveBounds })
-    {
-        g.setColour(getControlColour());
-        g.fillRoundedRectangle(seg.toFloat(), 8.0f);
-
-        g.setColour(getPanelLineColour());
-        g.fillRect(juce::Rectangle<float>((float) seg.getCentreX() - 0.5f, (float) seg.getY() + 5.0f,
-                                          1.0f, (float) seg.getHeight() - 10.0f));
-    }
-
-    g.setColour(getPanelLineColour());
-    g.fillRect(toolsGroupDivider.toFloat());
 }
 
 void MnKordAudioProcessorEditor::resized()
@@ -920,47 +833,6 @@ void MnKordAudioProcessorEditor::resized()
 
     area.removeFromTop(14);
 
-    auto toolsPanel = area.removeFromTop(76).reduced(14, 10);
-    toolsLabel.setBounds(toolsPanel.removeFromTop(18));
-    toolsPanel.removeFromTop(8);
-
-    auto toolsRow = toolsPanel.removeFromTop(30);
-
-    // Undo/Redo: a segmented icon-button pair sharing one rounded background.
-    auto undoRedoPair = toolsRow.removeFromLeft(64);
-    segUndoRedoBounds = undoRedoPair;
-    {
-        auto pairArea = undoRedoPair;
-        undoButton.setBounds(pairArea.removeFromLeft(32));
-        redoButton.setBounds(pairArea);
-    }
-
-    toolsRow.removeFromLeft(16);
-
-    // Octave: a segmented icon-button pair, same treatment. Invert now lives on the CHORD
-    // keyboard's right-click menu, so there's no separate Inv +/- pair here.
-    auto octavePair = toolsRow.removeFromLeft(64);
-    segOctaveBounds = octavePair;
-    {
-        auto pairArea = octavePair;
-        octaveDownButton.setBounds(pairArea.removeFromLeft(32));
-        octaveUpButton.setBounds(pairArea);
-    }
-
-    toolsRow.removeFromLeft(16);
-
-    compactVoicingButton.setBounds(toolsRow.removeFromLeft(90));
-
-    // Clear/Delete sit flush to the right edge, set off by a divider — a "danger zone"
-    // distinct from the transform actions on the left.
-    auto dangerZone = toolsRow.removeFromRight(104 + 6 + 96);
-    toolsGroupDivider = toolsRow.removeFromRight(18).withSizeKeepingCentre(1, toolsRow.getHeight());
-    clearChordButton.setBounds(dangerZone.removeFromLeft(104));
-    dangerZone.removeFromLeft(6);
-    deleteMappingButton.setBounds(dangerZone);
-
-    area.removeFromTop(14);
-
     auto outputPanel = area.removeFromTop(184).reduced(14, 10);
     auto outputHeader = outputPanel.removeFromTop(24);
     outputKeyboardLabel.setBounds(outputHeader.removeFromLeft(120));
@@ -977,7 +849,6 @@ void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
         audioProcessor.setActivePresetIndex(presetBox.getSelectedItemIndex());
         selectedMappingIndex = -1;
         setSelectedMappingIndex(selectedMappingIndex);
-        clearUndoHistory();
     }
     else if (box == &designBox)
     {
@@ -1015,7 +886,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
             selectedMappingIndex = -1;
             refreshPresetBox();
             setSelectedMappingIndex(selectedMappingIndex);
-            clearUndoHistory();
         });
     }
     else if (button == &editPresetButton)
@@ -1038,7 +908,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
             selectedMappingIndex = -1;
             refreshPresetBox();
             setSelectedMappingIndex(selectedMappingIndex);
-            clearUndoHistory();
         }
     }
     else if (button == &importPresetButton)
@@ -1055,41 +924,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     {
         logUi("buttonClicked: scale chip");
         showScalePopup();
-    }
-    else if (button == &undoButton)
-    {
-        logUi("buttonClicked: Undo (stack size=" + juce::String((int) undoStack.size()) + ")");
-        undo();
-    }
-    else if (button == &redoButton)
-    {
-        logUi("buttonClicked: Redo (stack size=" + juce::String((int) redoStack.size()) + ")");
-        redo();
-    }
-    else if (button == &octaveDownButton)
-    {
-        logUi("buttonClicked: Octave down");
-        shiftSelectedChord(-12);
-    }
-    else if (button == &octaveUpButton)
-    {
-        logUi("buttonClicked: Octave up");
-        shiftSelectedChord(12);
-    }
-    else if (button == &compactVoicingButton)
-    {
-        logUi("buttonClicked: Compact");
-        compactVoiceLeading();
-    }
-    else if (button == &clearChordButton)
-    {
-        logUi("buttonClicked: Clear chord");
-        clearSelectedChord();
-    }
-    else if (button == &deleteMappingButton)
-    {
-        logUi("buttonClicked: Delete key");
-        deleteSelectedMapping();
     }
     else
     {
@@ -1381,9 +1215,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
     for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
-                          &importPresetButton, &exportPresetButton,
-                          &compactVoicingButton,
-                          &clearChordButton, &deleteMappingButton })
+                          &importPresetButton, &exportPresetButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -1391,26 +1223,11 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
         button->setColour(juce::TextButton::textColourOnId, textColour);
     }
 
-    for (auto* button : { &undoButton, &redoButton, &octaveDownButton, &octaveUpButton })
-    {
-        button->setColour(juce::TextButton::buttonColourId, control);
-        button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
-        button->setColour(juce::TextButton::textColourOffId, textColour);
-        button->setColour(juce::TextButton::textColourOnId, textColour);
-    }
-
-    // Destructive actions get a subtle red tint so they read as distinct from
-    // the rest of the (otherwise uniform) TOOLS buttons.
+    // Destructive action gets a subtle red tint so it reads as distinct from the rest.
     const auto dangerColour = control.interpolatedWith(juce::Colour(0xffcf4b41), 0.35f);
-    for (auto* button : { &deletePresetButton, &deleteMappingButton })
-        button->setColour(juce::TextButton::buttonColourId, dangerColour);
+    deletePresetButton.setColour(juce::TextButton::buttonColourId, dangerColour);
 
-    // Compact voicing gets a subtle accent tint so it reads as the "smart" action.
-    const auto accentPillColour = control.interpolatedWith(getAccentColour(), 0.2f);
-    compactVoicingButton.setColour(juce::TextButton::buttonColourId, accentPillColour);
-    compactVoicingButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
-
-    for (auto* label : { &inputKeyboardLabel, &toolsLabel, &outputKeyboardLabel })
+    for (auto* label : { &inputKeyboardLabel, &outputKeyboardLabel })
         label->setColour(juce::Label::textColourId, getMutedTextColour());
 
     for (auto* label : { &selectedInputLabel, &chordNotesLabel })
@@ -1442,7 +1259,6 @@ void MnKordAudioProcessorEditor::saveCurrentPresetAs()
         selectedMappingIndex = -1;
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
-        clearUndoHistory();
     });
 }
 
@@ -1524,7 +1340,6 @@ void MnKordAudioProcessorEditor::importPresetsFromChooser()
         selectedMappingIndex = -1;
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
-        clearUndoHistory();
     });
 }
 
@@ -1679,103 +1494,6 @@ void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
     updatePresetMetaLabel();
 }
 
-void MnKordAudioProcessorEditor::pushUndoSnapshot()
-{
-    const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-    auto& presets = audioProcessor.getPresets();
-    const int presetIndex = audioProcessor.getActivePresetIndex();
-    if (presetIndex < 0 || presetIndex >= (int) presets.size())
-        return;
-
-    undoStack.push_back(presets[(size_t) presetIndex].mappings);
-    if (undoStack.size() > 50)
-        undoStack.erase(undoStack.begin());
-
-    redoStack.clear();
-    updateUndoRedoButtons();
-}
-
-void MnKordAudioProcessorEditor::clearUndoHistory()
-{
-    undoStack.clear();
-    redoStack.clear();
-    updateUndoRedoButtons();
-}
-
-void MnKordAudioProcessorEditor::undo()
-{
-    if (undoStack.empty())
-        return;
-
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        redoStack.push_back(presets[(size_t) presetIndex].mappings);
-        presets[(size_t) presetIndex].mappings = undoStack.back();
-        undoStack.pop_back();
-    }
-
-    setSelectedMappingIndex(selectedMappingIndex);
-    updateUndoRedoButtons();
-}
-
-void MnKordAudioProcessorEditor::redo()
-{
-    if (redoStack.empty())
-        return;
-
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        undoStack.push_back(presets[(size_t) presetIndex].mappings);
-        presets[(size_t) presetIndex].mappings = redoStack.back();
-        redoStack.pop_back();
-    }
-
-    setSelectedMappingIndex(selectedMappingIndex);
-    updateUndoRedoButtons();
-}
-
-void MnKordAudioProcessorEditor::updateUndoRedoButtons()
-{
-    undoButton.setEnabled(! undoStack.empty());
-    redoButton.setEnabled(! redoStack.empty());
-}
-
-bool MnKordAudioProcessorEditor::keyPressed(const juce::KeyPress& key)
-{
-    const auto isZ = key.getTextCharacter() == 'z' || key.getTextCharacter() == 'Z';
-    const auto isY = key.getTextCharacter() == 'y' || key.getTextCharacter() == 'Y';
-
-    if (key.getModifiers().isCommandDown() && isZ)
-    {
-        if (key.getModifiers().isShiftDown())
-            redo();
-        else
-            undo();
-        return true;
-    }
-
-    if (key.getModifiers().isCommandDown() && isY)
-    {
-        redo();
-        return true;
-    }
-
-    return false;
-}
-
 void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midiNoteNumber)
 {
     {
@@ -1810,8 +1528,6 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
                 }
             }
 
-            pushUndoSnapshot();
-
             NoteMapping mapping;
             mapping.inputNote = midiNoteNumber;
             preset.mappings.push_back(mapping);
@@ -1823,8 +1539,6 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
 
         if (auto* mapping = getSelectedMapping())
         {
-            pushUndoSnapshot();
-
             auto& notes = mapping->outputNotes;
             const auto it = std::find(notes.begin(), notes.end(), midiNoteNumber);
 
@@ -1925,8 +1639,6 @@ void MnKordAudioProcessorEditor::applyChordTemplate(const std::vector<int>& inte
         if (mapping == nullptr)
             return;
 
-        pushUndoSnapshot();
-
         mapping->outputNotes.clear();
 
         for (const auto interval : intervals)
@@ -1967,7 +1679,6 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
             if (moved > 127)
                 return;
 
-            pushUndoSnapshot();
             mapping->outputNotes.erase(mapping->outputNotes.begin());
             mapping->outputNotes.push_back(moved);
         }
@@ -1977,168 +1688,12 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
             if (moved < 0)
                 return;
 
-            pushUndoSnapshot();
             mapping->outputNotes.pop_back();
             mapping->outputNotes.insert(mapping->outputNotes.begin(), moved);
         }
 
         std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
         logUi("invertSelectedChord: after=" + noteListToString(mapping->outputNotes));
-    }
-
-    refreshKeyboardHighlights();
-    refreshSummaryLabels();
-}
-
-void MnKordAudioProcessorEditor::shiftSelectedChord(int semitones)
-{
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto* mapping = getSelectedMapping();
-        if (mapping == nullptr)
-            return;
-
-        logUi("shiftSelectedChord(" + juce::String(semitones) + "): before="
-            + noteListToString(mapping->outputNotes));
-
-        if (mapping->outputNotes.empty())
-            return;
-
-        for (const auto note : mapping->outputNotes)
-            if (note + semitones < 0 || note + semitones > 127)
-                return;
-
-        pushUndoSnapshot();
-
-        for (auto& note : mapping->outputNotes)
-            note += semitones;
-
-        std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
-        logUi("shiftSelectedChord: after=" + noteListToString(mapping->outputNotes));
-    }
-
-    refreshKeyboardHighlights();
-    refreshSummaryLabels();
-}
-
-void MnKordAudioProcessorEditor::clearSelectedChord()
-{
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto* mapping = getSelectedMapping();
-        if (mapping == nullptr)
-            return;
-
-        pushUndoSnapshot();
-        mapping->outputNotes.clear();
-    }
-
-    refreshKeyboardHighlights();
-    refreshSummaryLabels();
-}
-
-void MnKordAudioProcessorEditor::deleteSelectedMapping()
-{
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        auto& mappings = presets[(size_t) presetIndex].mappings;
-        if (selectedMappingIndex < 0 || selectedMappingIndex >= (int) mappings.size())
-            return;
-
-        pushUndoSnapshot();
-        mappings.erase(mappings.begin() + selectedMappingIndex);
-
-        if (selectedMappingIndex >= (int) mappings.size())
-            selectedMappingIndex = (int) mappings.size() - 1;
-    }
-
-    setSelectedMappingIndex(selectedMappingIndex);
-}
-
-void MnKordAudioProcessorEditor::compactVoiceLeading()
-{
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        auto& mappings = presets[(size_t) presetIndex].mappings;
-        if (mappings.size() < 2)
-            return;
-
-        pushUndoSnapshot();
-
-        std::vector<NoteMapping*> ordered;
-        ordered.reserve(mappings.size());
-        for (auto& mapping : mappings)
-            ordered.push_back(&mapping);
-
-        std::sort(ordered.begin(), ordered.end(), [](const NoteMapping* a, const NoteMapping* b)
-        {
-            return a->inputNote < b->inputNote;
-        });
-
-        for (size_t i = 1; i < ordered.size(); ++i)
-        {
-            const auto& previousNotes = ordered[i - 1]->outputNotes;
-            auto& currentNotes = ordered[i]->outputNotes;
-
-            if (previousNotes.empty() || currentNotes.empty())
-                continue;
-
-            double centroid = 0.0;
-            for (const int note : previousNotes)
-                centroid += note;
-            centroid /= (double) previousNotes.size();
-
-            // Each chord tone (by pitch class) moves to whichever octave sits closest to the
-            // previous chord's centroid. No note is forced to be "the bass" -- that's what lets
-            // a chord like iii come out inverted (e.g. B-E-G rather than E-G-B) when that's the
-            // closest voicing to what came before, matching the scale root's chord it's chained
-            // from rather than each chord's own root position.
-            std::vector<int> pitchClasses;
-            for (const int note : currentNotes)
-            {
-                const int pitchClass = ((note % 12) + 12) % 12;
-                if (std::find(pitchClasses.begin(), pitchClasses.end(), pitchClass) == pitchClasses.end())
-                    pitchClasses.push_back(pitchClass);
-            }
-
-            std::vector<int> revoiced;
-            for (const int pitchClass : pitchClasses)
-            {
-                int closest = pitchClass;
-                double closestDistance = std::numeric_limits<double>::max();
-
-                for (int candidate = pitchClass; candidate < 128; candidate += 12)
-                {
-                    const double distance = std::abs((double) candidate - centroid);
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        closest = candidate;
-                    }
-                }
-
-                revoiced.push_back(closest);
-            }
-
-            std::sort(revoiced.begin(), revoiced.end());
-            revoiced.erase(std::unique(revoiced.begin(), revoiced.end()), revoiced.end());
-            currentNotes = revoiced;
-        }
     }
 
     refreshKeyboardHighlights();
