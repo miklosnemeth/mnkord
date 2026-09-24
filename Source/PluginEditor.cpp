@@ -20,7 +20,16 @@ namespace
 
     void logUi(const juce::String& message)
     {
-        juce::Logger::writeToLog(message);
+        // Several call sites invoke this while holding MnKordAudioProcessor::getStateLock(),
+        // which processBlock() also holds (for the whole MIDI block) on the real-time audio
+        // thread. FileLogger::logMessage() opens/writes/closes the log file synchronously on
+        // every call, so writing here directly could stall the GUI thread mid-lock on slow
+        // disk I/O and block the audio thread behind it. Defer the actual write to the next
+        // message-loop iteration, by which point any such lock has already been released.
+        juce::MessageManager::callAsync([message]
+        {
+            juce::Logger::writeToLog(message);
+        });
     }
 
     juce::String displayNoteName(int midiNote)
@@ -161,14 +170,11 @@ namespace
                     scaleRootBox.addItem(NoteName::pitchClassName(i), i + 1);
                 scaleRootBox.setSelectedItemIndex(seedScaleRoot, juce::dontSendNotification);
 
-                scaleTypeBox.addItem("Full range", 1);
-                scaleTypeBox.addItem("Major", 2);
-                scaleTypeBox.addItem("Natural minor", 3);
-                scaleTypeBox.addItem("Harmonic minor", 4);
-                scaleTypeBox.addItem("Melodic minor", 5);
-                scaleTypeBox.addItem("Maj pentatonic", 6);
-                scaleTypeBox.addItem("Min pentatonic", 7);
-                scaleTypeBox.setSelectedItemIndex(scaleIndexFor(seedScaleType), juce::dontSendNotification);
+                for (int i = 0; i <= 6; ++i)
+                    scaleTypeBox.addItem(MnKordAudioProcessorEditor::scaleTypeName(
+                        MnKordAudioProcessorEditor::scaleTypeForIndex(i)), i + 1);
+                scaleTypeBox.setSelectedItemIndex(MnKordAudioProcessorEditor::scaleTypeIndexFor(seedScaleType),
+                                                  juce::dontSendNotification);
 
                 chordSizeBox.addItem("Triad (3 notes)", 1);
                 chordSizeBox.addItem("Seventh (4 notes)", 2);
@@ -267,17 +273,7 @@ namespace
                 return options;
 
             options.scaleRoot = juce::jmax(0, scaleRootBox.getSelectedItemIndex());
-
-            switch (scaleTypeBox.getSelectedItemIndex())
-            {
-                case 1:  options.scaleType = MnKordAudioProcessorEditor::Scale::Major; break;
-                case 2:  options.scaleType = MnKordAudioProcessorEditor::Scale::NaturalMinor; break;
-                case 3:  options.scaleType = MnKordAudioProcessorEditor::Scale::HarmonicMinor; break;
-                case 4:  options.scaleType = MnKordAudioProcessorEditor::Scale::MelodicMinor; break;
-                case 5:  options.scaleType = MnKordAudioProcessorEditor::Scale::MajorPentatonic; break;
-                case 6:  options.scaleType = MnKordAudioProcessorEditor::Scale::MinorPentatonic; break;
-                default: options.scaleType = MnKordAudioProcessorEditor::Scale::Chromatic; break;
-            }
+            options.scaleType = MnKordAudioProcessorEditor::scaleTypeForIndex(scaleTypeBox.getSelectedItemIndex());
 
             options.chordSize = chordSizeBox.getSelectedItemIndex() == 1 ? 4 : 3;
             options.inversion = juce::jmax(0, inversionBox.getSelectedItemIndex());
@@ -287,21 +283,6 @@ namespace
         }
 
     private:
-        static int scaleIndexFor(MnKordAudioProcessorEditor::Scale scale)
-        {
-            switch (scale)
-            {
-                case MnKordAudioProcessorEditor::Scale::Major:           return 1;
-                case MnKordAudioProcessorEditor::Scale::NaturalMinor:    return 2;
-                case MnKordAudioProcessorEditor::Scale::HarmonicMinor:   return 3;
-                case MnKordAudioProcessorEditor::Scale::MelodicMinor:    return 4;
-                case MnKordAudioProcessorEditor::Scale::MajorPentatonic: return 5;
-                case MnKordAudioProcessorEditor::Scale::MinorPentatonic: return 6;
-                case MnKordAudioProcessorEditor::Scale::Chromatic:       return 0;
-            }
-            return 0;
-        }
-
         bool showGenerationOptions = false;
 
         juce::Label nameLabel, groupLabel, authorLabel;
@@ -827,6 +808,22 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 {
     stopTimer();
+
+    // The scale popup's CallOutBox is a top-level window not owned by this component tree
+    // (see showScalePopup()), so it can still be open here. Clear its LookAndFeel pointer
+    // (and its content's) before flatLookAndFeel is destroyed along with the rest of *this*,
+    // so any repaint the still-open box does afterwards falls back to JUCE's default
+    // LookAndFeel instead of dereferencing freed memory. Dismissing it is a best-effort
+    // extra (it's an async request), not what makes this safe.
+    if (activeScalePopup != nullptr)
+    {
+        if (auto* content = activeScalePopup->getChildComponent(0))
+            content->setLookAndFeel(nullptr);
+
+        activeScalePopup->setLookAndFeel(nullptr);
+        activeScalePopup->dismiss();
+    }
+
     setLookAndFeel(nullptr);
 }
 
@@ -1183,11 +1180,11 @@ void MnKordAudioProcessorEditor::updateScaleSummaryText()
 }
 
 MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProcessorEditor& ownerRef)
-    : owner(ownerRef)
+    : owner(&ownerRef)
 {
     for (int i = 0; i < 12; ++i)
         rootBox.addItem(NoteName::pitchClassName(i), i + 1);
-    rootBox.setSelectedItemIndex(owner.scaleRoot, juce::dontSendNotification);
+    rootBox.setSelectedItemIndex(owner->scaleRoot, juce::dontSendNotification);
 
     typeBox.addItem("Full range", 1);
     typeBox.addItem("Major", 2);
@@ -1196,11 +1193,11 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
     typeBox.addItem("Melodic minor", 5);
     typeBox.addItem("Maj pentatonic", 6);
     typeBox.addItem("Min pentatonic", 7);
-    typeBox.setSelectedItemIndex(scaleTypeIndexFor(owner.scaleType), juce::dontSendNotification);
+    typeBox.setSelectedItemIndex(scaleTypeIndexFor(owner->scaleType), juce::dontSendNotification);
 
-    const auto control = owner.getControlColour();
-    const auto text = owner.getTextColour();
-    const auto accent = owner.getAccentColour();
+    const auto control = owner->getControlColour();
+    const auto text = owner->getTextColour();
+    const auto accent = owner->getAccentColour();
 
     for (auto* box : { &rootBox, &typeBox })
     {
@@ -1224,25 +1221,32 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
 
 void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboBox*)
 {
-    owner.scaleRoot = juce::jmax(0, rootBox.getSelectedItemIndex());
-    owner.scaleType = scaleTypeForIndex(typeBox.getSelectedItemIndex());
-    logUi("ScalePopupContent::comboBoxChanged -> root=" + juce::String(owner.scaleRoot)
-        + " type=" + scaleTypeName(owner.scaleType));
-    owner.updateScaleSummaryText();
-    owner.inputKeyboard.repaint();
+    // The CallOutBox hosting this is a top-level window (see showScalePopup()), so it can
+    // outlive the editor if the host closes the plugin UI while it's still open.
+    if (owner == nullptr)
+        return;
+
+    owner->scaleRoot = juce::jmax(0, rootBox.getSelectedItemIndex());
+    owner->scaleType = scaleTypeForIndex(typeBox.getSelectedItemIndex());
+    logUi("ScalePopupContent::comboBoxChanged -> root=" + juce::String(owner->scaleRoot)
+        + " type=" + scaleTypeName(owner->scaleType));
+    owner->updateScaleSummaryText();
+    owner->inputKeyboard.repaint();
 }
 
 void MnKordAudioProcessorEditor::showScalePopup()
 {
+    const auto screenBounds = localAreaToGlobal(scaleSummaryButton.getBounds());
+
     logUi("showScalePopup: current=" + scaleSummaryButton.getButtonText()
         + " buttonBounds=" + scaleSummaryButton.getBounds().toString()
-        + " screenBounds=" + localAreaToGlobal(scaleSummaryButton.getBounds()).toString());
+        + " screenBounds=" + screenBounds.toString());
 
     auto content = std::make_unique<ScalePopupContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
-    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content),
-        localAreaToGlobal(scaleSummaryButton.getBounds()), nullptr);
+    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), screenBounds, nullptr);
     box.setLookAndFeel(&flatLookAndFeel);
+    activeScalePopup = &box;
 
     logUi("showScalePopup: CallOutBox launched");
 }
@@ -1354,14 +1358,11 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     scaleSummaryButton.setColour(juce::TextButton::textColourOffId, getMutedTextColour());
     scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
 
-    flatLookAndFeel.setColour(juce::PopupMenu::backgroundColourId, control);
-    flatLookAndFeel.setColour(juce::PopupMenu::textColourId, textColour);
-    flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
-    flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
-
-    // LookAndFeel_V4's own colour scheme (not the individual setColour() calls above) drives
-    // chrome we don't paint ourselves, such as CallOutBox's bubble/outline. Without this it
-    // falls back to stock JUCE grey, clashing with the rest of the UI.
+    // LookAndFeel_V4's own colour scheme (not individual setColour() calls) drives chrome we
+    // don't paint ourselves, such as CallOutBox's bubble/outline. Without this it falls back to
+    // stock JUCE grey, clashing with the rest of the UI. setColourScheme() internally calls
+    // setColour() for a fixed set of ids (including the PopupMenu ones below), so it must run
+    // *before* our own explicit overrides or it would silently clobber them.
     flatLookAndFeel.setColourScheme({
         getBackgroundColour(),                    // windowBackground
         getPanelColour(),                         // widgetBackground
@@ -1373,6 +1374,11 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
         getAccentColour(),                        // highlightedFill
         textColour                                // menuText
     });
+
+    flatLookAndFeel.setColour(juce::PopupMenu::backgroundColourId, control);
+    flatLookAndFeel.setColour(juce::PopupMenu::textColourId, textColour);
+    flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
+    flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
     for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
                           &importPresetButton, &exportPresetButton,
@@ -1454,7 +1460,12 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
             const juce::ScopedLock lock(audioProcessor.getStateLock());
             auto& mutablePresets = audioProcessor.getPresets();
 
-            if (index < 0 || index >= (int) mutablePresets.size())
+            // Bounds-check alone isn't enough: while the dialog was open, a host program
+            // change or another mutation could have made `index` point at a *different*
+            // preset than the one the user opened "Edit" on. Only apply the edit if the
+            // active preset is still the one we started editing.
+            if (index < 0 || index >= (int) mutablePresets.size()
+                || audioProcessor.getActivePresetIndex() != index)
                 return;
 
             mutablePresets[(size_t) index].name = p.name;
@@ -1462,8 +1473,8 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
             mutablePresets[(size_t) index].author = p.author;
         }
 
+        // refreshPresetBox() already calls updatePresetMetaLabel() internally.
         refreshPresetBox();
-        updatePresetMetaLabel();
     });
 }
 
@@ -1526,8 +1537,7 @@ void MnKordAudioProcessorEditor::exportPresetsFromChooser()
     const int active = audioProcessor.getActivePresetIndex();
     const bool exportBank = presets.size() > 1;
 
-    juce::PopupMenu menu;
-    menu.setLookAndFeel(&flatLookAndFeel);
+    auto menu = makeStyledMenu();
     if (active >= 0 && active < (int) presets.size())
         menu.addItem(1, "Export current preset…");
     menu.addItem(2, "Export entire bank…");
@@ -1643,6 +1653,13 @@ void MnKordAudioProcessorEditor::updatePresetMetaLabel()
         meta = "-";
 
     presetInfoLabel.setText(meta, juce::dontSendNotification);
+}
+
+juce::PopupMenu MnKordAudioProcessorEditor::makeStyledMenu()
+{
+    juce::PopupMenu menu;
+    menu.setLookAndFeel(&flatLookAndFeel);
+    return menu;
 }
 
 void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
@@ -1830,8 +1847,7 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     // Right-clicking a key selects/creates its mapping, same as a left click would.
     keyboardNoteClicked(KeyboardRole::input, midiNoteNumber);
 
-    juce::PopupMenu menu;
-    menu.setLookAndFeel(&flatLookAndFeel);
+    auto menu = makeStyledMenu();
     menu.addItem(1, "Maj");
     menu.addItem(2, "Min");
     menu.addItem(3, "Sus2");
@@ -1883,8 +1899,7 @@ void MnKordAudioProcessorEditor::showInvertMenu()
     if (getSelectedMapping() == nullptr)
         return;
 
-    juce::PopupMenu menu;
-    menu.setLookAndFeel(&flatLookAndFeel);
+    auto menu = makeStyledMenu();
     menu.addItem(1, "Invert up");
     menu.addItem(2, "Invert down");
 

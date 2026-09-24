@@ -45,6 +45,14 @@ public:
         int octaveShift = 0;    // octaves to transpose the generated chord (-2..+2)
     };
 
+    // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic). Public,
+    // stateless, and side-effect-free, so it can be the single shared mapping for
+    // updateScaleSummaryText(), ScalePopupContent, and the (free-standing) New-preset dialog
+    // content component, instead of each keeping its own copy.
+    static int scaleTypeIndexFor(Scale scale);
+    static Scale scaleTypeForIndex(int index);
+    static juce::String scaleTypeName(Scale scale);
+
 private:
     enum class KeyboardRole
     {
@@ -147,18 +155,27 @@ private:
 
     // Content shown in the CallOutBox opened by clicking scaleSummaryButton: just the root
     // and scale-type pickers, live-applied on change (no Save/Cancel needed).
+    //
+    // The CallOutBox that hosts this is launched with a null parent (see showScalePopup()),
+    // so it becomes an independent top-level window that can outlive the editor if the host
+    // closes the plugin UI while it's still open. owner is therefore a SafePointer, checked
+    // before every use, rather than a raw reference.
     struct ScalePopupContent : public juce::Component, private juce::ComboBox::Listener
     {
         explicit ScalePopupContent(MnKordAudioProcessorEditor& ownerRef);
         void resized() override;
         void comboBoxChanged(juce::ComboBox*) override;
 
-        MnKordAudioProcessorEditor& owner;
+        juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         juce::ComboBox rootBox, typeBox;
     };
 
     //==============================================================================
     MnKordAudioProcessor& audioProcessor;
+
+    // Services setTooltip() on the TOOLS-row icon buttons (Undo/Redo/Octave); without a
+    // TooltipWindow instance somewhere in the hierarchy, JUCE never shows tooltips at all.
+    juce::TooltipWindow tooltipWindow { this };
 
     // Preset controls
     FlatLookAndFeel flatLookAndFeel;
@@ -166,6 +183,10 @@ private:
     juce::ComboBox designBox;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
+    // The CallOutBox launched by showScalePopup() (null-parented, so not torn down with the
+    // editor's component tree). Tracked so the destructor can defuse its LookAndFeel pointer
+    // (which would otherwise dangle into this soon-to-be-destroyed editor) before returning.
+    juce::Component::SafePointer<juce::CallOutBox> activeScalePopup;
     juce::TextButton scaleSummaryButton;
     juce::TextButton newPresetButton;
     juce::TextButton editPresetButton;
@@ -222,11 +243,6 @@ private:
     void applyVisualTheme();
     bool isInSelectedScale(int midiNoteNumber) const;
     static const std::vector<int>& scaleIntervals(Scale scale);
-    // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic), shared by
-    // updateScaleSummaryText(), ScalePopupContent and the New-preset dialog.
-    static int scaleTypeIndexFor(Scale scale);
-    static Scale scaleTypeForIndex(int index);
-    static juce::String scaleTypeName(Scale scale);
     // The "mnKord" header title uses Montserrat; every other piece of text in the UI goes
     // through FlatLookAndFeel::getTypefaceForFont(), which uses Roboto Condensed.
     static juce::Typeface::Ptr getTitleTypeface();
@@ -248,6 +264,9 @@ private:
                               bool showGenerationOptions,
                               const std::function<void(const Preset&, const DiatonicFillOptions&)>& onSave);
     void updatePresetMetaLabel();
+    // juce::PopupMenu doesn't inherit the editor's LookAndFeel automatically -- without this,
+    // a menu falls back to stock JUCE grey (see commit that fixed that for the first time).
+    juce::PopupMenu makeStyledMenu();
     void setSelectedMappingIndex(int index);
     // Snapshots the active preset's current mappings onto the undo stack and clears the redo
     // stack. Call before any mutation to that preset's mappings.
