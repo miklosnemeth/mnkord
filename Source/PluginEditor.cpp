@@ -113,6 +113,52 @@ namespace
         return rootName + quality + " (" + notes + ")";
     }
 
+    // Backs the right-click chord-template menu (showChordTemplateMenu()): both the menu-item
+    // ids/intervals used to apply a template and the "does this fit the current scale" check
+    // that greys out non-diatonic entries read from these same two lists.
+    struct ChordTemplateOption
+    {
+        int id;
+        const char* name;
+        std::vector<int> intervals;
+    };
+
+    const std::vector<ChordTemplateOption>& triadTemplateOptions()
+    {
+        static const std::vector<ChordTemplateOption> options {
+            { 1, "Maj",  { 0, 4, 7 } },
+            { 2, "Min",  { 0, 3, 7 } },
+            { 3, "Sus2", { 0, 2, 7 } },
+            { 4, "Sus4", { 0, 5, 7 } },
+            { 5, "Dim",  { 0, 3, 6 } },
+        };
+        return options;
+    }
+
+    const std::vector<ChordTemplateOption>& seventhTemplateOptions()
+    {
+        static const std::vector<ChordTemplateOption> options {
+            { 6, "7",    { 0, 4, 7, 10 } },
+            { 7, "Maj7", { 0, 4, 7, 11 } },
+            { 8, "Min7", { 0, 3, 7, 10 } },
+            { 9, "Add9", { 0, 4, 7, 14 } },
+        };
+        return options;
+    }
+
+    const std::vector<int>* chordTemplateIntervalsForId(int id)
+    {
+        for (const auto& option : triadTemplateOptions())
+            if (option.id == id)
+                return &option.intervals;
+
+        for (const auto& option : seventhTemplateOptions())
+            if (option.id == id)
+                return &option.intervals;
+
+        return nullptr;
+    }
+
     //==============================================================================
     // A custom content component holding the three labelled metadata fields with an
     // explicit, predictable layout. It is shown inside a juce::AlertWindow via
@@ -1567,21 +1613,32 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
 
     const auto* mapping = getSelectedMapping();
     const bool hasNotes = mapping != nullptr && ! mapping->outputNotes.empty();
+    const int rootNote = mapping != nullptr ? mapping->inputNote : midiNoteNumber;
+
+    // A template is greyed out (not hidden -- same treatment as Octave/Clear below) when
+    // applying it would add a note outside the currently selected scale. With no scale
+    // restriction (Full range) every template is always available.
+    auto fitsScale = [this, rootNote](const std::vector<int>& intervals)
+    {
+        if (scaleType == Scale::Chromatic)
+            return true;
+
+        for (const auto interval : intervals)
+            if (! isInSelectedScale(rootNote + interval))
+                return false;
+
+        return true;
+    };
 
     auto menu = makeStyledMenu();
     menu.addSectionHeader("Triad");
-    menu.addItem(1, "Maj");
-    menu.addItem(2, "Min");
-    menu.addItem(3, "Sus2");
-    menu.addItem(4, "Sus4");
-    menu.addItem(5, "Dim");
+    for (const auto& option : triadTemplateOptions())
+        menu.addItem(option.id, option.name, fitsScale(option.intervals));
 
     menu.addSeparator();
     menu.addSectionHeader("Seventh");
-    menu.addItem(6, "7");
-    menu.addItem(7, "Maj7");
-    menu.addItem(8, "Min7");
-    menu.addItem(9, "Add9");
+    for (const auto& option : seventhTemplateOptions())
+        menu.addItem(option.id, option.name, fitsScale(option.intervals));
 
     menu.addSeparator();
     menu.addSectionHeader("Chord");
@@ -1599,27 +1656,14 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
         if (safeThis == nullptr || result == 0)
             return;
 
-        static const std::vector<int> majorIntervals         { 0, 4, 7 };
-        static const std::vector<int> minorIntervals         { 0, 3, 7 };
-        static const std::vector<int> sus2Intervals          { 0, 2, 7 };
-        static const std::vector<int> sus4Intervals          { 0, 5, 7 };
-        static const std::vector<int> diminishedIntervals    { 0, 3, 6 };
-        static const std::vector<int> seventhIntervals       { 0, 4, 7, 10 };
-        static const std::vector<int> majorSeventhIntervals  { 0, 4, 7, 11 };
-        static const std::vector<int> minorSeventhIntervals  { 0, 3, 7, 10 };
-        static const std::vector<int> addNineIntervals       { 0, 4, 7, 14 };
+        if (const auto* intervals = chordTemplateIntervalsForId(result))
+        {
+            safeThis->applyChordTemplate(*intervals);
+            return;
+        }
 
         switch (result)
         {
-            case 1: safeThis->applyChordTemplate(majorIntervals); break;
-            case 2: safeThis->applyChordTemplate(minorIntervals); break;
-            case 3: safeThis->applyChordTemplate(sus2Intervals); break;
-            case 4: safeThis->applyChordTemplate(sus4Intervals); break;
-            case 5: safeThis->applyChordTemplate(diminishedIntervals); break;
-            case 6: safeThis->applyChordTemplate(seventhIntervals); break;
-            case 7: safeThis->applyChordTemplate(majorSeventhIntervals); break;
-            case 8: safeThis->applyChordTemplate(minorSeventhIntervals); break;
-            case 9: safeThis->applyChordTemplate(addNineIntervals); break;
             case 10: safeThis->shiftSelectedChord(12); break;
             case 11: safeThis->shiftSelectedChord(-12); break;
             case 12: safeThis->clearSelectedChord(); break;
