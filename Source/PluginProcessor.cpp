@@ -22,6 +22,42 @@ namespace
         preset.mappings = std::move(mappings);
         return preset;
     }
+
+    // Builds one mapping per scale degree, each a tertian chord stacked from that degree
+    // (root/+2/+4[/+6] scale steps, wrapping within the scale and octave-adjusting as needed),
+    // covering exactly one octave above root. Mirrors the stacking logic
+    // MnKordAudioProcessorEditor::populateDiatonicChords() uses for the New-preset dialog's
+    // auto-fill, but scoped to a single octave with no inversion/octave-shift options, since
+    // that's all a curated factory preset needs.
+    std::vector<NoteMapping> buildDiatonicMappings(int root, const std::vector<int>& scaleIntervals, int chordSize)
+    {
+        const int scaleSize = (int) scaleIntervals.size();
+        const std::vector<int> steps = chordSize >= 4 ? std::vector<int> { 0, 2, 4, 6 }
+                                                       : std::vector<int> { 0, 2, 4 };
+
+        std::vector<NoteMapping> mappings;
+        for (int degreeIndex = 0; degreeIndex < scaleSize; ++degreeIndex)
+        {
+            std::vector<int> outputNotes;
+            for (const int step : steps)
+            {
+                const int degree = degreeIndex + step;
+                const int octaveWrap = degree / scaleSize;
+                const int tone = root + octaveWrap * 12 + scaleIntervals[(size_t) (degree % scaleSize)];
+                if (tone >= 0 && tone < 128)
+                    outputNotes.push_back(tone);
+            }
+
+            std::sort(outputNotes.begin(), outputNotes.end());
+            outputNotes.erase(std::unique(outputNotes.begin(), outputNotes.end()), outputNotes.end());
+
+            NoteMapping mapping;
+            mapping.inputNote = root + scaleIntervals[(size_t) degreeIndex];
+            mapping.outputNotes = std::move(outputNotes);
+            mappings.push_back(std::move(mapping));
+        }
+        return mappings;
+    }
 }
 
 //==============================================================================
@@ -508,16 +544,6 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
         makeMapping(64, { 57, 64, 67 })   // E4 -> Amin/E
     }));
 
-    factory.push_back(makePreset("C Major Diatonic", "Factory", {
-        makeMapping(60, { 60, 64, 67 }),  // C
-        makeMapping(62, { 62, 65, 69 }),  // Dm
-        makeMapping(64, { 64, 67, 71 }),  // Em
-        makeMapping(65, { 65, 69, 72 }),  // F
-        makeMapping(67, { 67, 71, 74 }),  // G
-        makeMapping(69, { 69, 72, 76 }),  // Am
-        makeMapping(71, { 71, 74, 77 })   // Bdim
-    }));
-
     factory.push_back(makePreset("A Minor Diatonic", "Factory", {
         makeMapping(57, { 57, 60, 64 }),  // Am
         makeMapping(59, { 59, 62, 65 }),  // Bdim
@@ -551,6 +577,32 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
         makeMapping(69, { 69, 72, 76, 79 }),  // Am7
         makeMapping(71, { 71, 74, 77, 81 })   // Bm7b5
     }));
+
+    // Full triad + seventh-chord set for every scale the editor's scale filter offers (see
+    // MnKordAudioProcessorEditor::Scale/scaleIntervals()), one octave rooted at C4, each in
+    // its own group so the preset browser's group filter has real, distinct content to browse.
+    struct ScaleEntry
+    {
+        const char* groupName;
+        std::vector<int> intervals;
+    };
+
+    static const std::vector<ScaleEntry> scales {
+        { "Major",             { 0, 2, 4, 5, 7, 9, 11 } },
+        { "Natural Minor",     { 0, 2, 3, 5, 7, 8, 10 } },
+        { "Harmonic Minor",    { 0, 2, 3, 5, 7, 8, 11 } },
+        { "Melodic Minor",     { 0, 2, 3, 5, 7, 9, 11 } },
+        { "Major Pentatonic",  { 0, 2, 4, 7, 9 } },
+        { "Minor Pentatonic",  { 0, 3, 5, 7, 10 } },
+    };
+
+    for (const auto& scale : scales)
+    {
+        factory.push_back(makePreset("C " + juce::String(scale.groupName) + " Triads", scale.groupName,
+                                     buildDiatonicMappings(60, scale.intervals, 3)));
+        factory.push_back(makePreset("C " + juce::String(scale.groupName) + " 7ths", scale.groupName,
+                                     buildDiatonicMappings(60, scale.intervals, 4)));
+    }
 
     return factory;
 }
