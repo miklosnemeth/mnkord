@@ -736,13 +736,14 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     newPresetButton.setButtonText("New");
     editPresetButton.setButtonText("Edit");
+    compactVoicingButton.setButtonText("Compact");
     savePresetButton.setButtonText("Save as");
     deletePresetButton.setButtonText("Delete");
     importPresetButton.setButtonText("Import");
     exportPresetButton.setButtonText("Export");
 
-    for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
-                          &importPresetButton, &exportPresetButton })
+    for (auto* button : { &newPresetButton, &editPresetButton, &compactVoicingButton, &savePresetButton,
+                          &deletePresetButton, &importPresetButton, &exportPresetButton })
     {
         button->addListener(this);
         addAndMakeVisible(button);
@@ -851,7 +852,7 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
+    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
     presetBox.setBounds(controls.removeFromLeft(180));
     controls.removeFromLeft(8);
@@ -860,6 +861,8 @@ void MnKordAudioProcessorEditor::resized()
     newPresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
     editPresetButton.setBounds(controls.removeFromLeft(60));
+    controls.removeFromLeft(8);
+    compactVoicingButton.setBounds(controls.removeFromLeft(90));
     controls.removeFromLeft(8);
     savePresetButton.setBounds(controls.removeFromLeft(80));
     controls.removeFromLeft(8);
@@ -942,6 +945,11 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     {
         logUi("buttonClicked: Edit");
         editActivePresetMetadata();
+    }
+    else if (button == &compactVoicingButton)
+    {
+        logUi("buttonClicked: Compact");
+        compactVoiceLeading();
     }
     else if (button == &savePresetButton)
     {
@@ -1264,8 +1272,8 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
-    for (auto* button : { &newPresetButton, &editPresetButton, &savePresetButton, &deletePresetButton,
-                          &importPresetButton, &exportPresetButton })
+    for (auto* button : { &newPresetButton, &editPresetButton, &compactVoicingButton, &savePresetButton,
+                          &deletePresetButton, &importPresetButton, &exportPresetButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -1276,6 +1284,11 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     // Destructive action gets a subtle red tint so it reads as distinct from the rest.
     const auto dangerColour = control.interpolatedWith(juce::Colour(0xffcf4b41), 0.35f);
     deletePresetButton.setColour(juce::TextButton::buttonColourId, dangerColour);
+
+    // Compact voicing gets a subtle accent tint so it reads as the "smart" action.
+    const auto accentPillColour = control.interpolatedWith(getAccentColour(), 0.2f);
+    compactVoicingButton.setColour(juce::TextButton::buttonColourId, accentPillColour);
+    compactVoicingButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
 
     for (auto* label : { &inputKeyboardLabel, &outputKeyboardLabel })
         label->setColour(juce::Label::textColourId, getMutedTextColour());
@@ -1640,11 +1653,16 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     for (const auto& option : seventhTemplateOptions())
         menu.addItem(option.id, option.name, fitsScale(option.intervals));
 
+    const bool anyNoteOutOfScale = scaleType != Scale::Chromatic && mapping != nullptr
+        && std::any_of(mapping->outputNotes.begin(), mapping->outputNotes.end(), [this](int note)
+                       { return ! isInSelectedScale(note); });
+
     menu.addSeparator();
     menu.addSectionHeader("Chord");
     menu.addItem(10, "Octave up", hasNotes);
     menu.addItem(11, "Octave down", hasNotes);
     menu.addItem(12, "Clear chord", hasNotes);
+    menu.addItem(14, "Fit to scale", anyNoteOutOfScale);
 
     menu.addSeparator();
     menu.addColouredItem(13, "Delete mapping", juce::Colour(0xffcf4b41));
@@ -1668,6 +1686,7 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
             case 11: safeThis->shiftSelectedChord(-12); break;
             case 12: safeThis->clearSelectedChord(); break;
             case 13: safeThis->deleteSelectedMapping(); break;
+            case 14: safeThis->fitSelectedChordToScale(); break;
             default: break;
         }
     });
@@ -1829,6 +1848,130 @@ void MnKordAudioProcessorEditor::deleteSelectedMapping()
     }
 
     setSelectedMappingIndex(selectedMappingIndex);
+}
+
+void MnKordAudioProcessorEditor::fitSelectedChordToScale()
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        if (scaleType == Scale::Chromatic)
+            return;
+
+        auto* mapping = getSelectedMapping();
+        if (mapping == nullptr || mapping->outputNotes.empty())
+            return;
+
+        for (auto& note : mapping->outputNotes)
+        {
+            if (isInSelectedScale(note))
+                continue;
+
+            int nearest = note;
+            int nearestDistance = 128;
+
+            for (int candidate = 0; candidate < 128; ++candidate)
+            {
+                if (! isInSelectedScale(candidate))
+                    continue;
+
+                const int distance = std::abs(candidate - note);
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = candidate;
+                }
+            }
+
+            note = nearest;
+        }
+
+        std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
+        mapping->outputNotes.erase(std::unique(mapping->outputNotes.begin(), mapping->outputNotes.end()),
+                                   mapping->outputNotes.end());
+    }
+
+    refreshKeyboardHighlights();
+    refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::compactVoiceLeading()
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return;
+
+        auto& mappings = presets[(size_t) presetIndex].mappings;
+        if (mappings.size() < 2)
+            return;
+
+        std::vector<NoteMapping*> ordered;
+        ordered.reserve(mappings.size());
+        for (auto& mapping : mappings)
+            ordered.push_back(&mapping);
+
+        std::sort(ordered.begin(), ordered.end(), [](const NoteMapping* a, const NoteMapping* b)
+        {
+            return a->inputNote < b->inputNote;
+        });
+
+        for (size_t i = 1; i < ordered.size(); ++i)
+        {
+            const auto& previousNotes = ordered[i - 1]->outputNotes;
+            auto& currentNotes = ordered[i]->outputNotes;
+
+            if (previousNotes.empty() || currentNotes.empty())
+                continue;
+
+            double centroid = 0.0;
+            for (const int note : previousNotes)
+                centroid += note;
+            centroid /= (double) previousNotes.size();
+
+            // Each chord tone (by pitch class) moves to whichever octave sits closest to the
+            // previous chord's centroid. No note is forced to be "the bass" -- that's what lets
+            // a chord like iii come out inverted (e.g. B-E-G rather than E-G-B) when that's the
+            // closest voicing to what came before, matching the scale root's chord it's chained
+            // from rather than each chord's own root position.
+            std::vector<int> pitchClasses;
+            for (const int note : currentNotes)
+            {
+                const int pitchClass = ((note % 12) + 12) % 12;
+                if (std::find(pitchClasses.begin(), pitchClasses.end(), pitchClass) == pitchClasses.end())
+                    pitchClasses.push_back(pitchClass);
+            }
+
+            std::vector<int> revoiced;
+            for (const int pitchClass : pitchClasses)
+            {
+                int closest = pitchClass;
+                double closestDistance = 1.0e9;
+
+                for (int candidate = pitchClass; candidate < 128; candidate += 12)
+                {
+                    const double distance = std::abs((double) candidate - centroid);
+                    if (distance < closestDistance)
+                    {
+                        closestDistance = distance;
+                        closest = candidate;
+                    }
+                }
+
+                revoiced.push_back(closest);
+            }
+
+            std::sort(revoiced.begin(), revoiced.end());
+            revoiced.erase(std::unique(revoiced.begin(), revoiced.end()), revoiced.end());
+            currentNotes = revoiced;
+        }
+    }
+
+    refreshKeyboardHighlights();
+    refreshSummaryLabels();
 }
 
 void MnKordAudioProcessorEditor::refreshKeyboardHighlights()

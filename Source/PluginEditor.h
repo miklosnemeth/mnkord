@@ -176,6 +176,8 @@ private:
     juce::TextButton scaleSummaryButton;
     juce::TextButton newPresetButton;
     juce::TextButton editPresetButton;
+    // Re-voices every mapping in the active preset for smooth voice leading between chords.
+    juce::TextButton compactVoicingButton;
     juce::TextButton savePresetButton;
     juce::TextButton deletePresetButton;
     juce::TextButton importPresetButton;
@@ -246,6 +248,13 @@ private:
     void shiftSelectedChord(int semitones);
     void clearSelectedChord();
     void deleteSelectedMapping();
+    // Moves every out-of-scale note in the selected mapping's chord to the nearest note that
+    // is in the currently selected scale. No-op when "Full range" (Chromatic) is selected.
+    void fitSelectedChordToScale();
+    // Re-voices every mapping's chord in the active preset, processed in ascending input-note
+    // order, so each chord picks the octave placement (per pitch class) closest to the
+    // previous chord's centroid — minimising jumps between consecutive chords ("voice leading").
+    void compactVoiceLeading();
     void refreshKeyboardHighlights();
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;
