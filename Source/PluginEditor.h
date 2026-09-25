@@ -165,6 +165,8 @@ private:
 
     // Preset controls
     FlatLookAndFeel flatLookAndFeel;
+    // Filters presetBox by preset name/group as the user types; see refreshPresetBox().
+    juce::TextEditor presetSearchBox;
     juce::ComboBox presetBox;
     juce::ComboBox designBox;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
@@ -199,6 +201,12 @@ private:
     VisualTheme visualTheme = VisualTheme::Graphite;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
+
+    // What refreshPresetBox() last synced presetBox to, so timerCallback() can detect a
+    // host/external change without reading back through presetBox's own (filtered/grouped,
+    // so no longer 1:1 with the preset list) item count or selection.
+    int lastSyncedActivePresetIndex = -2;
+    int lastSyncedPresetCount = -1;
 
     //==============================================================================
     void refreshPresetBox();

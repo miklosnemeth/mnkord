@@ -725,6 +725,9 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     setLookAndFeel(&flatLookAndFeel);
 
+    presetSearchBox.onTextChange = [this] { refreshPresetBox(); };
+    addAndMakeVisible(presetSearchBox);
+
     presetBox.addListener(this);
     addAndMakeVisible(presetBox);
 
@@ -777,7 +780,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
 
-    setSize(980, 456);
+    setSize(1100, 456);
 
     refreshDesignBox();
     updateScaleSummaryText();
@@ -852,8 +855,10 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
+    const int groupWidth = 130 + 8 + 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
+    presetSearchBox.setBounds(controls.removeFromLeft(130));
+    controls.removeFromLeft(8);
     presetBox.setBounds(controls.removeFromLeft(180));
     controls.removeFromLeft(8);
     designBox.setBounds(controls.removeFromLeft(110));
@@ -899,7 +904,9 @@ void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
 {
     if (box == &presetBox)
     {
-        audioProcessor.setActivePresetIndex(presetBox.getSelectedItemIndex());
+        // Item ids are presetIndex + 1 (not position-based), so selection stays correct
+        // regardless of how refreshPresetBox() groups/filters the visible list.
+        audioProcessor.setActivePresetIndex(presetBox.getSelectedId() - 1);
         selectedMappingIndex = -1;
         setSelectedMappingIndex(selectedMappingIndex);
     }
@@ -994,13 +1001,45 @@ void MnKordAudioProcessorEditor::refreshPresetBox()
 {
     presetBox.clear();
     const auto& presets = audioProcessor.getPresets();
-
-    for (const auto& preset : presets)
-        presetBox.addItem(preset.name, presetBox.getNumItems() + 1);
-
     const int activeIndex = audioProcessor.getActivePresetIndex();
+    const auto filter = presetSearchBox.getText().trim();
+
+    auto groupLabelFor = [](const Preset& preset)
+    {
+        return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
+    };
+
+    // A preset stays visible while searching if it matches, OR if it's the active preset --
+    // the active preset never gets hidden by its own search box, so the selection can't be
+    // silently orphaned by a search that happens not to match it.
+    auto isShown = [&](int index)
+    {
+        if (index == activeIndex || filter.isEmpty())
+            return true;
+
+        const auto& preset = presets[(size_t) index];
+        return preset.name.containsIgnoreCase(filter) || preset.group.containsIgnoreCase(filter);
+    };
+
+    juce::StringArray groupsInOrder;
+    for (int i = 0; i < (int) presets.size(); ++i)
+        if (isShown(i))
+            groupsInOrder.addIfNotAlreadyThere(groupLabelFor(presets[(size_t) i]));
+
+    for (const auto& group : groupsInOrder)
+    {
+        presetBox.addSectionHeading(group);
+
+        for (int i = 0; i < (int) presets.size(); ++i)
+            if (isShown(i) && groupLabelFor(presets[(size_t) i]) == group)
+                presetBox.addItem(presets[(size_t) i].name, i + 1);   // id = presetIndex + 1
+    }
+
     if (activeIndex >= 0 && activeIndex < (int) presets.size())
-        presetBox.setSelectedItemIndex(activeIndex, juce::dontSendNotification);
+        presetBox.setSelectedId(activeIndex + 1, juce::dontSendNotification);
+
+    lastSyncedActivePresetIndex = activeIndex;
+    lastSyncedPresetCount = (int) presets.size();
 
     // The processor refuses to delete the last remaining preset (there'd be no active preset
     // left to edit), so grey the button out instead of leaving it a silent no-op.
@@ -1244,6 +1283,12 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
         box->setColour(juce::ComboBox::focusedOutlineColourId, transparent);
     }
 
+    presetSearchBox.setTextToShowWhenEmpty("Search presets...", getMutedTextColour());
+    presetSearchBox.setColour(juce::TextEditor::backgroundColourId, control);
+    presetSearchBox.setColour(juce::TextEditor::textColourId, textColour);
+    presetSearchBox.setColour(juce::TextEditor::outlineColourId, transparent);
+    presetSearchBox.setColour(juce::TextEditor::focusedOutlineColourId, getAccentColour());
+
     // A small chip, quieter than the preset dropdowns but still visibly clickable.
     scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
     scaleSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -1364,8 +1409,7 @@ void MnKordAudioProcessorEditor::timerCallback()
     const int active = audioProcessor.getActivePresetIndex();
     const int count = (int) audioProcessor.getPresets().size();
 
-    if (presetBox.getNumItems() != count
-        || presetBox.getSelectedItemIndex() != active)
+    if (active != lastSyncedActivePresetIndex || count != lastSyncedPresetCount)
     {
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
