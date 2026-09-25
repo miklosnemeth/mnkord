@@ -890,9 +890,10 @@ void MnKordAudioProcessorEditor::resized()
     selectedInputLabel.setBounds(inputHeader);
     inputPanel.removeFromTop(8);
     inputKeyboard.setBounds(inputPanel);
-    // 3 octaves (7 white keys each) fill the visible width exactly; the rest of
-    // setAvailableRange()'s range is reachable via the scroll buttons/drag.
-    inputKeyboard.setKeyWidth((float) inputPanel.getWidth() / (3 * 7));
+    // 5 octaves (7 white keys each) fill the visible width exactly; the rest of
+    // setAvailableRange()'s range is reachable via the scroll buttons/drag. Starting at C2
+    // (see setLowestVisibleKey()) puts A4/440Hz (MIDI 69) roughly in the middle of the window.
+    inputKeyboard.setKeyWidth((float) inputPanel.getWidth() / (5 * 7));
 
     area.removeFromTop(14);
 
@@ -902,7 +903,7 @@ void MnKordAudioProcessorEditor::resized()
     chordNotesLabel.setBounds(outputHeader);
     outputPanel.removeFromTop(8);
     outputKeyboard.setBounds(outputPanel);
-    outputKeyboard.setKeyWidth((float) outputPanel.getWidth() / (3 * 7));
+    outputKeyboard.setKeyWidth((float) outputPanel.getWidth() / (5 * 7));
 }
 
 //==============================================================================
