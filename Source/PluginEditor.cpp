@@ -528,7 +528,9 @@ MnKordAudioProcessorEditor::MappingKeyboard::MappingKeyboard(MnKordAudioProcesso
 {
     setAvailableRange(21, 108);
     setLowestVisibleKey(36);
-    setKeyWidth(role == KeyboardRole::input ? 24.0f : 25.0f);
+    // Actual key width is set in the editor's resized() once the component's real width is
+    // known, so exactly 3 octaves fill it; this is just a harmless placeholder until then.
+    setKeyWidth(24.0f);
     setScrollButtonsVisible(true);
     setMidiChannel(1);
 
@@ -888,6 +890,9 @@ void MnKordAudioProcessorEditor::resized()
     selectedInputLabel.setBounds(inputHeader);
     inputPanel.removeFromTop(8);
     inputKeyboard.setBounds(inputPanel);
+    // 3 octaves (7 white keys each) fill the visible width exactly; the rest of
+    // setAvailableRange()'s range is reachable via the scroll buttons/drag.
+    inputKeyboard.setKeyWidth((float) inputPanel.getWidth() / (3 * 7));
 
     area.removeFromTop(14);
 
@@ -897,6 +902,7 @@ void MnKordAudioProcessorEditor::resized()
     chordNotesLabel.setBounds(outputHeader);
     outputPanel.removeFromTop(8);
     outputKeyboard.setBounds(outputPanel);
+    outputKeyboard.setKeyWidth((float) outputPanel.getWidth() / (3 * 7));
 }
 
 //==============================================================================
