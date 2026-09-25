@@ -797,7 +797,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
 
-    setSize(980, 456);
+    setSize(1100, 456);
 
     refreshDesignBox();
     updateScaleSummaryText();
