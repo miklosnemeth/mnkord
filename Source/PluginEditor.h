@@ -156,6 +156,36 @@ private:
         juce::ComboBox rootBox, typeBox;
     };
 
+    // Content shown in the CallOutBox opened by clicking presetSummaryButton: a search box
+    // plus a scrollable, group-headed list of presets (see refreshPresetBox()'s grouping).
+    // Clicking a preset row applies it and dismisses the popup; clicking a group heading does
+    // nothing. See ScalePopupContent above for why owner is a SafePointer.
+    struct PresetBrowserContent : public juce::Component, private juce::ListBoxModel
+    {
+        // One row of the flattened, filtered, group-headed preset list.
+        struct Row
+        {
+            bool isGroupHeading = false;
+            juce::String text;      // group name, or preset name
+            int presetIndex = -1;   // valid (>= 0) only when !isGroupHeading
+        };
+
+        explicit PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef);
+        void resized() override;
+        // Re-filters/re-groups from the current preset list and search text, called on every
+        // keystroke in searchBox.
+        void rebuildRows();
+
+        int getNumRows() override;
+        void paintListBoxItem(int rowNumber, juce::Graphics&, int width, int height, bool rowIsSelected) override;
+        void listBoxItemClicked(int rowNumber, const juce::MouseEvent&) override;
+
+        juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
+        juce::TextEditor searchBox;
+        juce::ListBox listBox { "PresetBrowser", this };
+        std::vector<Row> rows;
+    };
+
     //==============================================================================
     MnKordAudioProcessor& audioProcessor;
 
@@ -165,9 +195,6 @@ private:
 
     // Preset controls
     FlatLookAndFeel flatLookAndFeel;
-    // Filters presetBox by preset name/group as the user types; see refreshPresetBox().
-    juce::TextEditor presetSearchBox;
-    juce::ComboBox presetBox;
     juce::ComboBox designBox;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
@@ -176,6 +203,11 @@ private:
     // (which would otherwise dangle into this soon-to-be-destroyed editor) before returning.
     juce::Component::SafePointer<juce::CallOutBox> activeScalePopup;
     juce::TextButton scaleSummaryButton;
+    // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
+    juce::TextButton presetSummaryButton;
+    // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
+    // activeScalePopup above.
+    juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
     juce::TextButton newPresetButton;
     juce::TextButton editPresetButton;
     // Re-voices every mapping in the active preset for smooth voice leading between chords.
@@ -209,12 +241,18 @@ private:
     int lastSyncedPresetCount = -1;
 
     //==============================================================================
+    // Updates presetSummaryButton's text and deletePresetButton's enabled state from the
+    // current preset list/active index. Call after any preset add/remove/rename.
     void refreshPresetBox();
     void refreshDesignBox();
     // Refreshes scaleSummaryButton's text ("Full range" / "C Major" / ...) from the current
     // scaleRoot/scaleType.
     void updateScaleSummaryText();
     void showScalePopup();
+    void showPresetBrowser();
+    // Sets the active preset and clears the current mapping selection, since it belonged to
+    // the previously active preset. Used by PresetBrowserContent's row click.
+    void selectActivePreset(int index);
     void applyVisualTheme();
     bool isInSelectedScale(int midiNoteNumber) const;
     static const std::vector<int>& scaleIntervals(Scale scale);

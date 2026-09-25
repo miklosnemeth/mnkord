@@ -159,6 +159,24 @@ namespace
         return nullptr;
     }
 
+    // showScalePopup() and showPresetBrowser() both launch a null-parented CallOutBox (an
+    // independent top-level window not torn down with the editor's component tree) whose
+    // content and box point at the editor's flatLookAndFeel. If the popup is still open when
+    // the editor is destroyed, clearing that pointer first makes any later repaint fall back to
+    // JUCE's default LookAndFeel instead of dereferencing freed memory. Dismissing it is a
+    // best-effort extra (it's an async request), not what makes this safe.
+    void defusePopup(juce::Component::SafePointer<juce::CallOutBox>& popup)
+    {
+        if (popup == nullptr)
+            return;
+
+        if (auto* content = popup->getChildComponent(0))
+            content->setLookAndFeel(nullptr);
+
+        popup->setLookAndFeel(nullptr);
+        popup->dismiss();
+    }
+
     //==============================================================================
     // A custom content component holding the three labelled metadata fields with an
     // explicit, predictable layout. It is shown inside a juce::AlertWindow via
@@ -727,11 +745,8 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     setLookAndFeel(&flatLookAndFeel);
 
-    presetSearchBox.onTextChange = [this] { refreshPresetBox(); };
-    addAndMakeVisible(presetSearchBox);
-
-    presetBox.addListener(this);
-    addAndMakeVisible(presetBox);
+    presetSummaryButton.addListener(this);
+    addAndMakeVisible(presetSummaryButton);
 
     designBox.addListener(this);
     addAndMakeVisible(designBox);
@@ -782,7 +797,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
 
-    setSize(1100, 456);
+    setSize(980, 456);
 
     refreshDesignBox();
     updateScaleSummaryText();
@@ -795,20 +810,8 @@ MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 {
     stopTimer();
 
-    // The scale popup's CallOutBox is a top-level window not owned by this component tree
-    // (see showScalePopup()), so it can still be open here. Clear its LookAndFeel pointer
-    // (and its content's) before flatLookAndFeel is destroyed along with the rest of *this*,
-    // so any repaint the still-open box does afterwards falls back to JUCE's default
-    // LookAndFeel instead of dereferencing freed memory. Dismissing it is a best-effort
-    // extra (it's an async request), not what makes this safe.
-    if (activeScalePopup != nullptr)
-    {
-        if (auto* content = activeScalePopup->getChildComponent(0))
-            content->setLookAndFeel(nullptr);
-
-        activeScalePopup->setLookAndFeel(nullptr);
-        activeScalePopup->dismiss();
-    }
+    defusePopup(activeScalePopup);
+    defusePopup(activePresetPopup);
 
     setLookAndFeel(nullptr);
 }
@@ -857,11 +860,9 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 130 + 8 + 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
+    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
-    presetSearchBox.setBounds(controls.removeFromLeft(130));
-    controls.removeFromLeft(8);
-    presetBox.setBounds(controls.removeFromLeft(180));
+    presetSummaryButton.setBounds(controls.removeFromLeft(180));
     controls.removeFromLeft(8);
     designBox.setBounds(controls.removeFromLeft(110));
     controls.removeFromLeft(8);
@@ -909,15 +910,7 @@ void MnKordAudioProcessorEditor::resized()
 //==============================================================================
 void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
 {
-    if (box == &presetBox)
-    {
-        // Item ids are presetIndex + 1 (not position-based), so selection stays correct
-        // regardless of how refreshPresetBox() groups/filters the visible list.
-        audioProcessor.setActivePresetIndex(presetBox.getSelectedId() - 1);
-        selectedMappingIndex = -1;
-        setSelectedMappingIndex(selectedMappingIndex);
-    }
-    else if (box == &designBox)
+    if (box == &designBox)
     {
         switch (designBox.getSelectedItemIndex())
         {
@@ -932,7 +925,12 @@ void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
 
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
-    if (button == &newPresetButton)
+    if (button == &presetSummaryButton)
+    {
+        logUi("buttonClicked: preset chip");
+        showPresetBrowser();
+    }
+    else if (button == &newPresetButton)
     {
         logUi("buttonClicked: New");
         Preset seed;
@@ -1006,44 +1004,12 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 //==============================================================================
 void MnKordAudioProcessorEditor::refreshPresetBox()
 {
-    presetBox.clear();
     const auto& presets = audioProcessor.getPresets();
     const int activeIndex = audioProcessor.getActivePresetIndex();
-    const auto filter = presetSearchBox.getText().trim();
 
-    auto groupLabelFor = [](const Preset& preset)
-    {
-        return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
-    };
-
-    // A preset stays visible while searching if it matches, OR if it's the active preset --
-    // the active preset never gets hidden by its own search box, so the selection can't be
-    // silently orphaned by a search that happens not to match it.
-    auto isShown = [&](int index)
-    {
-        if (index == activeIndex || filter.isEmpty())
-            return true;
-
-        const auto& preset = presets[(size_t) index];
-        return preset.name.containsIgnoreCase(filter) || preset.group.containsIgnoreCase(filter);
-    };
-
-    juce::StringArray groupsInOrder;
-    for (int i = 0; i < (int) presets.size(); ++i)
-        if (isShown(i))
-            groupsInOrder.addIfNotAlreadyThere(groupLabelFor(presets[(size_t) i]));
-
-    for (const auto& group : groupsInOrder)
-    {
-        presetBox.addSectionHeading(group);
-
-        for (int i = 0; i < (int) presets.size(); ++i)
-            if (isShown(i) && groupLabelFor(presets[(size_t) i]) == group)
-                presetBox.addItem(presets[(size_t) i].name, i + 1);   // id = presetIndex + 1
-    }
-
-    if (activeIndex >= 0 && activeIndex < (int) presets.size())
-        presetBox.setSelectedId(activeIndex + 1, juce::dontSendNotification);
+    presetSummaryButton.setButtonText(activeIndex >= 0 && activeIndex < (int) presets.size()
+        ? presets[(size_t) activeIndex].name
+        : "No preset");
 
     lastSyncedActivePresetIndex = activeIndex;
     lastSyncedPresetCount = (int) presets.size();
@@ -1189,6 +1155,151 @@ void MnKordAudioProcessorEditor::showScalePopup()
     logUi("showScalePopup: CallOutBox launched");
 }
 
+MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef)
+    : owner(&ownerRef)
+{
+    searchBox.setTextToShowWhenEmpty("Search presets...", owner->getMutedTextColour());
+    searchBox.setColour(juce::TextEditor::backgroundColourId, owner->getControlColour());
+    searchBox.setColour(juce::TextEditor::textColourId, owner->getTextColour());
+    searchBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+    searchBox.setColour(juce::TextEditor::focusedOutlineColourId, owner->getAccentColour());
+    searchBox.onTextChange = [this] { rebuildRows(); };
+    addAndMakeVisible(searchBox);
+
+    listBox.setRowHeight(26);
+    listBox.setColour(juce::ListBox::backgroundColourId, owner->getPanelColour());
+    listBox.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(listBox);
+
+    rebuildRows();
+    setSize(260, 320);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
+{
+    auto area = getLocalBounds().reduced(8);
+    searchBox.setBounds(area.removeFromTop(28));
+    area.removeFromTop(6);
+    listBox.setBounds(area);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
+{
+    rows.clear();
+
+    // The CallOutBox hosting this is a top-level window (see showPresetBrowser()), so it can
+    // outlive the editor if the host closes the plugin UI while it's still open.
+    if (owner != nullptr)
+    {
+        const auto& presets = owner->audioProcessor.getPresets();
+        const int activeIndex = owner->audioProcessor.getActivePresetIndex();
+        const auto filter = searchBox.getText().trim();
+
+        auto groupLabelFor = [](const Preset& preset)
+        {
+            return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
+        };
+
+        // A preset stays listed while searching if it matches, OR if it's the active preset --
+        // so a search that doesn't match it can't silently orphan the current selection.
+        auto isShown = [&](int index)
+        {
+            if (index == activeIndex || filter.isEmpty())
+                return true;
+
+            const auto& preset = presets[(size_t) index];
+            return preset.name.containsIgnoreCase(filter) || preset.group.containsIgnoreCase(filter);
+        };
+
+        juce::StringArray groupsInOrder;
+        for (int i = 0; i < (int) presets.size(); ++i)
+            if (isShown(i))
+                groupsInOrder.addIfNotAlreadyThere(groupLabelFor(presets[(size_t) i]));
+
+        for (const auto& group : groupsInOrder)
+        {
+            rows.push_back({ true, group, -1 });
+
+            for (int i = 0; i < (int) presets.size(); ++i)
+                if (isShown(i) && groupLabelFor(presets[(size_t) i]) == group)
+                    rows.push_back({ false, presets[(size_t) i].name, i });
+        }
+    }
+
+    listBox.updateContent();
+    listBox.repaint();
+}
+
+int MnKordAudioProcessorEditor::PresetBrowserContent::getNumRows()
+{
+    return (int) rows.size();
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::paintListBoxItem(int rowNumber, juce::Graphics& g,
+                                                                        int width, int height, bool rowIsSelected)
+{
+    if (owner == nullptr || rowNumber < 0 || rowNumber >= (int) rows.size())
+        return;
+
+    const auto& row = rows[(size_t) rowNumber];
+
+    if (row.isGroupHeading)
+    {
+        g.setColour(owner->getMutedTextColour());
+        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.drawText(row.text.toUpperCase(), 10, 0, width - 10, height, juce::Justification::centredLeft);
+        return;
+    }
+
+    if (rowIsSelected)
+    {
+        g.setColour(owner->getAccentColour().withAlpha(0.18f));
+        g.fillRect(0, 0, width, height);
+    }
+
+    const bool isActive = row.presetIndex == owner->audioProcessor.getActivePresetIndex();
+    g.setColour(isActive ? owner->getAccentColour() : owner->getTextColour());
+    g.setFont(juce::FontOptions(14.0f));
+    g.drawText(row.text, 18, 0, width - 26, height, juce::Justification::centredLeft, true);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::listBoxItemClicked(int rowNumber, const juce::MouseEvent&)
+{
+    if (owner == nullptr || rowNumber < 0 || rowNumber >= (int) rows.size())
+        return;
+
+    const auto& row = rows[(size_t) rowNumber];
+
+    if (row.isGroupHeading)
+    {
+        listBox.deselectAllRows();
+        return;
+    }
+
+    owner->selectActivePreset(row.presetIndex);
+
+    if (auto* box = findParentComponentOfClass<juce::CallOutBox>())
+        box->dismiss();
+}
+
+void MnKordAudioProcessorEditor::showPresetBrowser()
+{
+    const auto screenBounds = localAreaToGlobal(presetSummaryButton.getBounds());
+
+    auto content = std::make_unique<PresetBrowserContent>(*this);
+    content->setLookAndFeel(&flatLookAndFeel);
+    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), screenBounds, nullptr);
+    box.setLookAndFeel(&flatLookAndFeel);
+    activePresetPopup = &box;
+}
+
+void MnKordAudioProcessorEditor::selectActivePreset(int index)
+{
+    audioProcessor.setActivePresetIndex(index);
+    selectedMappingIndex = -1;
+    setSelectedMappingIndex(selectedMappingIndex);
+}
+
 const std::vector<int>& MnKordAudioProcessorEditor::scaleIntervals(Scale scale)
 {
     static const std::vector<int> chromaticIntervals       { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
@@ -1282,25 +1393,23 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     const auto textColour = getTextColour();
     const auto transparent = juce::Colours::transparentBlack;
 
-    for (auto* box : { &presetBox, &designBox })
-    {
-        box->setColour(juce::ComboBox::backgroundColourId, control);
-        box->setColour(juce::ComboBox::textColourId, textColour);
-        box->setColour(juce::ComboBox::outlineColourId, transparent);
-        box->setColour(juce::ComboBox::focusedOutlineColourId, transparent);
-    }
+    designBox.setColour(juce::ComboBox::backgroundColourId, control);
+    designBox.setColour(juce::ComboBox::textColourId, textColour);
+    designBox.setColour(juce::ComboBox::outlineColourId, transparent);
+    designBox.setColour(juce::ComboBox::focusedOutlineColourId, transparent);
 
-    presetSearchBox.setTextToShowWhenEmpty("Search presets...", getMutedTextColour());
-    presetSearchBox.setColour(juce::TextEditor::backgroundColourId, control);
-    presetSearchBox.setColour(juce::TextEditor::textColourId, textColour);
-    presetSearchBox.setColour(juce::TextEditor::outlineColourId, transparent);
-    presetSearchBox.setColour(juce::TextEditor::focusedOutlineColourId, getAccentColour());
-
-    // A small chip, quieter than the preset dropdowns but still visibly clickable.
+    // A small chip, quieter than a full dropdown but still visibly clickable.
     scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
     scaleSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
     scaleSummaryButton.setColour(juce::TextButton::textColourOffId, getMutedTextColour());
     scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
+
+    // The primary preset selector, so its text reads at full strength (unlike the muted
+    // scale chip above), matching how the preset name looked in the combo box it replaced.
+    presetSummaryButton.setColour(juce::TextButton::buttonColourId, control);
+    presetSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
+    presetSummaryButton.setColour(juce::TextButton::textColourOffId, textColour);
+    presetSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
 
     // LookAndFeel_V4's own colour scheme (not individual setColour() calls) drives chrome we
     // don't paint ourselves, such as CallOutBox's bubble/outline. Without this it falls back to
