@@ -156,11 +156,11 @@ private:
         juce::ComboBox rootBox, typeBox;
     };
 
-    // Content shown in the CallOutBox opened by clicking presetSummaryButton: a group-filter
-    // dropdown and a search box above a scrollable, group-headed list of presets (see
-    // refreshPresetBox()'s grouping). Clicking a preset row applies it and dismisses the
-    // popup; clicking a group heading does nothing. See ScalePopupContent above for why owner
-    // is a SafePointer.
+    // Content shown in the CallOutBox opened by clicking presetSummaryButton: group- and
+    // author-filter dropdowns and a search box above a scrollable, group-headed list of
+    // presets (see refreshPresetBox()'s grouping). Clicking a preset row applies it and
+    // dismisses the popup; clicking a group heading does nothing. See ScalePopupContent above
+    // for why owner is a SafePointer.
     struct PresetBrowserContent : public juce::Component,
                                   private juce::ListBoxModel,
                                   private juce::ComboBox::Listener
@@ -175,8 +175,8 @@ private:
 
         explicit PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef);
         void resized() override;
-        // Re-filters/re-groups from the current preset list, the group filter and the search
-        // text, called on every keystroke in searchBox and every groupFilterBox change.
+        // Re-filters/re-groups from the current preset list, both filter dropdowns and the
+        // search text, called on every keystroke in searchBox and every filter dropdown change.
         void rebuildRows();
         void comboBoxChanged(juce::ComboBox*) override;
 
@@ -185,9 +185,11 @@ private:
         void listBoxItemClicked(int rowNumber, const juce::MouseEvent&) override;
 
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
-        // Item 1 is always "All groups"; items 2.. are one per distinct preset.group (built in
-        // the constructor from the preset list at the time the popup was opened).
+        // Item 1 is always "All groups"/"All authors"; items 2.. are one per distinct
+        // preset.group/preset.author (built in the constructor from the preset list at the
+        // time the popup was opened).
         juce::ComboBox groupFilterBox;
+        juce::ComboBox authorFilterBox;
         juce::TextEditor searchBox;
         juce::ListBox listBox { "PresetBrowser", this };
         std::vector<Row> rows;

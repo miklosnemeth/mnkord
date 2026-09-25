@@ -1161,26 +1161,46 @@ namespace
     {
         return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
     }
+
+    juce::String authorLabelFor(const Preset& preset)
+    {
+        return preset.author.isNotEmpty() ? preset.author : juce::String("No author");
+    }
+
+    // Fills a filter dropdown with "All <label>s" (id 1) plus one item per distinct value
+    // toStringId returns for a preset (in first-appearance order).
+    void populateFilterBox(juce::ComboBox& box, const std::vector<Preset>& presets,
+                           const juce::String& allLabel,
+                           const std::function<juce::String(const Preset&)>& labelFor)
+    {
+        box.addItem(allLabel, 1);
+
+        juce::StringArray valuesInOrder;
+        for (const auto& preset : presets)
+            valuesInOrder.addIfNotAlreadyThere(labelFor(preset));
+
+        for (int i = 0; i < valuesInOrder.size(); ++i)
+            box.addItem(valuesInOrder[i], i + 2);
+
+        box.setSelectedId(1, juce::dontSendNotification);
+    }
 }
 
 MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef)
     : owner(&ownerRef)
 {
-    groupFilterBox.addItem("All groups", 1);
-    {
-        juce::StringArray groupsInOrder;
-        for (const auto& preset : owner->audioProcessor.getPresets())
-            groupsInOrder.addIfNotAlreadyThere(groupLabelFor(preset));
+    const auto& presets = owner->audioProcessor.getPresets();
+    populateFilterBox(groupFilterBox, presets, "All groups", groupLabelFor);
+    populateFilterBox(authorFilterBox, presets, "All authors", authorLabelFor);
 
-        for (int i = 0; i < groupsInOrder.size(); ++i)
-            groupFilterBox.addItem(groupsInOrder[i], i + 2);
+    for (auto* box : { &groupFilterBox, &authorFilterBox })
+    {
+        box->setColour(juce::ComboBox::backgroundColourId, owner->getControlColour());
+        box->setColour(juce::ComboBox::textColourId, owner->getTextColour());
+        box->setColour(juce::ComboBox::outlineColourId, owner->getAccentColour().withAlpha(0.4f));
+        box->addListener(this);
+        addAndMakeVisible(box);
     }
-    groupFilterBox.setSelectedId(1, juce::dontSendNotification);
-    groupFilterBox.setColour(juce::ComboBox::backgroundColourId, owner->getControlColour());
-    groupFilterBox.setColour(juce::ComboBox::textColourId, owner->getTextColour());
-    groupFilterBox.setColour(juce::ComboBox::outlineColourId, owner->getAccentColour().withAlpha(0.4f));
-    groupFilterBox.addListener(this);
-    addAndMakeVisible(groupFilterBox);
 
     searchBox.setTextToShowWhenEmpty("Search presets...", owner->getMutedTextColour());
     searchBox.setColour(juce::TextEditor::backgroundColourId, owner->getControlColour());
@@ -1196,13 +1216,15 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     addAndMakeVisible(listBox);
 
     rebuildRows();
-    setSize(260, 340);
+    setSize(260, 374);
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
 {
     auto area = getLocalBounds().reduced(8);
     groupFilterBox.setBounds(area.removeFromTop(26));
+    area.removeFromTop(6);
+    authorFilterBox.setBounds(area.removeFromTop(26));
     area.removeFromTop(6);
     searchBox.setBounds(area.removeFromTop(28));
     area.removeFromTop(6);
@@ -1227,10 +1249,12 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
         const auto filter = searchBox.getText().trim();
         const auto selectedGroupId = groupFilterBox.getSelectedId();
         const auto selectedGroupText = selectedGroupId > 1 ? groupFilterBox.getText() : juce::String();
+        const auto selectedAuthorId = authorFilterBox.getSelectedId();
+        const auto selectedAuthorText = selectedAuthorId > 1 ? authorFilterBox.getText() : juce::String();
 
         // A preset stays listed while searching if it matches, OR if it's the active preset --
-        // so a search that doesn't match it can't silently orphan the current selection. The
-        // group filter applies the same exception, for the same reason.
+        // so a search that doesn't match it can't silently orphan the current selection. Both
+        // filter dropdowns apply the same exception, for the same reason.
         auto isShown = [&](int index)
         {
             if (index == activeIndex)
@@ -1241,8 +1265,12 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
             if (selectedGroupId > 1 && groupLabelFor(preset) != selectedGroupText)
                 return false;
 
+            if (selectedAuthorId > 1 && authorLabelFor(preset) != selectedAuthorText)
+                return false;
+
             return filter.isEmpty() || preset.name.containsIgnoreCase(filter)
-                                     || preset.group.containsIgnoreCase(filter);
+                                     || preset.group.containsIgnoreCase(filter)
+                                     || preset.author.containsIgnoreCase(filter);
         };
 
         juce::StringArray groupsInOrder;
