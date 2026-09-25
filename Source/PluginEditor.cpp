@@ -1155,9 +1155,33 @@ void MnKordAudioProcessorEditor::showScalePopup()
     logUi("showScalePopup: CallOutBox launched");
 }
 
+namespace
+{
+    juce::String groupLabelFor(const Preset& preset)
+    {
+        return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
+    }
+}
+
 MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef)
     : owner(&ownerRef)
 {
+    groupFilterBox.addItem("All groups", 1);
+    {
+        juce::StringArray groupsInOrder;
+        for (const auto& preset : owner->audioProcessor.getPresets())
+            groupsInOrder.addIfNotAlreadyThere(groupLabelFor(preset));
+
+        for (int i = 0; i < groupsInOrder.size(); ++i)
+            groupFilterBox.addItem(groupsInOrder[i], i + 2);
+    }
+    groupFilterBox.setSelectedId(1, juce::dontSendNotification);
+    groupFilterBox.setColour(juce::ComboBox::backgroundColourId, owner->getControlColour());
+    groupFilterBox.setColour(juce::ComboBox::textColourId, owner->getTextColour());
+    groupFilterBox.setColour(juce::ComboBox::outlineColourId, owner->getAccentColour().withAlpha(0.4f));
+    groupFilterBox.addListener(this);
+    addAndMakeVisible(groupFilterBox);
+
     searchBox.setTextToShowWhenEmpty("Search presets...", owner->getMutedTextColour());
     searchBox.setColour(juce::TextEditor::backgroundColourId, owner->getControlColour());
     searchBox.setColour(juce::TextEditor::textColourId, owner->getTextColour());
@@ -1172,15 +1196,22 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     addAndMakeVisible(listBox);
 
     rebuildRows();
-    setSize(260, 320);
+    setSize(260, 340);
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
 {
     auto area = getLocalBounds().reduced(8);
+    groupFilterBox.setBounds(area.removeFromTop(26));
+    area.removeFromTop(6);
     searchBox.setBounds(area.removeFromTop(28));
     area.removeFromTop(6);
     listBox.setBounds(area);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::comboBoxChanged(juce::ComboBox*)
+{
+    rebuildRows();
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
@@ -1194,21 +1225,24 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
         const auto& presets = owner->audioProcessor.getPresets();
         const int activeIndex = owner->audioProcessor.getActivePresetIndex();
         const auto filter = searchBox.getText().trim();
-
-        auto groupLabelFor = [](const Preset& preset)
-        {
-            return preset.group.isNotEmpty() ? preset.group : juce::String("Ungrouped");
-        };
+        const auto selectedGroupId = groupFilterBox.getSelectedId();
+        const auto selectedGroupText = selectedGroupId > 1 ? groupFilterBox.getText() : juce::String();
 
         // A preset stays listed while searching if it matches, OR if it's the active preset --
-        // so a search that doesn't match it can't silently orphan the current selection.
+        // so a search that doesn't match it can't silently orphan the current selection. The
+        // group filter applies the same exception, for the same reason.
         auto isShown = [&](int index)
         {
-            if (index == activeIndex || filter.isEmpty())
+            if (index == activeIndex)
                 return true;
 
             const auto& preset = presets[(size_t) index];
-            return preset.name.containsIgnoreCase(filter) || preset.group.containsIgnoreCase(filter);
+
+            if (selectedGroupId > 1 && groupLabelFor(preset) != selectedGroupText)
+                return false;
+
+            return filter.isEmpty() || preset.name.containsIgnoreCase(filter)
+                                     || preset.group.containsIgnoreCase(filter);
         };
 
         juce::StringArray groupsInOrder;
@@ -1216,9 +1250,14 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
             if (isShown(i))
                 groupsInOrder.addIfNotAlreadyThere(groupLabelFor(presets[(size_t) i]));
 
+        // A single selected group is already named by groupFilterBox -- repeating it as a row
+        // heading would be redundant, so only show headings when browsing "All groups".
+        const bool showHeadings = selectedGroupId <= 1;
+
         for (const auto& group : groupsInOrder)
         {
-            rows.push_back({ true, group, -1 });
+            if (showHeadings)
+                rows.push_back({ true, group, -1 });
 
             for (int i = 0; i < (int) presets.size(); ++i)
                 if (isShown(i) && groupLabelFor(presets[(size_t) i]) == group)
