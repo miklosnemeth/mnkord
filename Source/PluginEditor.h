@@ -234,14 +234,18 @@ private:
     juce::PopupMenu makeStyledMenu();
     void setSelectedMappingIndex(int index);
     void keyboardNoteClicked(KeyboardRole role, int midiNoteNumber);
-    // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu
-    // of chord templates at the current mouse position; picking one applies it.
+    // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu of
+    // chord templates plus Octave up/down, Clear chord and Delete mapping, at the current
+    // mouse position; picking one applies it.
     void showChordTemplateMenu(int midiNoteNumber);
     // Right-clicking the CHORD keyboard shows a 2-item popup (Invert up / Invert down) for the
     // selected mapping, in place of dedicated Inv +/- buttons.
     void showInvertMenu();
     void applyChordTemplate(const std::vector<int>& intervals);
     void invertSelectedChord(bool upwards);
+    void shiftSelectedChord(int semitones);
+    void clearSelectedChord();
+    void deleteSelectedMapping();
     void refreshKeyboardHighlights();
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;

@@ -406,7 +406,11 @@ void MnKordAudioProcessorEditor::FlatLookAndFeel::drawPopupMenuItem(juce::Graphi
     juce::ignoreUnused(shortcutKeyText, icon, hasSubMenu);
 
     if (isSeparator)
+    {
+        g.setColour(findColour(juce::PopupMenu::textColourId).withAlpha(0.2f));
+        g.fillRect(area.withSizeKeepingCentre(area.getWidth() - 16, 1));
         return;
+    }
 
     auto row = area.reduced(0, 1);
     if (isHighlighted)
@@ -1561,7 +1565,11 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     // Right-clicking a key selects/creates its mapping, same as a left click would.
     keyboardNoteClicked(KeyboardRole::input, midiNoteNumber);
 
+    const auto* mapping = getSelectedMapping();
+    const bool hasNotes = mapping != nullptr && ! mapping->outputNotes.empty();
+
     auto menu = makeStyledMenu();
+    menu.addSectionHeader("Template");
     menu.addItem(1, "Maj");
     menu.addItem(2, "Min");
     menu.addItem(3, "Sus2");
@@ -1571,6 +1579,15 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     menu.addItem(7, "Min7");
     menu.addItem(8, "Dim");
     menu.addItem(9, "Add9");
+
+    menu.addSeparator();
+    menu.addSectionHeader("Chord");
+    menu.addItem(10, "Octave up", hasNotes);
+    menu.addItem(11, "Octave down", hasNotes);
+    menu.addItem(12, "Clear chord", hasNotes);
+
+    menu.addSeparator();
+    menu.addColouredItem(13, "Delete mapping", juce::Colour(0xffcf4b41));
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
@@ -1600,6 +1617,10 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
             case 7: safeThis->applyChordTemplate(minorSeventhIntervals); break;
             case 8: safeThis->applyChordTemplate(diminishedIntervals); break;
             case 9: safeThis->applyChordTemplate(addNineIntervals); break;
+            case 10: safeThis->shiftSelectedChord(12); break;
+            case 11: safeThis->shiftSelectedChord(-12); break;
+            case 12: safeThis->clearSelectedChord(); break;
+            case 13: safeThis->deleteSelectedMapping(); break;
             default: break;
         }
     });
@@ -1698,6 +1719,69 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
 
     refreshKeyboardHighlights();
     refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::shiftSelectedChord(int semitones)
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto* mapping = getSelectedMapping();
+        if (mapping == nullptr || mapping->outputNotes.empty())
+            return;
+
+        for (const auto note : mapping->outputNotes)
+            if (note + semitones < 0 || note + semitones > 127)
+                return;
+
+        for (auto& note : mapping->outputNotes)
+            note += semitones;
+
+        std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
+    }
+
+    refreshKeyboardHighlights();
+    refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::clearSelectedChord()
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto* mapping = getSelectedMapping();
+        if (mapping == nullptr)
+            return;
+
+        mapping->outputNotes.clear();
+    }
+
+    refreshKeyboardHighlights();
+    refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::deleteSelectedMapping()
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return;
+
+        auto& mappings = presets[(size_t) presetIndex].mappings;
+        if (selectedMappingIndex < 0 || selectedMappingIndex >= (int) mappings.size())
+            return;
+
+        mappings.erase(mappings.begin() + selectedMappingIndex);
+
+        if (selectedMappingIndex >= (int) mappings.size())
+            selectedMappingIndex = (int) mappings.size() - 1;
+    }
+
+    setSelectedMappingIndex(selectedMappingIndex);
 }
 
 void MnKordAudioProcessorEditor::refreshKeyboardHighlights()
