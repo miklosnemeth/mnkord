@@ -1569,15 +1569,18 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     const bool hasNotes = mapping != nullptr && ! mapping->outputNotes.empty();
 
     auto menu = makeStyledMenu();
-    menu.addSectionHeader("Template");
+    menu.addSectionHeader("Triad");
     menu.addItem(1, "Maj");
     menu.addItem(2, "Min");
     menu.addItem(3, "Sus2");
     menu.addItem(4, "Sus4");
-    menu.addItem(5, "7");
-    menu.addItem(6, "Maj7");
-    menu.addItem(7, "Min7");
-    menu.addItem(8, "Dim");
+    menu.addItem(5, "Dim");
+
+    menu.addSeparator();
+    menu.addSectionHeader("Seventh");
+    menu.addItem(6, "7");
+    menu.addItem(7, "Maj7");
+    menu.addItem(8, "Min7");
     menu.addItem(9, "Add9");
 
     menu.addSeparator();
@@ -1600,10 +1603,10 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
         static const std::vector<int> minorIntervals         { 0, 3, 7 };
         static const std::vector<int> sus2Intervals          { 0, 2, 7 };
         static const std::vector<int> sus4Intervals          { 0, 5, 7 };
+        static const std::vector<int> diminishedIntervals    { 0, 3, 6 };
         static const std::vector<int> seventhIntervals       { 0, 4, 7, 10 };
         static const std::vector<int> majorSeventhIntervals  { 0, 4, 7, 11 };
         static const std::vector<int> minorSeventhIntervals  { 0, 3, 7, 10 };
-        static const std::vector<int> diminishedIntervals    { 0, 3, 6 };
         static const std::vector<int> addNineIntervals       { 0, 4, 7, 14 };
 
         switch (result)
@@ -1612,10 +1615,10 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
             case 2: safeThis->applyChordTemplate(minorIntervals); break;
             case 3: safeThis->applyChordTemplate(sus2Intervals); break;
             case 4: safeThis->applyChordTemplate(sus4Intervals); break;
-            case 5: safeThis->applyChordTemplate(seventhIntervals); break;
-            case 6: safeThis->applyChordTemplate(majorSeventhIntervals); break;
-            case 7: safeThis->applyChordTemplate(minorSeventhIntervals); break;
-            case 8: safeThis->applyChordTemplate(diminishedIntervals); break;
+            case 5: safeThis->applyChordTemplate(diminishedIntervals); break;
+            case 6: safeThis->applyChordTemplate(seventhIntervals); break;
+            case 7: safeThis->applyChordTemplate(majorSeventhIntervals); break;
+            case 8: safeThis->applyChordTemplate(minorSeventhIntervals); break;
             case 9: safeThis->applyChordTemplate(addNineIntervals); break;
             case 10: safeThis->shiftSelectedChord(12); break;
             case 11: safeThis->shiftSelectedChord(-12); break;
