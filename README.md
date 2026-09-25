@@ -10,7 +10,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Invert a chord (right-click a CHORD key)
 - Factory preset bank (diatonic, pop progression, power chords, jazz 7ths)
 - Preset metadata: name, group, author
-- XML preset / bank **Import** and **Export**
+- XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
 - Host program list mirrors user presets
 - Sustain pedal handling with note ref-counting (no stuck notes)
 - Non-note MIDI (CC, pitch bend, aftertouch, …) passes through
@@ -51,7 +51,7 @@ or your DAW’s custom VST3 folder, then rescan plugins.
 2. Choose a factory preset, or **New** / **Save as**.
 3. Click a key on the **INPUT** keyboard to select or create a mapping.
 4. Click keys on the **CHORD** keyboard to add/remove chord tones, or use the template buttons.
-5. **Import** / **Export** share presets as `.xml` (single preset or full bank).
+5. **Export** shares the active preset as `.xml`; **Import** accepts either a single preset or a multi-preset bank file (adding every preset it contains).
 
 Unmapped input notes are dropped. Mapped notes expand to their chord; overlapping chords share output notes via reference counting so notes do not cut each other off incorrectly.
 

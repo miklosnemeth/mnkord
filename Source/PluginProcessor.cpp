@@ -498,22 +498,6 @@ bool MnKordAudioProcessor::exportPresetToFile(int index, const juce::File& file)
     return root.writeTo(file);
 }
 
-bool MnKordAudioProcessor::exportBankToFile(const juce::File& file) const
-{
-    std::vector<Preset> copy;
-    {
-        const juce::ScopedLock lock(stateLock);
-        copy = presets;
-    }
-
-    juce::XmlElement root("mnKordBank");
-    root.setAttribute("version", 1);
-    for (const auto& preset : copy)
-        root.addChildElement(presetToXml(preset).release());
-
-    return root.writeTo(file);
-}
-
 std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
 {
     std::vector<Preset> factory;

@@ -72,7 +72,6 @@ public:
     // Returns how many presets were added (0 = invalid/empty file).
     int importPresetsFromFile(const juce::File& file);
     bool exportPresetToFile(int index, const juce::File& file) const;
-    bool exportBankToFile(const juce::File& file) const;
 
 private:
     //==============================================================================

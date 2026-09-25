@@ -1460,62 +1460,40 @@ void MnKordAudioProcessorEditor::importPresetsFromChooser()
 void MnKordAudioProcessorEditor::exportPresetsFromChooser()
 {
     const auto& presets = audioProcessor.getPresets();
-    if (presets.empty())
+    const int active = audioProcessor.getActivePresetIndex();
+    if (active < 0 || active >= (int) presets.size())
         return;
 
-    const int active = audioProcessor.getActivePresetIndex();
-    const bool exportBank = presets.size() > 1;
+    const auto defaultName = presets[(size_t) active].name + ".xml";
 
-    auto menu = makeStyledMenu();
-    if (active >= 0 && active < (int) presets.size())
-        menu.addItem(1, "Export current preset…");
-    menu.addItem(2, "Export entire bank…");
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Export mnKord preset",
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(defaultName),
+        "*.xml");
 
-    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&exportPresetButton),
-                       [this, active, exportBank](int result)
-                       {
-                           juce::ignoreUnused(exportBank);
-                           if (result != 1 && result != 2)
-                               return;
+    constexpr auto flags = juce::FileBrowserComponent::saveMode
+                         | juce::FileBrowserComponent::canSelectFiles
+                         | juce::FileBrowserComponent::warnAboutOverwriting;
 
-                           const bool bank = (result == 2);
-                           const auto defaultName = bank ? "mnKord-bank.xml"
-                                                         : (active >= 0 && active < (int) audioProcessor.getPresets().size()
-                                                            ? audioProcessor.getPresets()[(size_t) active].name + ".xml"
-                                                            : "mnKord-preset.xml");
+    fileChooser->launchAsync(flags, [this, active](const juce::FileChooser& chooser)
+    {
+        auto file = chooser.getResult();
+        if (file == juce::File())
+            return;
 
-                           fileChooser = std::make_unique<juce::FileChooser>(
-                               bank ? "Export mnKord bank" : "Export mnKord preset",
-                               juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(defaultName),
-                               "*.xml");
+        if (! file.hasFileExtension(".xml"))
+            file = file.withFileExtension(".xml");
 
-                           constexpr auto flags = juce::FileBrowserComponent::saveMode
-                                                | juce::FileBrowserComponent::canSelectFiles
-                                                | juce::FileBrowserComponent::warnAboutOverwriting;
-
-                           fileChooser->launchAsync(flags, [this, bank, active](const juce::FileChooser& chooser)
-                           {
-                               auto file = chooser.getResult();
-                               if (file == juce::File())
-                                   return;
-
-                               if (! file.hasFileExtension(".xml"))
-                                   file = file.withFileExtension(".xml");
-
-                               const bool ok = bank ? audioProcessor.exportBankToFile(file)
-                                                    : audioProcessor.exportPresetToFile(active, file);
-
-                               if (! ok)
-                               {
-                                   juce::AlertWindow::showMessageBoxAsync(
-                                       juce::MessageBoxIconType::WarningIcon,
-                                       "Export failed",
-                                       "Could not write:\n" + file.getFullPathName(),
-                                       "OK",
-                                       this);
-                               }
-                           });
-                       });
+        if (! audioProcessor.exportPresetToFile(active, file))
+        {
+            juce::AlertWindow::showMessageBoxAsync(
+                juce::MessageBoxIconType::WarningIcon,
+                "Export failed",
+                "Could not write:\n" + file.getFullPathName(),
+                "OK",
+                this);
+        }
+    });
 }
 
 void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,

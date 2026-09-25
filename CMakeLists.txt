@@ -47,6 +47,13 @@ target_compile_definitions(mnKord
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
+# Source files are UTF-8 without a BOM. Without this, MSVC interprets narrow string literals
+# using the active Windows codepage instead of UTF-8, corrupting any non-ASCII character
+# embedded in a string literal (e.g. "…" or "·") into mojibake at runtime.
+if(MSVC)
+    target_compile_options(mnKord PRIVATE /utf-8)
+endif()
+
 target_link_libraries(mnKord
     PRIVATE
         mnKordFonts
