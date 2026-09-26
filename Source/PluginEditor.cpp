@@ -1112,15 +1112,42 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
         addAndMakeVisible(box);
     }
 
-    setSize(226, 34);
+    for (auto* button : { &fillTriadsButton, &fillSeventhsButton })
+    {
+        button->setColour(juce::TextButton::buttonColourId, control);
+        button->setColour(juce::TextButton::textColourOffId, text);
+        button->setTooltip("Replace every mapping in the active preset with this scale's chords");
+        addAndMakeVisible(button);
+    }
+
+    fillTriadsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(3); };
+    fillSeventhsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(4); };
+    updateFillButtons();
+
+    setSize(226, 68);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::resized()
 {
     auto area = getLocalBounds();
-    rootBox.setBounds(area.removeFromLeft(64));
+
+    auto pickers = area.removeFromTop(34);
+    rootBox.setBounds(pickers.removeFromLeft(64));
+    pickers.removeFromLeft(6);
+    typeBox.setBounds(pickers);
+
+    area.removeFromTop(6);
+    const int half = (area.getWidth() - 6) / 2;
+    fillTriadsButton.setBounds(area.removeFromLeft(half));
     area.removeFromLeft(6);
-    typeBox.setBounds(area);
+    fillSeventhsButton.setBounds(area);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::updateFillButtons()
+{
+    const bool hasScale = owner != nullptr && owner->scaleType != Scale::Chromatic;
+    fillTriadsButton.setEnabled(hasScale);
+    fillSeventhsButton.setEnabled(hasScale);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboBox*)
@@ -1136,6 +1163,7 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
         + " type=" + scaleTypeName(owner->scaleType));
     owner->updateScaleSummaryText();
     owner->inputKeyboard.repaint();
+    updateFillButtons();
 }
 
 void MnKordAudioProcessorEditor::showScalePopup()
@@ -1452,6 +1480,33 @@ void MnKordAudioProcessorEditor::populateDiatonicChords(Preset& preset, const Di
         mapping.outputNotes = outputNotes;
         preset.mappings.push_back(mapping);
     }
+}
+
+void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
+{
+    if (scaleType == Scale::Chromatic)
+        return;
+
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto& presets = audioProcessor.getPresets();
+        const int index = audioProcessor.getActivePresetIndex();
+        if (index < 0 || index >= (int) presets.size())
+            return;
+
+        DiatonicFillOptions options;
+        options.scaleRoot = scaleRoot;
+        options.scaleType = scaleType;
+        options.chordSize = chordSize;
+
+        auto& preset = presets[(size_t) index];
+        preset.mappings.clear();
+        populateDiatonicChords(preset, options);
+    }
+
+    selectedMappingIndex = -1;
+    setSelectedMappingIndex(selectedMappingIndex);
 }
 
 void MnKordAudioProcessorEditor::applyVisualTheme()

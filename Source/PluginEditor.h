@@ -152,8 +152,14 @@ private:
         void resized() override;
         void comboBoxChanged(juce::ComboBox*) override;
 
+        // Fill buttons only make sense with an actual scale selected ("Full range" has no
+        // diatonic chords to stack), so they're disabled otherwise.
+        void updateFillButtons();
+
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         juce::ComboBox rootBox, typeBox;
+        juce::TextButton fillTriadsButton { "Fill triads" };
+        juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
 
     // Content shown in the CallOutBox opened by clicking presetSummaryButton: group- and
@@ -273,6 +279,10 @@ private:
     // inversion and octave transposition. Used when creating a new preset while a scale
     // (other than Full range) is selected.
     static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
+    // Replaces every mapping in the active preset with diatonic chords (chordSize 3 = triads,
+    // 4 = sevenths) built from the current scaleRoot/scaleType across the whole keyboard.
+    // No-op when scaleType is Chromatic.
+    void fillActivePresetFromScale(int chordSize);
     void saveCurrentPresetAs();
     // Renames/re-tags the active preset in place (name/group/author only), unlike
     // saveCurrentPresetAs() which duplicates it into a new preset.
