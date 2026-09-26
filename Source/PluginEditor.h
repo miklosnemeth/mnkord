@@ -141,8 +141,9 @@ private:
         KeyboardRole role;
     };
 
-    // Content shown in the CallOutBox opened by clicking scaleSummaryButton: just the root
-    // and scale-type pickers, live-applied on change (no Save/Cancel needed).
+    // Content shown in the CallOutBox opened by clicking scaleSummaryButton: the root and
+    // scale-type pickers (live-applied on change, no Save/Cancel needed), plus the Fill
+    // triads/7ths actions and how many octaves below/above the middle octave they cover.
     //
     // The CallOutBox that hosts this is launched with a null parent (see showScalePopup()),
     // so it becomes an independent top-level window that can outlive the editor if the host
@@ -150,6 +151,22 @@ private:
     // before every use, rather than a raw reference.
     struct ScalePopupContent : public juce::Component, private juce::ComboBox::Listener
     {
+        // A "caption  [-] n [+]" row editing one of the editor's octave-count fields,
+        // clamped to 0..maxFillOctaves.
+        struct OctaveStepper : public juce::Component
+        {
+            OctaveStepper(ScalePopupContent& popupRef, const juce::String& caption,
+                          int MnKordAudioProcessorEditor::* fieldRef);
+            void resized() override;
+            void change(int delta);
+
+            ScalePopupContent& popup;
+            int MnKordAudioProcessorEditor::* field;
+            juce::Label captionLabel, valueLabel;
+            juce::TextButton downButton { "-" };
+            juce::TextButton upButton { "+" };
+        };
+
         explicit ScalePopupContent(MnKordAudioProcessorEditor& ownerRef);
         void resized() override;
         void comboBoxChanged(juce::ComboBox*) override;
@@ -157,13 +174,11 @@ private:
         // Fill buttons only make sense with an actual scale selected ("Full range" has no
         // diatonic chords to stack), so they're disabled otherwise.
         void updateFillButtons();
-        void changeFillSpread(int delta);
 
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         juce::ComboBox rootBox, typeBox;
-        juce::Label rangeLabel, rangeValueLabel;
-        juce::TextButton rangeDownButton { "-" };
-        juce::TextButton rangeUpButton { "+" };
+        OctaveStepper belowStepper { *this, "Octaves below C4", &MnKordAudioProcessorEditor::fillOctavesBelow };
+        OctaveStepper aboveStepper { *this, "Octaves above B4", &MnKordAudioProcessorEditor::fillOctavesAbove };
         juce::TextButton fillTriadsButton { "Fill triads" };
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
@@ -254,10 +269,12 @@ private:
     VisualTheme visualTheme = VisualTheme::Graphite;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
-    // Octaves either side of the middle octave that Fill triads/7ths covers (0 = C4..B4 only).
-    // Kept here rather than in ScalePopupContent so it survives closing and reopening the popup.
-    int fillOctaveSpread = 1;
-    static constexpr int maxFillOctaveSpread = 3;   // C1..B7, inside the keyboards' 21-108 range
+    // Octaves below C4 / above B4 that Fill triads/7ths covers besides the middle octave
+    // (both 0 = C4..B4 only). Kept here rather than in ScalePopupContent so they survive
+    // closing and reopening the popup.
+    int fillOctavesBelow = 1;
+    int fillOctavesAbove = 1;
+    static constexpr int maxFillOctaves = 3;   // C1..B7, inside the keyboards' 21-108 range
 
     // What refreshPresetBox() last synced presetBox to, so timerCallback() can detect a
     // host/external change without reading back through presetBox's own (filtered/grouped,
@@ -290,8 +307,8 @@ private:
     // (other than Full range) is selected.
     static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
     // Replaces every mapping in the active preset with diatonic chords (chordSize 3 = triads,
-    // 4 = sevenths) built from the current scaleRoot/scaleType, on INPUT notes within
-    // fillOctaveSpread octaves either side of the middle octave (C4..B4). No-op when
+    // 4 = sevenths) built from the current scaleRoot/scaleType, on INPUT notes from
+    // fillOctavesBelow octaves under C4 to fillOctavesAbove octaves over B4. No-op when
     // scaleType is Chromatic.
     void fillActivePresetFromScale(int chordSize);
     void saveCurrentPresetAs();

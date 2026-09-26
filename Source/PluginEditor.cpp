@@ -1123,27 +1123,11 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
     fillTriadsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(3); };
     fillSeventhsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(4); };
 
-    rangeLabel.setText("Middle C4 octave  +/-", juce::dontSendNotification);
-    rangeLabel.setColour(juce::Label::textColourId, owner->getMutedTextColour());
-    rangeValueLabel.setJustificationType(juce::Justification::centred);
-    rangeValueLabel.setColour(juce::Label::textColourId, text);
-    addAndMakeVisible(rangeLabel);
-    addAndMakeVisible(rangeValueLabel);
-
-    for (auto* button : { &rangeDownButton, &rangeUpButton })
-    {
-        button->setColour(juce::TextButton::buttonColourId, control);
-        button->setColour(juce::TextButton::textColourOffId, text);
-        addAndMakeVisible(button);
-    }
-
-    rangeDownButton.onClick = [this] { changeFillSpread(-1); };
-    rangeUpButton.onClick = [this] { changeFillSpread(1); };
-
-    changeFillSpread(0);
+    addAndMakeVisible(belowStepper);
+    addAndMakeVisible(aboveStepper);
     updateFillButtons();
 
-    setSize(226, 102);
+    setSize(226, 136);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::resized()
@@ -1156,12 +1140,9 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
     typeBox.setBounds(pickers);
 
     area.removeFromTop(6);
-    auto rangeRow = area.removeFromTop(28);
-    rangeUpButton.setBounds(rangeRow.removeFromRight(28));
-    rangeValueLabel.setBounds(rangeRow.removeFromRight(30));
-    rangeDownButton.setBounds(rangeRow.removeFromRight(28));
-    rangeRow.removeFromRight(4);
-    rangeLabel.setBounds(rangeRow);
+    belowStepper.setBounds(area.removeFromTop(28));
+    area.removeFromTop(6);
+    aboveStepper.setBounds(area.removeFromTop(28));
 
     area.removeFromTop(6);
     const int half = (area.getWidth() - 6) / 2;
@@ -1170,15 +1151,53 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
     fillSeventhsButton.setBounds(area);
 }
 
-void MnKordAudioProcessorEditor::ScalePopupContent::changeFillSpread(int delta)
+MnKordAudioProcessorEditor::ScalePopupContent::OctaveStepper::OctaveStepper(ScalePopupContent& popupRef,
+                                                                            const juce::String& caption,
+                                                                            int MnKordAudioProcessorEditor::* fieldRef)
+    : popup(popupRef), field(fieldRef)
 {
-    if (owner == nullptr)
+    const auto& owner = popup.owner;
+
+    captionLabel.setText(caption, juce::dontSendNotification);
+    captionLabel.setColour(juce::Label::textColourId, owner->getMutedTextColour());
+    valueLabel.setJustificationType(juce::Justification::centred);
+    valueLabel.setColour(juce::Label::textColourId, owner->getTextColour());
+    addAndMakeVisible(captionLabel);
+    addAndMakeVisible(valueLabel);
+
+    for (auto* button : { &downButton, &upButton })
+    {
+        button->setColour(juce::TextButton::buttonColourId, owner->getControlColour());
+        button->setColour(juce::TextButton::textColourOffId, owner->getTextColour());
+        addAndMakeVisible(button);
+    }
+
+    downButton.onClick = [this] { change(-1); };
+    upButton.onClick = [this] { change(1); };
+    change(0);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::OctaveStepper::resized()
+{
+    auto row = getLocalBounds();
+    upButton.setBounds(row.removeFromRight(28));
+    valueLabel.setBounds(row.removeFromRight(30));
+    downButton.setBounds(row.removeFromRight(28));
+    row.removeFromRight(4);
+    captionLabel.setBounds(row);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::OctaveStepper::change(int delta)
+{
+    auto* editor = popup.owner.getComponent();
+    if (editor == nullptr)
         return;
 
-    owner->fillOctaveSpread = juce::jlimit(0, maxFillOctaveSpread, owner->fillOctaveSpread + delta);
-    rangeValueLabel.setText(juce::String(owner->fillOctaveSpread), juce::dontSendNotification);
-    rangeDownButton.setEnabled(owner->fillOctaveSpread > 0);
-    rangeUpButton.setEnabled(owner->fillOctaveSpread < maxFillOctaveSpread);
+    auto& value = editor->*field;
+    value = juce::jlimit(0, maxFillOctaves, value + delta);
+    valueLabel.setText(juce::String(value), juce::dontSendNotification);
+    downButton.setEnabled(value > 0);
+    upButton.setEnabled(value < maxFillOctaves);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::updateFillButtons()
@@ -1537,8 +1556,8 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
         options.scaleRoot = scaleRoot;
         options.scaleType = scaleType;
         options.chordSize = chordSize;
-        options.lowestInputNote = 60 - 12 * fillOctaveSpread;          // C4 octave, minus spread
-        options.highestInputNote = 71 + 12 * fillOctaveSpread;         // B4, plus spread
+        options.lowestInputNote = 60 - 12 * fillOctavesBelow;    // C4, extended down
+        options.highestInputNote = 71 + 12 * fillOctavesAbove;   // B4, extended up
 
         auto& preset = presets[(size_t) index];
         preset.mappings.clear();
