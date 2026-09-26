@@ -23,38 +23,48 @@ namespace
         return preset;
     }
 
-    // Builds one mapping per scale degree, each a tertian chord stacked from that degree
-    // (root/+2/+4[/+6] scale steps, wrapping within the scale and octave-adjusting as needed),
-    // covering exactly one octave above root. Mirrors the stacking logic
+    // Builds one mapping per scale degree per octave, each a tertian chord stacked from that
+    // degree (root/+2/+4[/+6] scale steps, wrapping within the scale and octave-adjusting as
+    // needed), covering numOctaves octaves starting at lowestRoot. Mirrors the stacking logic
     // MnKordAudioProcessorEditor::populateDiatonicChords() uses for the New-preset dialog's
-    // auto-fill, but scoped to a single octave with no inversion/octave-shift options, since
-    // that's all a curated factory preset needs.
-    std::vector<NoteMapping> buildDiatonicMappings(int root, const std::vector<int>& scaleIntervals, int chordSize)
+    // auto-fill, but with no inversion/octave-shift options, since that's all a curated
+    // factory preset needs.
+    std::vector<NoteMapping> buildDiatonicMappings(int lowestRoot, int numOctaves,
+                                                   const std::vector<int>& scaleIntervals, int chordSize)
     {
         const int scaleSize = (int) scaleIntervals.size();
         const std::vector<int> steps = chordSize >= 4 ? std::vector<int> { 0, 2, 4, 6 }
                                                        : std::vector<int> { 0, 2, 4 };
 
         std::vector<NoteMapping> mappings;
-        for (int degreeIndex = 0; degreeIndex < scaleSize; ++degreeIndex)
+        for (int octave = 0; octave < numOctaves; ++octave)
         {
-            std::vector<int> outputNotes;
-            for (const int step : steps)
+            const int root = lowestRoot + octave * 12;
+
+            for (int degreeIndex = 0; degreeIndex < scaleSize; ++degreeIndex)
             {
-                const int degree = degreeIndex + step;
-                const int octaveWrap = degree / scaleSize;
-                const int tone = root + octaveWrap * 12 + scaleIntervals[(size_t) (degree % scaleSize)];
-                if (tone >= 0 && tone < 128)
-                    outputNotes.push_back(tone);
+                const int inputNote = root + scaleIntervals[(size_t) degreeIndex];
+                if (inputNote < 0 || inputNote > 127)
+                    continue;
+
+                std::vector<int> outputNotes;
+                for (const int step : steps)
+                {
+                    const int degree = degreeIndex + step;
+                    const int octaveWrap = degree / scaleSize;
+                    const int tone = root + octaveWrap * 12 + scaleIntervals[(size_t) (degree % scaleSize)];
+                    if (tone >= 0 && tone < 128)
+                        outputNotes.push_back(tone);
+                }
+
+                std::sort(outputNotes.begin(), outputNotes.end());
+                outputNotes.erase(std::unique(outputNotes.begin(), outputNotes.end()), outputNotes.end());
+
+                NoteMapping mapping;
+                mapping.inputNote = inputNote;
+                mapping.outputNotes = std::move(outputNotes);
+                mappings.push_back(std::move(mapping));
             }
-
-            std::sort(outputNotes.begin(), outputNotes.end());
-            outputNotes.erase(std::unique(outputNotes.begin(), outputNotes.end()), outputNotes.end());
-
-            NoteMapping mapping;
-            mapping.inputNote = root + scaleIntervals[(size_t) degreeIndex];
-            mapping.outputNotes = std::move(outputNotes);
-            mappings.push_back(std::move(mapping));
         }
         return mappings;
     }
@@ -579,8 +589,10 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
     }));
 
     // Full triad + seventh-chord set for every scale the editor's scale filter offers (see
-    // MnKordAudioProcessorEditor::Scale/scaleIntervals()), one octave rooted at C4, each in
-    // its own group so the preset browser's group filter has real, distinct content to browse.
+    // MnKordAudioProcessorEditor::Scale/scaleIntervals()), spanning 5 octaves rooted at C2 --
+    // matching the keyboards' own 5-octave visible range (see MappingKeyboard's keyWidth
+    // calc) so a mapped INPUT note is reachable without scrolling -- each scale in its own
+    // group so the preset browser's group filter has real, distinct content to browse.
     struct ScaleEntry
     {
         const char* groupName;
@@ -596,12 +608,15 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
         { "Minor Pentatonic",  { 0, 3, 5, 7, 10 } },
     };
 
+    constexpr int lowestRoot = 36;   // C2
+    constexpr int numOctaves = 5;    // C2..C6
+
     for (const auto& scale : scales)
     {
         factory.push_back(makePreset("C " + juce::String(scale.groupName) + " Triads", scale.groupName,
-                                     buildDiatonicMappings(60, scale.intervals, 3)));
+                                     buildDiatonicMappings(lowestRoot, numOctaves, scale.intervals, 3)));
         factory.push_back(makePreset("C " + juce::String(scale.groupName) + " 7ths", scale.groupName,
-                                     buildDiatonicMappings(60, scale.intervals, 4)));
+                                     buildDiatonicMappings(lowestRoot, numOctaves, scale.intervals, 4)));
     }
 
     return factory;
