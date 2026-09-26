@@ -42,6 +42,8 @@ public:
         int chordSize = 3;      // 3 (triad) or 4 (seventh chord)
         int inversion = 0;      // number of times to invert upward (0-3)
         int octaveShift = 0;    // octaves to transpose the generated chord (-2..+2)
+        int lowestInputNote = 0;     // only INPUT notes in [lowest, highest] get a mapping
+        int highestInputNote = 127;
     };
 
     // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic). Public,
@@ -155,9 +157,13 @@ private:
         // Fill buttons only make sense with an actual scale selected ("Full range" has no
         // diatonic chords to stack), so they're disabled otherwise.
         void updateFillButtons();
+        void changeFillSpread(int delta);
 
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         juce::ComboBox rootBox, typeBox;
+        juce::Label rangeLabel, rangeValueLabel;
+        juce::TextButton rangeDownButton { "-" };
+        juce::TextButton rangeUpButton { "+" };
         juce::TextButton fillTriadsButton { "Fill triads" };
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
@@ -248,6 +254,10 @@ private:
     VisualTheme visualTheme = VisualTheme::Graphite;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
+    // Octaves either side of the middle octave that Fill triads/7ths covers (0 = C4..B4 only).
+    // Kept here rather than in ScalePopupContent so it survives closing and reopening the popup.
+    int fillOctaveSpread = 1;
+    static constexpr int maxFillOctaveSpread = 3;   // C1..B7, inside the keyboards' 21-108 range
 
     // What refreshPresetBox() last synced presetBox to, so timerCallback() can detect a
     // host/external change without reading back through presetBox's own (filtered/grouped,
@@ -280,8 +290,9 @@ private:
     // (other than Full range) is selected.
     static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
     // Replaces every mapping in the active preset with diatonic chords (chordSize 3 = triads,
-    // 4 = sevenths) built from the current scaleRoot/scaleType across the whole keyboard.
-    // No-op when scaleType is Chromatic.
+    // 4 = sevenths) built from the current scaleRoot/scaleType, on INPUT notes within
+    // fillOctaveSpread octaves either side of the middle octave (C4..B4). No-op when
+    // scaleType is Chromatic.
     void fillActivePresetFromScale(int chordSize);
     void saveCurrentPresetAs();
     // Renames/re-tags the active preset in place (name/group/author only), unlike

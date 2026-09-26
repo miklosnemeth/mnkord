@@ -1122,9 +1122,28 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
 
     fillTriadsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(3); };
     fillSeventhsButton.onClick = [this] { if (owner != nullptr) owner->fillActivePresetFromScale(4); };
+
+    rangeLabel.setText("Middle C4 octave  +/-", juce::dontSendNotification);
+    rangeLabel.setColour(juce::Label::textColourId, owner->getMutedTextColour());
+    rangeValueLabel.setJustificationType(juce::Justification::centred);
+    rangeValueLabel.setColour(juce::Label::textColourId, text);
+    addAndMakeVisible(rangeLabel);
+    addAndMakeVisible(rangeValueLabel);
+
+    for (auto* button : { &rangeDownButton, &rangeUpButton })
+    {
+        button->setColour(juce::TextButton::buttonColourId, control);
+        button->setColour(juce::TextButton::textColourOffId, text);
+        addAndMakeVisible(button);
+    }
+
+    rangeDownButton.onClick = [this] { changeFillSpread(-1); };
+    rangeUpButton.onClick = [this] { changeFillSpread(1); };
+
+    changeFillSpread(0);
     updateFillButtons();
 
-    setSize(226, 68);
+    setSize(226, 102);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::resized()
@@ -1137,10 +1156,29 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
     typeBox.setBounds(pickers);
 
     area.removeFromTop(6);
+    auto rangeRow = area.removeFromTop(28);
+    rangeUpButton.setBounds(rangeRow.removeFromRight(28));
+    rangeValueLabel.setBounds(rangeRow.removeFromRight(30));
+    rangeDownButton.setBounds(rangeRow.removeFromRight(28));
+    rangeRow.removeFromRight(4);
+    rangeLabel.setBounds(rangeRow);
+
+    area.removeFromTop(6);
     const int half = (area.getWidth() - 6) / 2;
     fillTriadsButton.setBounds(area.removeFromLeft(half));
     area.removeFromLeft(6);
     fillSeventhsButton.setBounds(area);
+}
+
+void MnKordAudioProcessorEditor::ScalePopupContent::changeFillSpread(int delta)
+{
+    if (owner == nullptr)
+        return;
+
+    owner->fillOctaveSpread = juce::jlimit(0, maxFillOctaveSpread, owner->fillOctaveSpread + delta);
+    rangeValueLabel.setText(juce::String(owner->fillOctaveSpread), juce::dontSendNotification);
+    rangeDownButton.setEnabled(owner->fillOctaveSpread > 0);
+    rangeUpButton.setEnabled(owner->fillOctaveSpread < maxFillOctaveSpread);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::updateFillButtons()
@@ -1437,7 +1475,7 @@ void MnKordAudioProcessorEditor::populateDiatonicChords(Preset& preset, const Di
                                        ? std::vector<int> { 0, 2, 4, 6 }
                                        : std::vector<int> { 0, 2, 4 };
 
-    for (int note = 0; note < 128; ++note)
+    for (int note = juce::jmax(0, options.lowestInputNote); note <= juce::jmin(127, options.highestInputNote); ++note)
     {
         const int relative = ((note % 12) - options.scaleRoot + 12) % 12;
         const auto degreeIt = std::find(intervals.begin(), intervals.end(), relative);
@@ -1499,6 +1537,8 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
         options.scaleRoot = scaleRoot;
         options.scaleType = scaleType;
         options.chordSize = chordSize;
+        options.lowestInputNote = 60 - 12 * fillOctaveSpread;          // C4 octave, minus spread
+        options.highestInputNote = 71 + 12 * fillOctaveSpread;         // B4, plus spread
 
         auto& preset = presets[(size_t) index];
         preset.mappings.clear();
