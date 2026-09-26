@@ -152,11 +152,11 @@ private:
     struct ScalePopupContent : public juce::Component, private juce::ComboBox::Listener
     {
         // A "caption  [-] n [+]" row editing one of the editor's octave-count fields,
-        // clamped to 0..maxFillOctaves.
+        // clamped to 0..maxFillOctaves. The caption is set by updateStepperCaptions(), since
+        // it names the current root.
         struct OctaveStepper : public juce::Component
         {
-            OctaveStepper(ScalePopupContent& popupRef, const juce::String& caption,
-                          int MnKordAudioProcessorEditor::* fieldRef);
+            OctaveStepper(ScalePopupContent& popupRef, int MnKordAudioProcessorEditor::* fieldRef);
             void resized() override;
             void change(int delta);
 
@@ -174,11 +174,12 @@ private:
         // Fill buttons only make sense with an actual scale selected ("Full range" has no
         // diatonic chords to stack), so they're disabled otherwise.
         void updateFillButtons();
+        void updateStepperCaptions();
 
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         juce::ComboBox rootBox, typeBox;
-        OctaveStepper belowStepper { *this, "Octaves below C4", &MnKordAudioProcessorEditor::fillOctavesBelow };
-        OctaveStepper aboveStepper { *this, "Octaves above B4", &MnKordAudioProcessorEditor::fillOctavesAbove };
+        OctaveStepper belowStepper { *this, &MnKordAudioProcessorEditor::fillOctavesBelow };
+        OctaveStepper aboveStepper { *this, &MnKordAudioProcessorEditor::fillOctavesAbove };
         juce::TextButton fillTriadsButton { "Fill triads" };
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
@@ -269,9 +270,10 @@ private:
     VisualTheme visualTheme = VisualTheme::Graphite;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
-    // Octaves below C4 / above B4 that Fill triads/7ths covers besides the middle octave
-    // (both 0 = C4..B4 only). Kept here rather than in ScalePopupContent so they survive
-    // closing and reopening the popup.
+    // Octaves below / above the middle octave (the scale root in octave 4 up to the note
+    // before the next root, e.g. D4..C#5) that Fill triads/7ths covers besides that octave
+    // (both 0 = middle octave only). Kept here rather than in ScalePopupContent so they
+    // survive closing and reopening the popup.
     int fillOctavesBelow = 1;
     int fillOctavesAbove = 1;
     static constexpr int maxFillOctaves = 3;   // C1..B7, inside the keyboards' 21-108 range
@@ -307,9 +309,9 @@ private:
     // (other than Full range) is selected.
     static void populateDiatonicChords(Preset& preset, const DiatonicFillOptions& options);
     // Replaces every mapping in the active preset with diatonic chords (chordSize 3 = triads,
-    // 4 = sevenths) built from the current scaleRoot/scaleType, on INPUT notes from
-    // fillOctavesBelow octaves under C4 to fillOctavesAbove octaves over B4. No-op when
-    // scaleType is Chromatic.
+    // 4 = sevenths) built from the current scaleRoot/scaleType, on INPUT notes from the root
+    // in octave 4 (minus fillOctavesBelow octaves) up to the note before the next root (plus
+    // fillOctavesAbove octaves). No-op when scaleType is Chromatic.
     void fillActivePresetFromScale(int chordSize);
     void saveCurrentPresetAs();
     // Renames/re-tags the active preset in place (name/group/author only), unlike

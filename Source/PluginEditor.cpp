@@ -1125,6 +1125,7 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
 
     addAndMakeVisible(belowStepper);
     addAndMakeVisible(aboveStepper);
+    updateStepperCaptions();
     updateFillButtons();
 
     setSize(226, 136);
@@ -1151,14 +1152,22 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
     fillSeventhsButton.setBounds(area);
 }
 
+void MnKordAudioProcessorEditor::ScalePopupContent::updateStepperCaptions()
+{
+    if (owner == nullptr)
+        return;
+
+    const auto rootName = NoteName::pitchClassName(owner->scaleRoot);
+    belowStepper.captionLabel.setText("Octaves below " + rootName + "4", juce::dontSendNotification);
+    aboveStepper.captionLabel.setText("Octaves from " + rootName + "5 up", juce::dontSendNotification);
+}
+
 MnKordAudioProcessorEditor::ScalePopupContent::OctaveStepper::OctaveStepper(ScalePopupContent& popupRef,
-                                                                            const juce::String& caption,
                                                                             int MnKordAudioProcessorEditor::* fieldRef)
     : popup(popupRef), field(fieldRef)
 {
     const auto& owner = popup.owner;
 
-    captionLabel.setText(caption, juce::dontSendNotification);
     captionLabel.setColour(juce::Label::textColourId, owner->getMutedTextColour());
     valueLabel.setJustificationType(juce::Justification::centred);
     valueLabel.setColour(juce::Label::textColourId, owner->getTextColour());
@@ -1220,6 +1229,7 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
         + " type=" + scaleTypeName(owner->scaleType));
     owner->updateScaleSummaryText();
     owner->inputKeyboard.repaint();
+    updateStepperCaptions();
     updateFillButtons();
 }
 
@@ -1556,8 +1566,9 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
         options.scaleRoot = scaleRoot;
         options.scaleType = scaleType;
         options.chordSize = chordSize;
-        options.lowestInputNote = 60 - 12 * fillOctavesBelow;    // C4, extended down
-        options.highestInputNote = 71 + 12 * fillOctavesAbove;   // B4, extended up
+        const int middleRoot = 60 + scaleRoot;                               // root in octave 4
+        options.lowestInputNote = middleRoot - 12 * fillOctavesBelow;
+        options.highestInputNote = middleRoot + 11 + 12 * fillOctavesAbove; // note before next root
 
         auto& preset = presets[(size_t) index];
         preset.mappings.clear();
