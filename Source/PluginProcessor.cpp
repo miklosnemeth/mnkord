@@ -1,6 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "NoteName.h"
 
 namespace
 {
@@ -599,14 +598,10 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
 
     for (const auto& scale : scales)
     {
-        for (int root = 60; root < 60 + 12; ++root)  // C4..B4: every root, one octave
-        {
-            const auto rootName = NoteName::pitchClassName(root);
-            factory.push_back(makePreset(rootName + " " + scale.groupName + " Triads", scale.groupName,
-                                         buildDiatonicMappings(root, scale.intervals, 3)));
-            factory.push_back(makePreset(rootName + " " + scale.groupName + " 7ths", scale.groupName,
-                                         buildDiatonicMappings(root, scale.intervals, 4)));
-        }
+        factory.push_back(makePreset("C " + juce::String(scale.groupName) + " Triads", scale.groupName,
+                                     buildDiatonicMappings(60, scale.intervals, 3)));
+        factory.push_back(makePreset("C " + juce::String(scale.groupName) + " 7ths", scale.groupName,
+                                     buildDiatonicMappings(60, scale.intervals, 4)));
     }
 
     return factory;
