@@ -653,6 +653,14 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
         g.fillRect(area.reduced(1.0f, 1.0f));
     }
 
+    if (owner.isPlayingKey(role, midiNoteNumber))
+    {
+        auto marker = keyArea.reduced(3.0f, 0.0f);
+        marker = marker.withTrimmedTop(marker.getHeight() * 0.5f).withTrimmedBottom(marker.getHeight() * 0.2f);
+        g.setColour(owner.getPlayingColour());
+        g.fillRoundedRectangle(marker, 3.0f);
+    }
+
     if (highlighted)
     {
         g.setColour(juce::Colour(0x22000000));
@@ -723,6 +731,14 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
         g.fillRoundedRectangle(keyArea, 2.0f);
     }
 
+    if (owner.isPlayingKey(role, midiNoteNumber))
+    {
+        auto marker = keyArea.reduced(2.0f, 0.0f);
+        marker = marker.withTrimmedTop(marker.getHeight() * 0.5f).withTrimmedBottom(4.0f);
+        g.setColour(owner.getPlayingColour());
+        g.fillRoundedRectangle(marker, 2.0f);
+    }
+
     if (highlighted && role == KeyboardRole::output)
     {
         g.setColour(juce::Colour(0xff043716));
@@ -770,7 +786,8 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     }
 
     // Host/program changes and external preset edits may arrive while the editor is open.
-    startTimerHz(8);
+    // (Also polls which notes are playing for the live key overlay, hence the rate.)
+    startTimerHz(30);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
     outputKeyboardLabel.setText("CHORD", juce::dontSendNotification);
@@ -1722,6 +1739,20 @@ void MnKordAudioProcessorEditor::timerCallback()
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
     }
+
+    const auto input = audioProcessor.getActiveInputNotes();
+    if (input != playingInputNotes)
+    {
+        playingInputNotes = input;
+        inputKeyboard.repaint();
+    }
+
+    const auto output = audioProcessor.getActiveOutputNotes();
+    if (output != playingOutputNotes)
+    {
+        playingOutputNotes = output;
+        outputKeyboard.repaint();
+    }
 }
 
 void MnKordAudioProcessorEditor::importPresetsFromChooser()
@@ -2335,6 +2366,17 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
         selectedInputLabel.setText("-", juce::dontSendNotification);
         chordNotesLabel.setText("-", juce::dontSendNotification);
     }
+}
+
+bool MnKordAudioProcessorEditor::isPlayingKey(KeyboardRole role, int midiNoteNumber) const
+{
+    return role == KeyboardRole::input ? playingInputNotes.contains(midiNoteNumber)
+                                       : playingOutputNotes.contains(midiNoteNumber);
+}
+
+juce::Colour MnKordAudioProcessorEditor::getPlayingColour() const
+{
+    return juce::Colour(0xffffa53a);
 }
 
 bool MnKordAudioProcessorEditor::isHighlightedKey(KeyboardRole role, int midiNoteNumber) const

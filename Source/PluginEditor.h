@@ -284,6 +284,10 @@ private:
     int lastSyncedActivePresetIndex = -2;
     int lastSyncedPresetCount = -1;
 
+    // Notes currently being played (INPUT) and the chord notes sounding for them (CHORD), as
+    // last polled from the processor by timerCallback(); drawn as a live overlay on the keys.
+    MnKordAudioProcessor::NoteBits playingInputNotes, playingOutputNotes;
+
     //==============================================================================
     // Updates presetSummaryButton's text and deletePresetButton's enabled state from the
     // current preset list/active index. Call after any preset add/remove/rename.
@@ -353,6 +357,7 @@ private:
     void refreshKeyboardHighlights();
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;
+    bool isPlayingKey(KeyboardRole role, int midiNoteNumber) const;
     bool isMappedInputKey(int midiNoteNumber) const;
     juce::String getOutputDegreeLabel(int midiNoteNumber) const;
     juce::Colour getBackgroundColour() const;
@@ -361,6 +366,9 @@ private:
     juce::Colour getTextColour() const;
     juce::Colour getMutedTextColour() const;
     juce::Colour getAccentColour() const;
+    // Live "being played" marker; deliberately not the accent green, which marks the mapping
+    // selected for editing.
+    juce::Colour getPlayingColour() const;
     juce::Colour getControlColour() const;
     juce::Colour getWhiteKeyTopColour() const;
     juce::Colour getWhiteKeyBottomColour() const;

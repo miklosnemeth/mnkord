@@ -151,7 +151,28 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         }
     }
 
+    publishActiveNotes();
     midiMessages.swapWith(outputMessages);
+}
+
+void MnKordAudioProcessor::publishActiveNotes()
+{
+    NoteBits input, output;
+
+    for (const auto& kv : activeNotes)
+        input.add(kv.first.second);
+
+    for (const auto& kv : outputNoteRefCount)
+        output.add(kv.first.second);
+
+    for (const auto& key : pendingNoteOffs)
+        output.add(key.second);
+
+    for (size_t i = 0; i < input.words.size(); ++i)
+    {
+        activeInputWords[i].store(input.words[i], std::memory_order_relaxed);
+        activeOutputWords[i].store(output.words[i], std::memory_order_relaxed);
+    }
 }
 
 //==============================================================================
@@ -280,6 +301,7 @@ void MnKordAudioProcessor::clearActiveNotes()
     outputNoteRefCount.clear();
     pendingNoteOffs.clear();
     sustainPedalDown = false;
+    publishActiveNotes();
 }
 
 //==============================================================================

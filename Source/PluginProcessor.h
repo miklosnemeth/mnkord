@@ -73,6 +73,32 @@ public:
     int importPresetsFromFile(const juce::File& file);
     bool exportPresetToFile(int index, const juce::File& file) const;
 
+    // A set of MIDI note numbers (0-127) as two 64-bit words.
+    struct NoteBits
+    {
+        std::array<std::uint64_t, 2> words {};
+
+        void add(int note)
+        {
+            if (note >= 0 && note < 128)
+                words[(size_t) (note >> 6)] |= std::uint64_t(1) << (note & 63);
+        }
+
+        bool contains(int note) const
+        {
+            return note >= 0 && note < 128 && ((words[(size_t) (note >> 6)] >> (note & 63)) & 1u) != 0;
+        }
+
+        bool operator==(const NoteBits& other) const { return words == other.words; }
+        bool operator!=(const NoteBits& other) const { return words != other.words; }
+    };
+
+    // INPUT notes currently held and OUTPUT notes currently sounding (any channel; notes held
+    // by the sustain pedal count as sounding), for the editor's live display. Published by the
+    // audio thread at the end of every block, so reading them never touches stateLock.
+    NoteBits getActiveInputNotes() const  { return loadNoteBits(activeInputWords); }
+    NoteBits getActiveOutputNotes() const { return loadNoteBits(activeOutputWords); }
+
 private:
     //==============================================================================
     std::vector<Preset> presets;
@@ -91,6 +117,22 @@ private:
     juce::CriticalSection stateLock;
     // Guards notesToFlush (written on GUI thread, consumed on audio thread).
     juce::CriticalSection flushLock;
+
+    using AtomicNoteWords = std::array<std::atomic<std::uint64_t>, 2>;
+    AtomicNoteWords activeInputWords {};
+    AtomicNoteWords activeOutputWords {};
+
+    static NoteBits loadNoteBits(const AtomicNoteWords& source)
+    {
+        NoteBits bits;
+        for (size_t i = 0; i < bits.words.size(); ++i)
+            bits.words[i] = source[i].load(std::memory_order_relaxed);
+        return bits;
+    }
+
+    // Recomputes activeInputWords/activeOutputWords from the runtime note state. Caller must
+    // hold stateLock.
+    void publishActiveNotes();
 
     void handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output);
     void handleNoteOff(int channel, int note, int samplePosition, juce::MidiBuffer& output);
