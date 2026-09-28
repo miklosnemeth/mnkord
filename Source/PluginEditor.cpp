@@ -655,10 +655,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
 
     if (owner.isPlayingKey(role, midiNoteNumber))
     {
-        auto marker = keyArea.reduced(3.0f, 0.0f);
-        marker = marker.withTrimmedTop(marker.getHeight() * 0.5f).withTrimmedBottom(marker.getHeight() * 0.2f);
         g.setColour(owner.getPlayingColour());
-        g.fillRoundedRectangle(marker, 3.0f);
+        g.fillRect(keyArea.withTop(keyArea.getBottom() - 5.0f));
     }
 
     if (highlighted)
@@ -733,10 +731,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
 
     if (owner.isPlayingKey(role, midiNoteNumber))
     {
-        auto marker = keyArea.reduced(2.0f, 0.0f);
-        marker = marker.withTrimmedTop(marker.getHeight() * 0.5f).withTrimmedBottom(4.0f);
         g.setColour(owner.getPlayingColour());
-        g.fillRoundedRectangle(marker, 2.0f);
+        g.fillRect(keyArea.withTop(keyArea.getBottom() - 5.0f));
     }
 
     if (highlighted && role == KeyboardRole::output)
