@@ -656,7 +656,7 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
     if (owner.isPlayingKey(role, midiNoteNumber))
     {
         g.setColour(owner.getPlayingColour());
-        g.fillRect(keyArea.withTop(keyArea.getBottom() - 5.0f));
+        g.fillRect(keyArea.withTop(keyArea.getBottom() - 7.0f));
     }
 
     if (highlighted)
@@ -732,7 +732,7 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
     if (owner.isPlayingKey(role, midiNoteNumber))
     {
         g.setColour(owner.getPlayingColour());
-        g.fillRect(keyArea.withTop(keyArea.getBottom() - 5.0f));
+        g.fillRect(keyArea.withTop(keyArea.getBottom() - 7.0f));
     }
 
     if (highlighted && role == KeyboardRole::output)
