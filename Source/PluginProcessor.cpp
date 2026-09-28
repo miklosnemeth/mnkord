@@ -25,7 +25,10 @@ namespace
 }
 
 //==============================================================================
+// No audio buses: this is a MIDI effect. The default AudioProcessor() constructor adds a stereo
+// in/out pair, which makes hosts treat the plugin as an audio effect.
 MnKordAudioProcessor::MnKordAudioProcessor()
+    : AudioProcessor(BusesProperties())
 {
     presets = createFactoryPresets();
     activePresetIndex = presets.empty() ? -1 : 0;

@@ -21,6 +21,10 @@ juce_add_plugin(mnKord
     PLUGIN_CODE MnKd
     FORMATS VST3 Standalone
     IS_MIDI_EFFECT TRUE
+    # VST3 has no MIDI-effect category and JUCE defaults non-synths to "Fx", which hosts
+    # (e.g. Bitwig) load as an audio effect. As an instrument it sits on an instrument track,
+    # receives MIDI, and its MIDI output feeds the next device in the chain.
+    VST3_CATEGORIES Instrument
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT TRUE
     PRODUCT_NAME "mnKord"
