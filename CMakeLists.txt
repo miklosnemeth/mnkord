@@ -16,7 +16,7 @@ FetchContent_Declare(juce
 FetchContent_MakeAvailable(juce)
 
 juce_add_plugin(mnKord
-    VENDOR_NAME "mnKord"
+    COMPANY_NAME "MNAudio"
     PLUGIN_MANUFACTURER_CODE MnKr
     PLUGIN_CODE MnKd
     FORMATS VST3 Standalone
