@@ -754,9 +754,9 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), area.reduced(2.0f, 8.0f),
                    juce::Justification::centredTop, false);
 
-        g.setFont(juce::FontOptions(11.0f));
+        g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
         g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
-                   area.reduced(2.0f, 8.0f).withTrimmedTop(16.0f), juce::Justification::centredTop, false);
+                   area.reduced(1.0f, 8.0f).withTrimmedTop(17.0f), juce::Justification::centredTop, false);
     }
 }
 
@@ -821,9 +821,9 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), keyArea.reduced(1.0f, 4.0f).toNearestInt(),
                    juce::Justification::centredTop, false);
 
-        g.setFont(juce::FontOptions(9.0f));
+        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
         g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
-                   keyArea.reduced(1.0f, 4.0f).withTrimmedTop(13.0f).toNearestInt(),
+                   keyArea.reduced(0.0f, 4.0f).withTrimmedTop(14.0f).toNearestInt(),
                    juce::Justification::centredTop, false);
     }
 }
