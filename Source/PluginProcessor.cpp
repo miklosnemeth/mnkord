@@ -128,7 +128,7 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
         if (message.isNoteOn())
         {
-            handleNoteOn(channel, message.getNoteNumber(), message.getVelocity(), samplePosition, outputMessages);
+            handleNoteOn(channel, message.getNoteNumber(), samplePosition, outputMessages);
         }
         else if (message.isNoteOff())
         {
@@ -176,7 +176,7 @@ void MnKordAudioProcessor::publishActiveNotes()
 }
 
 //==============================================================================
-void MnKordAudioProcessor::handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output)
+void MnKordAudioProcessor::handleNoteOn(int channel, int note, int samplePosition, juce::MidiBuffer& output)
 {
     if (activePresetIndex < 0 || activePresetIndex >= (int) presets.size())
         return;
@@ -218,6 +218,7 @@ void MnKordAudioProcessor::handleNoteOn(int channel, int note, int velocity, int
             pendingNoteOffs.erase(std::remove(pendingNoteOffs.begin(), pendingNoteOffs.end(), outputKey),
                                   pendingNoteOffs.end());
 
+            const auto velocity = juce::jlimit(1, 127, mapping->velocityFor(outNote));
             output.addEvent(juce::MidiMessage::noteOn(channel, outNote, (juce::uint8) velocity), samplePosition);
         }
         refCount++;
@@ -413,14 +414,22 @@ std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::presetToXml(const Preset
         auto* mappingXml = new juce::XmlElement("Mapping");
         mappingXml->setAttribute("input", mapping.inputNote);
 
-        juce::String outputStr;
-        for (int i = 0; i < (int) mapping.outputNotes.size(); ++i)
+        juce::StringArray outputs, velocities;
+        bool anyCustomVelocity = false;
+
+        for (const auto note : mapping.outputNotes)
         {
-            if (i > 0)
-                outputStr += " ";
-            outputStr += juce::String(mapping.outputNotes[i]);
+            outputs.add(juce::String(note));
+            velocities.add(juce::String(mapping.velocityFor(note)));
+            anyCustomVelocity |= mapping.velocityFor(note) != NoteMapping::defaultOutputVelocity;
         }
-        mappingXml->setAttribute("output", outputStr);
+
+        mappingXml->setAttribute("output", outputs.joinIntoString(" "));
+
+        // Parallel to "output"; omitted when every note uses the default velocity.
+        if (anyCustomVelocity)
+            mappingXml->setAttribute("velocity", velocities.joinIntoString(" "));
+
         xml->addChildElement(mappingXml);
     }
 
@@ -444,9 +453,15 @@ Preset MnKordAudioProcessor::presetFromXml(const juce::XmlElement& xml)
 
         juce::StringArray tokens;
         tokens.addTokens(mappingXml->getStringAttribute("output"), " ", {});
+        tokens.removeEmptyStrings();
         for (const auto& token : tokens)
-            if (token.isNotEmpty())
-                mapping.outputNotes.push_back(token.getIntValue());
+            mapping.outputNotes.push_back(token.getIntValue());
+
+        juce::StringArray velocityTokens;
+        velocityTokens.addTokens(mappingXml->getStringAttribute("velocity"), " ", {});
+        velocityTokens.removeEmptyStrings();
+        for (int i = 0; i < juce::jmin(velocityTokens.size(), (int) mapping.outputNotes.size()); ++i)
+            mapping.outputVelocities[mapping.outputNotes[(size_t) i]] = juce::jlimit(1, 127, velocityTokens[i].getIntValue());
 
         preset.mappings.push_back(std::move(mapping));
     }

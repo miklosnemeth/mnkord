@@ -123,6 +123,16 @@ private:
 
         bool mouseDownOnKey(int midiNoteNumber, const juce::MouseEvent& event) override;
         bool mouseDraggedToKey(int midiNoteNumber, const juce::MouseEvent& event) override;
+
+        // On the CHORD keyboard, a left-button drag up/down that starts on a note of the
+        // selected chord sets that note's velocity instead of toggling it; a click without
+        // any vertical movement still toggles it off as before.
+        void mouseDown(const juce::MouseEvent&) override;
+        void mouseDrag(const juce::MouseEvent&) override;
+        void mouseUp(const juce::MouseEvent&) override;
+        void mouseMove(const juce::MouseEvent&) override;
+        int selectedChordNoteAt(juce::Point<float> position);
+
         void drawWhiteNote(int midiNoteNumber,
                            juce::Graphics& g,
                            juce::Rectangle<float> area,
@@ -139,6 +149,10 @@ private:
 
         MnKordAudioProcessorEditor& owner;
         KeyboardRole role;
+
+        int velocityDragNote = -1;      // -1 = no velocity drag in progress
+        int velocityDragStart = NoteMapping::defaultOutputVelocity;
+        bool velocityDragMoved = false;
     };
 
     // Content shown in the CallOutBox opened by clicking scaleSummaryButton: the root and
@@ -358,6 +372,9 @@ private:
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;
     bool isPlayingKey(KeyboardRole role, int midiNoteNumber) const;
+    // Velocity of an output note in the selected mapping (default if it has none).
+    int getSelectedOutputVelocity(int outputNote) const;
+    void setSelectedOutputVelocity(int outputNote, int velocity);
     bool isMappedInputKey(int midiNoteNumber) const;
     juce::String getOutputDegreeLabel(int midiNoteNumber) const;
     juce::Colour getBackgroundColour() const;

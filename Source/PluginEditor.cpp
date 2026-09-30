@@ -159,6 +159,18 @@ namespace
         return nullptr;
     }
 
+    // Carries an output note's custom velocity (if it has one) over to the note it moved to.
+    void moveOutputVelocity(NoteMapping& mapping, int fromNote, int toNote)
+    {
+        const auto it = mapping.outputVelocities.find(fromNote);
+        if (it == mapping.outputVelocities.end())
+            return;
+
+        const auto velocity = it->second;
+        mapping.outputVelocities.erase(it);
+        mapping.outputVelocities[toNote] = velocity;
+    }
+
     // showScalePopup() and showPresetBrowser() both launch a null-parented CallOutBox (an
     // independent top-level window not torn down with the editor's component tree) whose
     // content and box point at the editor's flatLookAndFeel. If the popup is still open when
@@ -604,6 +616,69 @@ bool MnKordAudioProcessorEditor::MappingKeyboard::mouseDraggedToKey(int midiNote
     return false;
 }
 
+int MnKordAudioProcessorEditor::MappingKeyboard::selectedChordNoteAt(juce::Point<float> position)
+{
+    if (role != KeyboardRole::output)
+        return -1;
+
+    const auto note = getNoteAndVelocityAtPosition(position).note;
+    return note >= 0 && owner.isHighlightedKey(role, note) ? note : -1;
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::mouseDown(const juce::MouseEvent& e)
+{
+    if (e.mods.isLeftButtonDown() && ! e.mods.isPopupMenu())
+    {
+        const auto note = selectedChordNoteAt(e.position);
+        if (note >= 0)
+        {
+            velocityDragNote = note;
+            velocityDragStart = owner.getSelectedOutputVelocity(note);
+            velocityDragMoved = false;
+            return;
+        }
+    }
+
+    juce::MidiKeyboardComponent::mouseDown(e);
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::mouseDrag(const juce::MouseEvent& e)
+{
+    if (velocityDragNote < 0)
+    {
+        juce::MidiKeyboardComponent::mouseDrag(e);
+        return;
+    }
+
+    const auto dy = e.getDistanceFromDragStartY();
+    if (std::abs(dy) >= 3)
+        velocityDragMoved = true;
+
+    if (velocityDragMoved)
+        owner.setSelectedOutputVelocity(velocityDragNote, juce::jlimit(1, 127, velocityDragStart - dy / 2));
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::mouseUp(const juce::MouseEvent& e)
+{
+    if (velocityDragNote < 0)
+    {
+        juce::MidiKeyboardComponent::mouseUp(e);
+        return;
+    }
+
+    if (! velocityDragMoved)
+        owner.keyboardNoteClicked(role, velocityDragNote);
+
+    velocityDragNote = -1;
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::mouseMove(const juce::MouseEvent& e)
+{
+    setMouseCursor(selectedChordNoteAt(e.position) >= 0 ? juce::MouseCursor::UpDownResizeCursor
+                                                        : juce::MouseCursor::NormalCursor);
+    juce::MidiKeyboardComponent::mouseMove(e);
+}
+
 void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumber,
                                                                 juce::Graphics& g,
                                                                 juce::Rectangle<float> area,
@@ -678,6 +753,10 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
         g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), area.reduced(2.0f, 8.0f),
                    juce::Justification::centredTop, false);
+
+        g.setFont(juce::FontOptions(11.0f));
+        g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
+                   area.reduced(2.0f, 8.0f).withTrimmedTop(16.0f), juce::Justification::centredTop, false);
     }
 }
 
@@ -740,6 +819,11 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
         g.setColour(juce::Colour(0xff043716));
         g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), keyArea.reduced(1.0f, 4.0f).toNearestInt(),
+                   juce::Justification::centredTop, false);
+
+        g.setFont(juce::FontOptions(9.0f));
+        g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
+                   keyArea.reduced(1.0f, 4.0f).withTrimmedTop(13.0f).toNearestInt(),
                    juce::Justification::centredTop, false);
     }
 }
@@ -1967,6 +2051,9 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
             else
                 notes.erase(it);
 
+            // Added or removed either way: a re-added note starts again at the default.
+            mapping->outputVelocities.erase(midiNoteNumber);
+
             std::sort(notes.begin(), notes.end());
             notes.erase(std::unique(notes.begin(), notes.end()), notes.end());
         }
@@ -2084,6 +2171,7 @@ void MnKordAudioProcessorEditor::applyChordTemplate(const std::vector<int>& inte
             return;
 
         mapping->outputNotes.clear();
+        mapping->outputVelocities.clear();
 
         for (const auto interval : intervals)
         {
@@ -2123,6 +2211,7 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
             if (moved > 127)
                 return;
 
+            moveOutputVelocity(*mapping, mapping->outputNotes.front(), moved);
             mapping->outputNotes.erase(mapping->outputNotes.begin());
             mapping->outputNotes.push_back(moved);
         }
@@ -2132,6 +2221,7 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
             if (moved < 0)
                 return;
 
+            moveOutputVelocity(*mapping, mapping->outputNotes.back(), moved);
             mapping->outputNotes.pop_back();
             mapping->outputNotes.insert(mapping->outputNotes.begin(), moved);
         }
@@ -2160,6 +2250,11 @@ void MnKordAudioProcessorEditor::shiftSelectedChord(int semitones)
         for (auto& note : mapping->outputNotes)
             note += semitones;
 
+        std::map<int, int> shiftedVelocities;
+        for (const auto& [note, velocity] : mapping->outputVelocities)
+            shiftedVelocities[note + semitones] = velocity;
+        mapping->outputVelocities = std::move(shiftedVelocities);
+
         std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
     }
 
@@ -2177,6 +2272,7 @@ void MnKordAudioProcessorEditor::clearSelectedChord()
             return;
 
         mapping->outputNotes.clear();
+        mapping->outputVelocities.clear();
     }
 
     refreshKeyboardHighlights();
@@ -2240,6 +2336,7 @@ void MnKordAudioProcessorEditor::fitSelectedChordToScale()
                 }
             }
 
+            moveOutputVelocity(*mapping, note, nearest);
             note = nearest;
         }
 
@@ -2323,6 +2420,18 @@ void MnKordAudioProcessorEditor::compactVoiceLeading()
 
             std::sort(revoiced.begin(), revoiced.end());
             revoiced.erase(std::unique(revoiced.begin(), revoiced.end()), revoiced.end());
+
+            // Revoicing only changes octaves, so each note keeps the velocity of its pitch class.
+            auto& velocities = ordered[i]->outputVelocities;
+            std::map<int, int> velocityByPitchClass;
+            for (const auto& [note, velocity] : velocities)
+                velocityByPitchClass[((note % 12) + 12) % 12] = velocity;
+
+            velocities.clear();
+            for (const int note : revoiced)
+                if (const auto it = velocityByPitchClass.find(note % 12); it != velocityByPitchClass.end())
+                    velocities[note] = it->second;
+
             currentNotes = revoiced;
         }
     }
@@ -2362,6 +2471,27 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
         selectedInputLabel.setText("-", juce::dontSendNotification);
         chordNotesLabel.setText("-", juce::dontSendNotification);
     }
+}
+
+int MnKordAudioProcessorEditor::getSelectedOutputVelocity(int outputNote) const
+{
+    const auto* mapping = getSelectedMapping();
+    return mapping != nullptr ? mapping->velocityFor(outputNote) : NoteMapping::defaultOutputVelocity;
+}
+
+void MnKordAudioProcessorEditor::setSelectedOutputVelocity(int outputNote, int velocity)
+{
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto* mapping = getSelectedMapping();
+        if (mapping == nullptr)
+            return;
+
+        mapping->outputVelocities[outputNote] = juce::jlimit(1, 127, velocity);
+    }
+
+    outputKeyboard.repaint();
 }
 
 bool MnKordAudioProcessorEditor::isPlayingKey(KeyboardRole role, int midiNoteNumber) const
