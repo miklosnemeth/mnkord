@@ -656,6 +656,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::mouseDrag(const juce::MouseEve
 
     if (velocityDragMoved)
         owner.setSelectedOutputVelocity(velocityDragNote, juce::jlimit(1, 127, velocityDragStart - dy / 2));
+
+    owner.showVelocityBubble(*this, velocityDragNote);
 }
 
 void MnKordAudioProcessorEditor::MappingKeyboard::mouseUp(const juce::MouseEvent& e)
@@ -670,13 +672,32 @@ void MnKordAudioProcessorEditor::MappingKeyboard::mouseUp(const juce::MouseEvent
         owner.keyboardNoteClicked(role, velocityDragNote);
 
     velocityDragNote = -1;
+    updateVelocityBubble(e.position);
 }
 
 void MnKordAudioProcessorEditor::MappingKeyboard::mouseMove(const juce::MouseEvent& e)
 {
     setMouseCursor(selectedChordNoteAt(e.position) >= 0 ? juce::MouseCursor::UpDownResizeCursor
                                                         : juce::MouseCursor::NormalCursor);
+    updateVelocityBubble(e.position);
     juce::MidiKeyboardComponent::mouseMove(e);
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::mouseExit(const juce::MouseEvent& e)
+{
+    if (velocityDragNote < 0)
+        owner.hideVelocityBubble();
+
+    juce::MidiKeyboardComponent::mouseExit(e);
+}
+
+void MnKordAudioProcessorEditor::MappingKeyboard::updateVelocityBubble(juce::Point<float> position)
+{
+    const auto note = selectedChordNoteAt(position);
+    if (note >= 0)
+        owner.showVelocityBubble(*this, note);
+    else
+        owner.hideVelocityBubble();
 }
 
 void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumber,
@@ -753,10 +774,6 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
         g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), area.reduced(2.0f, 8.0f),
                    juce::Justification::centredTop, false);
-
-        g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
-        g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
-                   area.reduced(1.0f, 8.0f).withTrimmedTop(17.0f), juce::Justification::centredTop, false);
     }
 }
 
@@ -819,11 +836,6 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
         g.setColour(juce::Colour(0xff043716));
         g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), keyArea.reduced(1.0f, 4.0f).toNearestInt(),
-                   juce::Justification::centredTop, false);
-
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        g.drawText(juce::String(owner.getSelectedOutputVelocity(midiNoteNumber)),
-                   keyArea.reduced(0.0f, 4.0f).withTrimmedTop(14.0f).toNearestInt(),
                    juce::Justification::centredTop, false);
     }
 }
@@ -893,6 +905,9 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
+
+    velocityBubble.setInterceptsMouseClicks(false, false);
+    addChildComponent(velocityBubble);
 
     setSize(1100, 456);
 
@@ -2492,6 +2507,52 @@ void MnKordAudioProcessorEditor::setSelectedOutputVelocity(int outputNote, int v
     }
 
     outputKeyboard.repaint();
+}
+
+void MnKordAudioProcessorEditor::showVelocityBubble(const MappingKeyboard& keyboard, int outputNote)
+{
+    const auto key = getLocalArea(&keyboard, keyboard.getRectangleForKey(outputNote)).toNearestInt();
+
+    const int height = VelocityBubble::bodyHeight + VelocityBubble::pointerHeight;
+    const int x = juce::jlimit(0, getWidth() - VelocityBubble::width, key.getCentreX() - VelocityBubble::width / 2);
+    velocityBubble.setBounds(x, key.getY() + 4 - height, VelocityBubble::width, height);
+
+    velocityBubble.velocity = getSelectedOutputVelocity(outputNote);
+    velocityBubble.setVisible(true);
+    velocityBubble.toFront(false);
+    velocityBubble.repaint();
+}
+
+void MnKordAudioProcessorEditor::hideVelocityBubble()
+{
+    velocityBubble.setVisible(false);
+}
+
+void MnKordAudioProcessorEditor::VelocityBubble::paint(juce::Graphics& g)
+{
+    const auto bounds = getLocalBounds().toFloat();
+    const auto body = bounds.withHeight((float) bodyHeight).reduced(0.5f);
+
+    juce::Path shape;
+    shape.addRoundedRectangle(body, 6.0f);
+    const auto tipX = bounds.getCentreX();
+    shape.addTriangle(tipX - (float) pointerHeight, body.getBottom() - 0.5f,
+                      tipX + (float) pointerHeight, body.getBottom() - 0.5f,
+                      tipX, bounds.getBottom());
+
+    g.setColour(owner.getPanelColour().brighter(0.12f));
+    g.fillPath(shape);
+    g.setColour(owner.getAccentColour().withAlpha(0.7f));
+    g.strokePath(shape, juce::PathStrokeType(1.0f));
+
+    auto text = body.reduced(2.0f, 3.0f);
+    g.setColour(owner.getMutedTextColour());
+    g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+    g.drawText("VEL", text.removeFromTop(10.0f), juce::Justification::centred, false);
+
+    g.setColour(owner.getTextColour());
+    g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
+    g.drawText(juce::String(velocity), text, juce::Justification::centred, false);
 }
 
 bool MnKordAudioProcessorEditor::isPlayingKey(KeyboardRole role, int midiNoteNumber) const

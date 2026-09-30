@@ -131,7 +131,10 @@ private:
         void mouseDrag(const juce::MouseEvent&) override;
         void mouseUp(const juce::MouseEvent&) override;
         void mouseMove(const juce::MouseEvent&) override;
+        void mouseExit(const juce::MouseEvent&) override;
         int selectedChordNoteAt(juce::Point<float> position);
+        // Shows the velocity bubble over the selected chord note under position, or hides it.
+        void updateVelocityBubble(juce::Point<float> position);
 
         void drawWhiteNote(int midiNoteNumber,
                            juce::Graphics& g,
@@ -153,6 +156,19 @@ private:
         int velocityDragNote = -1;      // -1 = no velocity drag in progress
         int velocityDragStart = NoteMapping::defaultOutputVelocity;
         bool velocityDragMoved = false;
+    };
+
+    // Tooltip-style bubble showing a selected chord note's velocity, floated above its key
+    // while hovering or dragging it. Lives on the editor (not the keyboard) so it can sit above
+    // the keyboard's top edge.
+    struct VelocityBubble : public juce::Component
+    {
+        explicit VelocityBubble(MnKordAudioProcessorEditor& ownerRef) : owner(ownerRef) {}
+        void paint(juce::Graphics&) override;
+
+        MnKordAudioProcessorEditor& owner;
+        int velocity = NoteMapping::defaultOutputVelocity;
+        static constexpr int width = 48, bodyHeight = 34, pointerHeight = 6;
     };
 
     // Content shown in the CallOutBox opened by clicking scaleSummaryButton: the root and
@@ -277,6 +293,7 @@ private:
     juce::MidiKeyboardState outputKeyboardState;
     MappingKeyboard inputKeyboard;
     MappingKeyboard outputKeyboard;
+    VelocityBubble velocityBubble { *this };
     juce::Label inputKeyboardLabel;
     juce::Label outputKeyboardLabel;
 
@@ -375,6 +392,8 @@ private:
     // Velocity of an output note in the selected mapping (default if it has none).
     int getSelectedOutputVelocity(int outputNote) const;
     void setSelectedOutputVelocity(int outputNote, int velocity);
+    void showVelocityBubble(const MappingKeyboard& keyboard, int outputNote);
+    void hideVelocityBubble();
     bool isMappedInputKey(int midiNoteNumber) const;
     juce::String getOutputDegreeLabel(int midiNoteNumber) const;
     juce::Colour getBackgroundColour() const;
