@@ -19,12 +19,40 @@ struct NoteMapping
     }
 };
 
+// How a newly created chord treats each of its notes, by interval above the chord root
+// (0 = R, 4 = 3, 7 = 5, ...): the velocity it starts with and whether an octave-down / octave-up
+// copy is added.
+struct DegreeDefault
+{
+    int velocity = NoteMapping::defaultOutputVelocity;
+    bool octaveBelow = false;
+    bool octaveAbove = false;
+
+    bool operator==(const DegreeDefault& other) const
+    {
+        return velocity == other.velocity && octaveBelow == other.octaveBelow && octaveAbove == other.octaveAbove;
+    }
+};
+
+struct ChordDefaults
+{
+    std::array<DegreeDefault, 12> degrees {};
+
+    const DegreeDefault& forInterval(int semitonesAboveRoot) const
+    {
+        return degrees[(size_t) (((semitonesAboveRoot % 12) + 12) % 12)];
+    }
+};
+
 struct Preset
 {
     juce::String name;
     juce::String group;
     juce::String author;
     std::vector<NoteMapping> mappings;
+    // Unset = this preset hasn't had its own chord defaults edited yet, so it uses the
+    // processor's last-used ones.
+    std::optional<ChordDefaults> chordDefaults;
 };
 
 //==============================================================================
@@ -84,6 +112,13 @@ public:
     int importPresetsFromFile(const juce::File& file);
     bool exportPresetToFile(int index, const juce::File& file) const;
 
+    // Chord defaults (per-degree velocity and octave doubling) for newly created chords. The
+    // active preset's own, or the last-used ones if it has none yet.
+    ChordDefaults getActiveChordDefaults() const;
+    // Stores defaults on the active preset and remembers them as the last-used ones.
+    void setActiveChordDefaults(const ChordDefaults& defaults);
+    ChordDefaults getLastUsedChordDefaults() const;
+
     // A set of MIDI note numbers (0-127) as two 64-bit words.
     struct NoteBits
     {
@@ -114,6 +149,10 @@ private:
     //==============================================================================
     std::vector<Preset> presets;
     int activePresetIndex = -1;
+    ChordDefaults lastUsedChordDefaults;
+
+    static std::unique_ptr<juce::XmlElement> chordDefaultsToXml(const ChordDefaults& defaults, const juce::String& tagName);
+    static ChordDefaults chordDefaultsFromXml(const juce::XmlElement& xml);
 
     // Runtime state
     using NoteKey = std::pair<int, int>;              // MIDI channel, note number

@@ -375,6 +375,7 @@ void MnKordAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         presetsXml->addChildElement(presetToXml(preset).release());
 
     root.addChildElement(presetsXml);
+    root.addChildElement(chordDefaultsToXml(lastUsedChordDefaults, "LastChordDefaults").release());
 
     juce::String xmlString = root.toString();
     destData.append(xmlString.toRawUTF8(), xmlString.getNumBytesAsUTF8());
@@ -398,7 +399,78 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
     if (activePresetIndex < 0 || activePresetIndex >= (int) presets.size())
         activePresetIndex = presets.empty() ? -1 : 0;
 
+    if (auto* lastDefaultsXml = root->getChildByName("LastChordDefaults"))
+        lastUsedChordDefaults = chordDefaultsFromXml(*lastDefaultsXml);
+
     clearActiveNotes();
+}
+
+ChordDefaults MnKordAudioProcessor::getActiveChordDefaults() const
+{
+    const juce::ScopedLock lock(stateLock);
+
+    if (activePresetIndex >= 0 && activePresetIndex < (int) presets.size()
+        && presets[(size_t) activePresetIndex].chordDefaults.has_value())
+        return *presets[(size_t) activePresetIndex].chordDefaults;
+
+    return lastUsedChordDefaults;
+}
+
+void MnKordAudioProcessor::setActiveChordDefaults(const ChordDefaults& defaults)
+{
+    const juce::ScopedLock lock(stateLock);
+
+    if (activePresetIndex >= 0 && activePresetIndex < (int) presets.size())
+        presets[(size_t) activePresetIndex].chordDefaults = defaults;
+
+    lastUsedChordDefaults = defaults;
+}
+
+ChordDefaults MnKordAudioProcessor::getLastUsedChordDefaults() const
+{
+    const juce::ScopedLock lock(stateLock);
+    return lastUsedChordDefaults;
+}
+
+std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::chordDefaultsToXml(const ChordDefaults& defaults,
+                                                                          const juce::String& tagName)
+{
+    auto xml = std::make_unique<juce::XmlElement>(tagName);
+
+    // Only degrees that differ from the plain default (velocity 100, no doubling) are written.
+    for (int interval = 0; interval < 12; ++interval)
+    {
+        const auto& degree = defaults.degrees[(size_t) interval];
+        if (degree == DegreeDefault {})
+            continue;
+
+        auto* degreeXml = xml->createNewChildElement("Degree");
+        degreeXml->setAttribute("interval", interval);
+        degreeXml->setAttribute("velocity", degree.velocity);
+        degreeXml->setAttribute("octaveBelow", degree.octaveBelow);
+        degreeXml->setAttribute("octaveAbove", degree.octaveAbove);
+    }
+
+    return xml;
+}
+
+ChordDefaults MnKordAudioProcessor::chordDefaultsFromXml(const juce::XmlElement& xml)
+{
+    ChordDefaults defaults;
+
+    for (auto* degreeXml : xml.getChildWithTagNameIterator("Degree"))
+    {
+        const int interval = degreeXml->getIntAttribute("interval", -1);
+        if (interval < 0 || interval >= 12)
+            continue;
+
+        auto& degree = defaults.degrees[(size_t) interval];
+        degree.velocity = juce::jlimit(1, 127, degreeXml->getIntAttribute("velocity", NoteMapping::defaultOutputVelocity));
+        degree.octaveBelow = degreeXml->getBoolAttribute("octaveBelow");
+        degree.octaveAbove = degreeXml->getBoolAttribute("octaveAbove");
+    }
+
+    return defaults;
 }
 
 //==============================================================================
@@ -433,6 +505,9 @@ std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::presetToXml(const Preset
         xml->addChildElement(mappingXml);
     }
 
+    if (preset.chordDefaults.has_value())
+        xml->addChildElement(chordDefaultsToXml(*preset.chordDefaults, "ChordDefaults").release());
+
     return xml;
 }
 
@@ -465,6 +540,9 @@ Preset MnKordAudioProcessor::presetFromXml(const juce::XmlElement& xml)
 
         preset.mappings.push_back(std::move(mapping));
     }
+
+    if (auto* defaultsXml = xml.getChildByName("ChordDefaults"))
+        preset.chordDefaults = chordDefaultsFromXml(*defaultsXml);
 
     return preset;
 }
