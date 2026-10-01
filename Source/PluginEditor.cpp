@@ -619,6 +619,8 @@ MnKordAudioProcessorEditor::MappingKeyboard::MappingKeyboard(MnKordAudioProcesso
 {
     setAvailableRange(21, 108);
     setLowestVisibleKey(36);
+    // JUCE labels MIDI 60 as "C3" by default; the rest of mnKord (NoteName) calls it C4.
+    setOctaveForMiddleC(4);
     // Actual key width is set in the editor's resized() once the component's real width is
     // known, so exactly 3 octaves fill it; this is just a harmless placeholder until then.
     setKeyWidth(24.0f);
