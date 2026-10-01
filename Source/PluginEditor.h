@@ -34,7 +34,9 @@ public:
         MinorPentatonic
     };
 
-    // Options for populateDiatonicChords(), gathered from the New-preset dialog.
+    // Options for populateDiatonicChords(), gathered from the New-preset dialog or the scale
+    // popup's Fill. These are the only place one setting applies to every chord at once; after
+    // that, each note's velocity is edited individually on the CHORD keys.
     struct DiatonicFillOptions
     {
         int scaleRoot = 0;
@@ -44,6 +46,9 @@ public:
         int octaveShift = 0;    // octaves to transpose the generated chord (-2..+2)
         int lowestInputNote = 0;     // only INPUT notes in [lowest, highest] get a mapping
         int highestInputNote = 127;
+        int velocity = NoteMapping::defaultOutputVelocity;   // every note of every chord
+        bool addBass = false;   // root added just below each chord
+        bool addTop = false;    // root added just above each chord
     };
 
     // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic). Public,
@@ -158,35 +163,6 @@ private:
         bool velocityDragMoved = false;
     };
 
-    // A number edited by dragging up/down on it (2px per step), like chord-note velocity on
-    // the CHORD keys.
-    struct DragValue : public juce::Component, public juce::SettableTooltipClient
-    {
-        DragValue(int minimumValue, int maximumValue) : minimum(minimumValue), maximum(maximumValue)
-        {
-            setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
-        }
-
-        void paint(juce::Graphics&) override;
-        void mouseDown(const juce::MouseEvent&) override { dragStartValue = value; }
-        void mouseDrag(const juce::MouseEvent& e) override
-        {
-            const auto newValue = juce::jlimit(minimum, maximum, dragStartValue - e.getDistanceFromDragStartY() / 2);
-            if (newValue != value)
-            {
-                value = newValue;
-                repaint();
-                if (onChange)
-                    onChange(value);
-            }
-        }
-
-        int minimum, maximum;
-        int value = 0, dragStartValue = 0;
-        juce::Colour textColour, backgroundColour;
-        std::function<void(int)> onChange;
-    };
-
     // Tooltip-style bubble showing a selected chord note's velocity, floated above its key
     // while hovering or dragging it. Lives on the editor (not the keyboard) so it can sit above
     // the keyboard's top edge.
@@ -239,6 +215,10 @@ private:
         juce::ComboBox rootBox, typeBox;
         OctaveStepper belowStepper { *this, &MnKordAudioProcessorEditor::fillOctavesBelow };
         OctaveStepper aboveStepper { *this, &MnKordAudioProcessorEditor::fillOctavesAbove };
+        juce::Label velocityLabel;
+        juce::Slider velocitySlider { juce::Slider::LinearBarVertical, juce::Slider::TextBoxBelow };
+        juce::TextButton bassButton { "Bass" };
+        juce::TextButton topButton { "Top" };
         juce::TextButton fillTriadsButton { "Fill triads" };
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
@@ -304,12 +284,6 @@ private:
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
-    // CHORD panel header controls for the active preset's ChordDefaults (velocity of new
-    // chords, root doubled below / above).
-    juce::Label chordVelocityLabel;
-    DragValue chordVelocityValue { 1, 127 };
-    juce::TextButton bassButton { "Bass" };
-    juce::TextButton topButton { "Top" };
     juce::TextButton newPresetButton;
     juce::TextButton editPresetButton;
     // Re-voices every mapping in the active preset for smooth voice leading between chords.
@@ -342,6 +316,10 @@ private:
     // survive closing and reopening the popup.
     int fillOctavesBelow = 1;
     int fillOctavesAbove = 1;
+    // Velocity and bass/top doubling Fill gives every chord; kept here for the same reason.
+    int fillVelocity = NoteMapping::defaultOutputVelocity;
+    bool fillAddBass = false;
+    bool fillAddTop = false;
     static constexpr int maxFillOctaves = 3;   // C1..B7, inside the keyboards' 21-108 range
 
     // What refreshPresetBox() last synced presetBox to, so timerCallback() can detect a
@@ -364,10 +342,6 @@ private:
     void updateScaleSummaryText();
     void showScalePopup();
     void showPresetBrowser();
-    // Shows the active preset's chord defaults in the CHORD header controls.
-    void refreshChordDefaultsControls();
-    // Stores the CHORD header controls' values as the active preset's chord defaults.
-    void commitChordDefaultsControls();
     // Sets the active preset and clears the current mapping selection, since it belonged to
     // the previously active preset. Used by PresetBrowserContent's row click.
     void selectActivePreset(int index);
