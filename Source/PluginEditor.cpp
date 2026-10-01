@@ -165,40 +165,40 @@ namespace
         return labels[((semitonesAboveRoot % 12) + 12) % 12];
     }
 
-    // Sets every note of a freshly generated chord to velocity, then adds the root (the
-    // mapping's input pitch class) just below the chord's lowest note (bass, e.g. C3 under
-    // C4-E4-G4) and/or just above its highest (top, C5).
-    void applyInitVoicing(NoteMapping& mapping, int velocity, bool addBass, bool addTop)
+    // Adds the root (the mapping's input pitch class) just below a generated chord's lowest
+    // note (bass, e.g. C3 under C4-E4-G4) and/or just above its highest (top, C5), at the
+    // voicing's bass/top velocities. Expects outputNotes sorted.
+    void addBassAndTop(NoteMapping& mapping, const MnKordAudioProcessorEditor::InitVoicing& voicing)
     {
         auto& notes = mapping.outputNotes;
-        mapping.outputVelocities.clear();
-
         if (notes.empty())
             return;
 
-        std::sort(notes.begin(), notes.end());
         const int lowest = notes.front();
         const int highest = notes.back();
         const int rootPitchClass = ((mapping.inputNote % 12) + 12) % 12;
 
-        if (addBass)
+        if (voicing.addBass)
         {
             // Highest root strictly below the chord.
             const int bass = lowest - 1 - ((lowest - 1 - rootPitchClass) % 12 + 12) % 12;
             if (bass >= 0)
+            {
                 notes.insert(notes.begin(), bass);
+                mapping.outputVelocities[bass] = voicing.bassVelocity;
+            }
         }
 
-        if (addTop)
+        if (voicing.addTop)
         {
             // Lowest root strictly above the chord.
             const int top = highest + 1 + ((rootPitchClass - (highest + 1)) % 12 + 12) % 12;
             if (top <= 127)
+            {
                 notes.push_back(top);
+                mapping.outputVelocities[top] = voicing.topVelocity;
+            }
         }
-
-        for (const auto note : notes)
-            mapping.outputVelocities[note] = velocity;
     }
 
     // Carries an output note's custom velocity (if it has one) over to the note it moved to.
@@ -245,7 +245,8 @@ namespace
                               juce::Colour accent,
                               bool showGenerationOptionsIn,
                               int seedScaleRoot,
-                              MnKordAudioProcessorEditor::Scale seedScaleType)
+                              MnKordAudioProcessorEditor::Scale seedScaleType,
+                              const MnKordAudioProcessorEditor::InitVoicing& seedVoicing)
             : showGenerationOptions(showGenerationOptionsIn)
         {
             nameLabel.setText("Name", juce::dontSendNotification);
@@ -323,34 +324,17 @@ namespace
                 addAndMakeVisible(inversionLabel);
                 addAndMakeVisible(octaveLabel);
 
-                velocityLabel.setText("Vel", juce::dontSendNotification);
-                velocityLabel.setColour(juce::Label::textColourId, text);
-                addAndMakeVisible(velocityLabel);
+                voicingLabel.setText("Velocity", juce::dontSendNotification);
+                voicingLabel.setColour(juce::Label::textColourId, text);
+                addAndMakeVisible(voicingLabel);
 
-                velocitySlider.setRange(1.0, 127.0, 1.0);
-                velocitySlider.setValue(NoteMapping::defaultOutputVelocity, juce::dontSendNotification);
-                velocitySlider.setTooltip("Velocity of every generated chord note (drag up/down)");
-                velocitySlider.setColour(juce::Slider::backgroundColourId, control);
-                velocitySlider.setColour(juce::Slider::trackColourId, accent.withAlpha(0.35f));
-                velocitySlider.setColour(juce::Slider::textBoxTextColourId, text);
-                velocitySlider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-                addAndMakeVisible(velocitySlider);
-
-                bassButton.setTooltip("Add the root just below every generated chord");
-                topButton.setTooltip("Add the root just above every generated chord");
-
-                for (auto* toggle : { &bassButton, &topButton })
-                {
-                    toggle->setClickingTogglesState(true);
-                    toggle->setColour(juce::TextButton::buttonColourId, control);
-                    toggle->setColour(juce::TextButton::buttonOnColourId, accent.darker(0.2f));
-                    toggle->setColour(juce::TextButton::textColourOffId, text.withAlpha(0.6f));
-                    toggle->setColour(juce::TextButton::textColourOnId, text);
-                    addAndMakeVisible(toggle);
-                }
+                voicingPanel.setColours(text, text.withAlpha(0.6f), control, accent);
+                voicingPanel.setVoicing(seedVoicing);
+                addAndMakeVisible(voicingPanel);
             }
 
-            setSize(420, showGenerationOptions ? 254 : 128);
+            setSize(420, showGenerationOptions ? 254 + 14 + MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight
+                                               : 128);
         }
 
         void resized() override
@@ -402,13 +386,12 @@ namespace
             auto octaveRow = area.removeFromTop(rowH);
             octaveLabel.setBounds(octaveRow.removeFromLeft(labelW));
             octaveBox.setBounds(octaveRow.removeFromLeft(80));
-            octaveRow.removeFromLeft(16);
-            velocityLabel.setBounds(octaveRow.removeFromLeft(30));
-            velocitySlider.setBounds(octaveRow.removeFromLeft(56));
-            octaveRow.removeFromLeft(10);
-            bassButton.setBounds(octaveRow.removeFromLeft(56));
-            octaveRow.removeFromLeft(6);
-            topButton.setBounds(octaveRow.removeFromLeft(56));
+
+            area.removeFromTop(gap);
+
+            auto voicingRow = area.removeFromTop(MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight);
+            voicingLabel.setBounds(voicingRow.removeFromLeft(labelW).removeFromBottom(26));
+            voicingPanel.setBounds(voicingRow);
         }
 
         juce::String getPresetName() const { return nameEditor.getText().trim(); }
@@ -428,9 +411,7 @@ namespace
             options.chordSize = chordSizeBox.getSelectedItemIndex() == 1 ? 4 : 3;
             options.inversion = juce::jmax(0, inversionBox.getSelectedItemIndex());
             options.octaveShift = juce::jmax(0, octaveBox.getSelectedItemIndex()) - 2;
-            options.velocity = (int) velocitySlider.getValue();
-            options.addBass = bassButton.getToggleState();
-            options.addTop = topButton.getToggleState();
+            options.voicing = voicingPanel.getVoicing();
 
             return options;
         }
@@ -443,10 +424,8 @@ namespace
 
         juce::Label scaleLabel, chordSizeLabel, inversionLabel, octaveLabel;
         juce::ComboBox scaleRootBox, scaleTypeBox, chordSizeBox, inversionBox, octaveBox;
-        juce::Label velocityLabel;
-        juce::Slider velocitySlider { juce::Slider::LinearBarVertical, juce::Slider::TextBoxBelow };
-        juce::TextButton bassButton { "Bass" };
-        juce::TextButton topButton { "Top" };
+        juce::Label voicingLabel;
+        MnKordAudioProcessorEditor::InitVoicingPanel voicingPanel;
     };
 }
 
@@ -1136,9 +1115,11 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
             if (fillOptions.scaleType != Scale::Chromatic)
                 populateDiatonicChords(preset, fillOptions);
 
-            // The dialog's scale choice also becomes the active INPUT-keyboard scale filter.
+            // The dialog's scale choice also becomes the active INPUT-keyboard scale filter, and
+            // its voicing the one Fill uses next.
             scaleRoot = fillOptions.scaleRoot;
             scaleType = fillOptions.scaleType;
+            initVoicing = fillOptions.voicing;
             updateScaleSummaryText();
             inputKeyboard.repaint();
 
@@ -1278,6 +1259,120 @@ void MnKordAudioProcessorEditor::updateScaleSummaryText()
         scaleSummaryButton.setButtonText(NoteName::pitchClassName(scaleRoot) + " " + scaleTypeName(scaleType));
 }
 
+MnKordAudioProcessorEditor::InitVoicingPanel::InitVoicingPanel()
+{
+    static const char* const toneNames[] { "R", "3", "5", "7" };
+    for (size_t i = 0; i < toneLabels.size(); ++i)
+    {
+        toneLabels[i].setText(toneNames[i], juce::dontSendNotification);
+        toneLabels[i].setJustificationType(juce::Justification::centred);
+        addAndMakeVisible(toneLabels[i]);
+    }
+    toneLabels[3].setTooltip("Seventh: only used by 7th chords");
+
+    bassButton.setTooltip("Add the root just below each chord");
+    topButton.setTooltip("Add the root just above each chord");
+
+    for (auto* toggle : { &bassButton, &topButton })
+    {
+        toggle->setClickingTogglesState(true);
+        toggle->onClick = [this]
+        {
+            velocitySliders[4].setEnabled(bassButton.getToggleState());
+            velocitySliders[5].setEnabled(topButton.getToggleState());
+            if (onChange)
+                onChange();
+        };
+        addAndMakeVisible(toggle);
+    }
+
+    for (auto& slider : velocitySliders)
+    {
+        slider.setSliderStyle(juce::Slider::LinearBarVertical);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 0, 0);
+        slider.setRange(1.0, 127.0, 1.0);
+        slider.setValue(NoteMapping::defaultOutputVelocity, juce::dontSendNotification);
+        slider.setTooltip("Velocity (drag up/down)");
+        slider.onValueChange = [this] { if (onChange) onChange(); };
+        addAndMakeVisible(slider);
+    }
+
+    velocitySliders[4].setEnabled(false);
+    velocitySliders[5].setEnabled(false);
+}
+
+void MnKordAudioProcessorEditor::InitVoicingPanel::resized()
+{
+    auto area = getLocalBounds();
+    const auto header = area.removeFromTop(22);
+    area.removeFromTop(4);
+
+    constexpr int columns = 6, gap = 4;
+    const int columnWidth = (getWidth() - gap * (columns - 1)) / columns;
+
+    for (int i = 0; i < columns; ++i)
+    {
+        const int x = i * (columnWidth + gap);
+        const juce::Rectangle<int> headerCell(x, header.getY(), columnWidth, header.getHeight());
+
+        if (i < 4)
+            toneLabels[(size_t) i].setBounds(headerCell);
+        else
+            (i == 4 ? bassButton : topButton).setBounds(headerCell);
+
+        velocitySliders[(size_t) i].setBounds(x, area.getY(), columnWidth, area.getHeight());
+    }
+}
+
+void MnKordAudioProcessorEditor::InitVoicingPanel::setColours(juce::Colour text, juce::Colour muted,
+                                                              juce::Colour control, juce::Colour accent)
+{
+    for (auto& label : toneLabels)
+        label.setColour(juce::Label::textColourId, muted);
+
+    for (auto* toggle : { &bassButton, &topButton })
+    {
+        toggle->setColour(juce::TextButton::buttonColourId, control);
+        toggle->setColour(juce::TextButton::buttonOnColourId, accent.darker(0.2f));
+        toggle->setColour(juce::TextButton::textColourOffId, muted);
+        toggle->setColour(juce::TextButton::textColourOnId, text);
+    }
+
+    for (auto& slider : velocitySliders)
+    {
+        slider.setColour(juce::Slider::backgroundColourId, control);
+        slider.setColour(juce::Slider::trackColourId, accent.withAlpha(0.35f));
+        slider.setColour(juce::Slider::textBoxTextColourId, text);
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    }
+}
+
+void MnKordAudioProcessorEditor::InitVoicingPanel::setVoicing(const InitVoicing& voicing)
+{
+    for (size_t i = 0; i < voicing.toneVelocities.size(); ++i)
+        velocitySliders[i].setValue(voicing.toneVelocities[i], juce::dontSendNotification);
+
+    velocitySliders[4].setValue(voicing.bassVelocity, juce::dontSendNotification);
+    velocitySliders[5].setValue(voicing.topVelocity, juce::dontSendNotification);
+    bassButton.setToggleState(voicing.addBass, juce::dontSendNotification);
+    topButton.setToggleState(voicing.addTop, juce::dontSendNotification);
+    velocitySliders[4].setEnabled(voicing.addBass);
+    velocitySliders[5].setEnabled(voicing.addTop);
+}
+
+MnKordAudioProcessorEditor::InitVoicing MnKordAudioProcessorEditor::InitVoicingPanel::getVoicing() const
+{
+    InitVoicing voicing;
+    for (size_t i = 0; i < voicing.toneVelocities.size(); ++i)
+        voicing.toneVelocities[i] = (int) velocitySliders[i].getValue();
+
+    voicing.addBass = bassButton.getToggleState();
+    voicing.bassVelocity = (int) velocitySliders[4].getValue();
+    voicing.addTop = topButton.getToggleState();
+    voicing.topVelocity = (int) velocitySliders[5].getValue();
+    return voicing;
+}
+
 MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProcessorEditor& ownerRef)
     : owner(&ownerRef)
 {
@@ -1321,51 +1416,19 @@ MnKordAudioProcessorEditor::ScalePopupContent::ScalePopupContent(MnKordAudioProc
     addAndMakeVisible(belowStepper);
     addAndMakeVisible(aboveStepper);
 
-    velocityLabel.setText("Vel", juce::dontSendNotification);
-    velocityLabel.setColour(juce::Label::textColourId, owner->getMutedTextColour());
-    addAndMakeVisible(velocityLabel);
-
-    velocitySlider.setRange(1.0, 127.0, 1.0);
-    velocitySlider.setValue(owner->fillVelocity, juce::dontSendNotification);
-    velocitySlider.setTooltip("Velocity of every filled chord note (drag up/down)");
-    velocitySlider.setColour(juce::Slider::backgroundColourId, control);
-    velocitySlider.setColour(juce::Slider::trackColourId, accent.withAlpha(0.35f));
-    velocitySlider.setColour(juce::Slider::textBoxTextColourId, text);
-    velocitySlider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    velocitySlider.onValueChange = [this]
+    voicingPanel.setColours(text, owner->getMutedTextColour(), control, accent);
+    voicingPanel.setVoicing(owner->initVoicing);
+    voicingPanel.onChange = [this]
     {
         if (owner != nullptr)
-            owner->fillVelocity = (int) velocitySlider.getValue();
+            owner->initVoicing = voicingPanel.getVoicing();
     };
-    addAndMakeVisible(velocitySlider);
-
-    bassButton.setTooltip("Add the root just below every filled chord");
-    topButton.setTooltip("Add the root just above every filled chord");
-    bassButton.setToggleState(owner->fillAddBass, juce::dontSendNotification);
-    topButton.setToggleState(owner->fillAddTop, juce::dontSendNotification);
-
-    for (auto* toggle : { &bassButton, &topButton })
-    {
-        toggle->setClickingTogglesState(true);
-        toggle->setColour(juce::TextButton::buttonColourId, control);
-        toggle->setColour(juce::TextButton::buttonOnColourId, accent.darker(0.2f));
-        toggle->setColour(juce::TextButton::textColourOffId, owner->getMutedTextColour());
-        toggle->setColour(juce::TextButton::textColourOnId, text);
-        toggle->onClick = [this]
-        {
-            if (owner != nullptr)
-            {
-                owner->fillAddBass = bassButton.getToggleState();
-                owner->fillAddTop = topButton.getToggleState();
-            }
-        };
-        addAndMakeVisible(toggle);
-    }
+    addAndMakeVisible(voicingPanel);
 
     updateStepperCaptions();
     updateFillButtons();
 
-    setSize(226, 170);
+    setSize(260, 136 + 6 + InitVoicingPanel::preferredHeight);
 }
 
 void MnKordAudioProcessorEditor::ScalePopupContent::resized()
@@ -1383,13 +1446,7 @@ void MnKordAudioProcessorEditor::ScalePopupContent::resized()
     aboveStepper.setBounds(area.removeFromTop(28));
 
     area.removeFromTop(6);
-    auto voicingRow = area.removeFromTop(28);
-    velocityLabel.setBounds(voicingRow.removeFromLeft(30));
-    velocitySlider.setBounds(voicingRow.removeFromLeft(56));
-    voicingRow.removeFromLeft(10);
-    topButton.setBounds(voicingRow.removeFromRight(60));
-    voicingRow.removeFromRight(6);
-    bassButton.setBounds(voicingRow);
+    voicingPanel.setBounds(area.removeFromTop(InitVoicingPanel::preferredHeight));
 
     area.removeFromTop(6);
     const int half = (area.getWidth() - 6) / 2;
@@ -1760,19 +1817,25 @@ void MnKordAudioProcessorEditor::populateDiatonicChords(Preset& preset, const Di
         const int degreeIndex = (int) std::distance(intervals.begin(), degreeIt);
         const int base = note - relative;
 
-        std::vector<int> outputNotes;
-        for (const int step : steps)
+        NoteMapping mapping;
+        mapping.inputNote = note;
+        auto& outputNotes = mapping.outputNotes;
+
+        // Each stacked tone (R, 3, 5, 7 = position in the stack) starts at its role's velocity.
+        for (size_t role = 0; role < steps.size(); ++role)
         {
-            const int degree = degreeIndex + step;
+            const int degree = degreeIndex + steps[role];
             const int octaveWrap = degree / scaleSize;
             const int tone = base + octaveWrap * 12 + intervals[(size_t) (degree % scaleSize)]
                             + options.octaveShift * 12;
-            if (tone >= 0 && tone < 128)
+            if (tone >= 0 && tone < 128 && mapping.outputVelocities.count(tone) == 0)
+            {
                 outputNotes.push_back(tone);
+                mapping.outputVelocities[tone] = options.voicing.toneVelocities[role];
+            }
         }
 
         std::sort(outputNotes.begin(), outputNotes.end());
-        outputNotes.erase(std::unique(outputNotes.begin(), outputNotes.end()), outputNotes.end());
 
         for (int inv = 0; inv < options.inversion; ++inv)
         {
@@ -1783,15 +1846,13 @@ void MnKordAudioProcessorEditor::populateDiatonicChords(Preset& preset, const Di
             if (moved > 127)
                 break;
 
+            moveOutputVelocity(mapping, outputNotes.front(), moved);
             outputNotes.erase(outputNotes.begin());
             outputNotes.push_back(moved);
             std::sort(outputNotes.begin(), outputNotes.end());
         }
 
-        NoteMapping mapping;
-        mapping.inputNote = note;
-        mapping.outputNotes = outputNotes;
-        applyInitVoicing(mapping, options.velocity, options.addBass, options.addTop);
+        addBassAndTop(mapping, options.voicing);
         preset.mappings.push_back(mapping);
     }
 }
@@ -1816,9 +1877,7 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
         const int middleRoot = 60 + scaleRoot;                               // root in octave 4
         options.lowestInputNote = middleRoot - 12 * fillOctavesBelow;
         options.highestInputNote = middleRoot + 11 + 12 * fillOctavesAbove; // note before next root
-        options.velocity = fillVelocity;
-        options.addBass = fillAddBass;
-        options.addTop = fillAddTop;
+        options.voicing = initVoicing;
 
         auto& preset = presets[(size_t) index];
         preset.mappings.clear();
@@ -2068,7 +2127,7 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
     dialog->setLookAndFeel(&flatLookAndFeel);
 
     auto* content = new PresetMetadataContent(seed, getTextColour(), getControlColour(), getAccentColour(),
-                                              showGenerationOptions, scaleRoot, scaleType);
+                                              showGenerationOptions, scaleRoot, scaleType, initVoicing);
     dialog->addCustomComponent(content);
 
     dialog->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));

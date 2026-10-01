@@ -34,9 +34,42 @@ public:
         MinorPentatonic
     };
 
+    // Velocities generated chords start with, by the role each note plays: the stacked chord
+    // tones R, 3, 5, 7 (by position in the stack, so "3" is the third whether minor or major),
+    // plus the optional root added just below the chord (bass) and just above it (top).
+    // Only applied when chords are generated; afterwards each note is edited on the CHORD keys.
+    struct InitVoicing
+    {
+        std::array<int, 4> toneVelocities { 100, 100, 100, 100 };   // R, 3, 5, 7
+        bool addBass = false;
+        int bassVelocity = 100;
+        bool addTop = false;
+        int topVelocity = 100;
+    };
+
+    // Edits an InitVoicing: one drag-up/down velocity per role (R, 3, 5, 7, Bass, Top), where
+    // the Bass/Top column headers are toggles that add those notes. Shared by the New-preset
+    // dialog and the scale popup's Fill section.
+    struct InitVoicingPanel : public juce::Component
+    {
+        InitVoicingPanel();
+        void resized() override;
+        void setColours(juce::Colour text, juce::Colour muted, juce::Colour control, juce::Colour accent);
+        void setVoicing(const InitVoicing& voicing);
+        InitVoicing getVoicing() const;
+
+        std::function<void()> onChange;
+        static constexpr int preferredHeight = 52;
+
+    private:
+        std::array<juce::Label, 4> toneLabels;
+        juce::TextButton bassButton { "Bass" };
+        juce::TextButton topButton { "Top" };
+        std::array<juce::Slider, 6> velocitySliders;   // R, 3, 5, 7, Bass, Top
+    };
+
     // Options for populateDiatonicChords(), gathered from the New-preset dialog or the scale
-    // popup's Fill. These are the only place one setting applies to every chord at once; after
-    // that, each note's velocity is edited individually on the CHORD keys.
+    // popup's Fill.
     struct DiatonicFillOptions
     {
         int scaleRoot = 0;
@@ -46,9 +79,7 @@ public:
         int octaveShift = 0;    // octaves to transpose the generated chord (-2..+2)
         int lowestInputNote = 0;     // only INPUT notes in [lowest, highest] get a mapping
         int highestInputNote = 127;
-        int velocity = NoteMapping::defaultOutputVelocity;   // every note of every chord
-        bool addBass = false;   // root added just below each chord
-        bool addTop = false;    // root added just above each chord
+        InitVoicing voicing;
     };
 
     // Maps Scale <-> the scale-type combo box item index (0 = Full range/Chromatic). Public,
@@ -215,10 +246,7 @@ private:
         juce::ComboBox rootBox, typeBox;
         OctaveStepper belowStepper { *this, &MnKordAudioProcessorEditor::fillOctavesBelow };
         OctaveStepper aboveStepper { *this, &MnKordAudioProcessorEditor::fillOctavesAbove };
-        juce::Label velocityLabel;
-        juce::Slider velocitySlider { juce::Slider::LinearBarVertical, juce::Slider::TextBoxBelow };
-        juce::TextButton bassButton { "Bass" };
-        juce::TextButton topButton { "Top" };
+        InitVoicingPanel voicingPanel;
         juce::TextButton fillTriadsButton { "Fill triads" };
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
@@ -316,10 +344,9 @@ private:
     // survive closing and reopening the popup.
     int fillOctavesBelow = 1;
     int fillOctavesAbove = 1;
-    // Velocity and bass/top doubling Fill gives every chord; kept here for the same reason.
-    int fillVelocity = NoteMapping::defaultOutputVelocity;
-    bool fillAddBass = false;
-    bool fillAddTop = false;
+    // The voicing generated chords start with, shared by Fill and the New-preset dialog (each
+    // edits and remembers this same one) and kept for the whole editor session.
+    InitVoicing initVoicing;
     static constexpr int maxFillOctaves = 3;   // C1..B7, inside the keyboards' 21-108 range
 
     // What refreshPresetBox() last synced presetBox to, so timerCallback() can detect a
