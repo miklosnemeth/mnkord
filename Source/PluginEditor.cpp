@@ -165,39 +165,40 @@ namespace
         return labels[((semitonesAboveRoot % 12) + 12) % 12];
     }
 
-    // Gives each output note the velocity its degree (interval above the mapping's input note)
-    // has in defaults, and adds the octave-down / octave-up copies those degrees ask for. A
-    // copy never overrides a note that's already in the chord.
+    // Sets every note of a freshly built chord to defaults.velocity, then adds the root (the
+    // mapping's input pitch class) just below the chord's lowest note (bass, e.g. C3 under
+    // C4-E4-G4) and/or just above its highest (top, C5), as defaults ask.
     void applyChordDefaults(NoteMapping& mapping, const ChordDefaults& defaults)
     {
-        const auto baseNotes = mapping.outputNotes;
-        mapping.outputNotes.clear();
+        auto& notes = mapping.outputNotes;
         mapping.outputVelocities.clear();
 
-        auto add = [&mapping](int note, int velocity)
+        if (notes.empty())
+            return;
+
+        std::sort(notes.begin(), notes.end());
+        const int lowest = notes.front();
+        const int highest = notes.back();
+        const int rootPitchClass = ((mapping.inputNote % 12) + 12) % 12;
+
+        if (defaults.addBass)
         {
-            if (note < 0 || note > 127)
-                return;
-
-            if (std::find(mapping.outputNotes.begin(), mapping.outputNotes.end(), note) == mapping.outputNotes.end())
-                mapping.outputNotes.push_back(note);
-
-            mapping.outputVelocities.emplace(note, velocity);
-        };
-
-        for (const auto note : baseNotes)
-            add(note, defaults.forInterval(note - mapping.inputNote).velocity);
-
-        for (const auto note : baseNotes)
-        {
-            const auto& degree = defaults.forInterval(note - mapping.inputNote);
-            if (degree.octaveBelow)
-                add(note - 12, degree.velocity);
-            if (degree.octaveAbove)
-                add(note + 12, degree.velocity);
+            // Highest root strictly below the chord.
+            const int bass = lowest - 1 - ((lowest - 1 - rootPitchClass) % 12 + 12) % 12;
+            if (bass >= 0)
+                notes.insert(notes.begin(), bass);
         }
 
-        std::sort(mapping.outputNotes.begin(), mapping.outputNotes.end());
+        if (defaults.addTop)
+        {
+            // Lowest root strictly above the chord.
+            const int top = highest + 1 + ((rootPitchClass - (highest + 1)) % 12 + 12) % 12;
+            if (top <= 127)
+                notes.push_back(top);
+        }
+
+        for (const auto note : notes)
+            mapping.outputVelocities[note] = defaults.velocity;
     }
 
     // Carries an output note's custom velocity (if it has one) over to the note it moved to.
@@ -894,9 +895,22 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     setLookAndFeel(&flatLookAndFeel);
 
-    chordDefaultsButton.addListener(this);
-    chordDefaultsButton.setTooltip("Velocity and octave doubling per degree for newly created chords");
-    addAndMakeVisible(chordDefaultsButton);
+    chordVelocityLabel.setText("Vel", juce::dontSendNotification);
+    chordVelocityLabel.setJustificationType(juce::Justification::centredRight);
+    chordVelocityValue.setTooltip("Velocity of newly created chords (drag up/down)");
+    chordVelocityValue.onChange = [this](int) { commitChordDefaultsControls(); };
+    bassButton.setTooltip("Add the root below new chords");
+    topButton.setTooltip("Add the root above new chords");
+
+    for (auto* button : { &bassButton, &topButton })
+    {
+        button->setClickingTogglesState(true);
+        button->onClick = [this] { commitChordDefaultsControls(); };
+    }
+
+    for (auto* control : std::initializer_list<juce::Component*> { &chordVelocityLabel, &chordVelocityValue,
+                                                                  &bassButton, &topButton })
+        addAndMakeVisible(control);
 
     presetSummaryButton.addListener(this);
     addAndMakeVisible(presetSummaryButton);
@@ -969,7 +983,6 @@ MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 
     defusePopup(activeScalePopup);
     defusePopup(activePresetPopup);
-    defusePopup(activeDefaultsPopup);
 
     setLookAndFeel(nullptr);
 }
@@ -1059,8 +1072,14 @@ void MnKordAudioProcessorEditor::resized()
     auto outputPanel = area.removeFromTop(184).reduced(14, 10);
     auto outputHeader = outputPanel.removeFromTop(24);
     outputKeyboardLabel.setBounds(outputHeader.removeFromLeft(120));
-    chordDefaultsButton.setBounds(outputHeader.removeFromRight(120));
+    topButton.setBounds(outputHeader.removeFromRight(52));
+    outputHeader.removeFromRight(6);
+    bassButton.setBounds(outputHeader.removeFromRight(52));
     outputHeader.removeFromRight(10);
+    chordVelocityValue.setBounds(outputHeader.removeFromRight(44));
+    outputHeader.removeFromRight(4);
+    chordVelocityLabel.setBounds(outputHeader.removeFromRight(30));
+    outputHeader.removeFromRight(16);
     chordNotesLabel.setBounds(outputHeader);
     outputPanel.removeFromTop(8);
     outputKeyboard.setBounds(outputPanel);
@@ -1162,11 +1181,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
         logUi("buttonClicked: scale chip");
         showScalePopup();
     }
-    else if (button == &chordDefaultsButton)
-    {
-        logUi("buttonClicked: chord defaults");
-        showChordDefaults();
-    }
     else
     {
         logUi("buttonClicked: UNRECOGNISED button pointer " + juce::String::toHexString((juce::pointer_sized_int) button));
@@ -1192,6 +1206,7 @@ void MnKordAudioProcessorEditor::refreshPresetBox()
 
     updatePresetMetaLabel();
     refreshSummaryLabels();
+    refreshChordDefaultsControls();
 }
 
 void MnKordAudioProcessorEditor::refreshDesignBox()
@@ -1636,106 +1651,22 @@ void MnKordAudioProcessorEditor::DragValue::paint(juce::Graphics& g)
     g.drawText(juce::String(value), getLocalBounds(), juce::Justification::centred, false);
 }
 
-MnKordAudioProcessorEditor::ChordDefaultsContent::ChordDefaultsContent(MnKordAudioProcessorEditor& ownerRef)
-    : owner(&ownerRef)
+void MnKordAudioProcessorEditor::refreshChordDefaultsControls()
 {
-    const auto defaults = owner->audioProcessor.getActiveChordDefaults();
-    const auto control = owner->getControlColour();
-    const auto text = owner->getTextColour();
-    const auto muted = owner->getMutedTextColour();
-    const auto accent = owner->getAccentColour();
-
-    titleLabel.setText("New chord defaults", juce::dontSendNotification);
-    titleLabel.setColour(juce::Label::textColourId, text);
-    titleLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
-    addAndMakeVisible(titleLabel);
-
-    velocityHeader.setText("Velocity (drag)", juce::dontSendNotification);
-    velocityHeader.setColour(juce::Label::textColourId, muted);
-    velocityHeader.setFont(juce::FontOptions(11.0f));
-    addAndMakeVisible(velocityHeader);
-
-    for (int interval = 0; interval < 12; ++interval)
-    {
-        auto& row = rows[(size_t) interval];
-        const auto& degree = defaults.degrees[(size_t) interval];
-
-        row.degreeLabel.setText(degreeLabelForInterval(interval), juce::dontSendNotification);
-        row.degreeLabel.setColour(juce::Label::textColourId, text);
-        row.degreeLabel.setFont(juce::FontOptions(13.0f, juce::Font::bold));
-        addAndMakeVisible(row.degreeLabel);
-
-        row.velocity.value = degree.velocity;
-        row.velocity.textColour = text;
-        row.velocity.backgroundColour = control;
-        row.velocity.onChange = [this](int) { commit(); };
-        addAndMakeVisible(row.velocity);
-
-        for (auto* button : { &row.belowButton, &row.aboveButton })
-        {
-            button->setClickingTogglesState(true);
-            button->setColour(juce::TextButton::buttonColourId, control);
-            button->setColour(juce::TextButton::buttonOnColourId, accent.darker(0.2f));
-            button->setColour(juce::TextButton::textColourOffId, muted);
-            button->setColour(juce::TextButton::textColourOnId, text);
-            button->onClick = [this] { commit(); };
-            addAndMakeVisible(button);
-        }
-
-        row.belowButton.setToggleState(degree.octaveBelow, juce::dontSendNotification);
-        row.aboveButton.setToggleState(degree.octaveAbove, juce::dontSendNotification);
-    }
-
-    setSize(236, 8 + 20 + 18 + 12 * 24 + 4);
+    const auto defaults = audioProcessor.getActiveChordDefaults();
+    chordVelocityValue.value = defaults.velocity;
+    chordVelocityValue.repaint();
+    bassButton.setToggleState(defaults.addBass, juce::dontSendNotification);
+    topButton.setToggleState(defaults.addTop, juce::dontSendNotification);
 }
 
-void MnKordAudioProcessorEditor::ChordDefaultsContent::resized()
+void MnKordAudioProcessorEditor::commitChordDefaultsControls()
 {
-    auto area = getLocalBounds().reduced(8, 4);
-    titleLabel.setBounds(area.removeFromTop(20));
-
-    auto header = area.removeFromTop(18);
-    header.removeFromLeft(34);
-    velocityHeader.setBounds(header);
-
-    for (auto& row : rows)
-    {
-        auto line = area.removeFromTop(24).reduced(0, 1);
-        row.degreeLabel.setBounds(line.removeFromLeft(34));
-        row.velocity.setBounds(line.removeFromLeft(52));
-        line.removeFromLeft(8);
-        row.belowButton.setBounds(line.removeFromLeft(62));
-        line.removeFromLeft(4);
-        row.aboveButton.setBounds(line.removeFromLeft(62));
-    }
-}
-
-void MnKordAudioProcessorEditor::ChordDefaultsContent::commit()
-{
-    if (owner == nullptr)
-        return;
-
     ChordDefaults defaults;
-    for (size_t interval = 0; interval < rows.size(); ++interval)
-    {
-        auto& degree = defaults.degrees[interval];
-        degree.velocity = rows[interval].velocity.value;
-        degree.octaveBelow = rows[interval].belowButton.getToggleState();
-        degree.octaveAbove = rows[interval].aboveButton.getToggleState();
-    }
-
-    owner->audioProcessor.setActiveChordDefaults(defaults);
-}
-
-void MnKordAudioProcessorEditor::showChordDefaults()
-{
-    const auto screenBounds = localAreaToGlobal(chordDefaultsButton.getBounds());
-
-    auto content = std::make_unique<ChordDefaultsContent>(*this);
-    content->setLookAndFeel(&flatLookAndFeel);
-    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), screenBounds, nullptr);
-    box.setLookAndFeel(&flatLookAndFeel);
-    activeDefaultsPopup = &box;
+    defaults.velocity = chordVelocityValue.value;
+    defaults.addBass = bassButton.getToggleState();
+    defaults.addTop = topButton.getToggleState();
+    audioProcessor.setActiveChordDefaults(defaults);
 }
 
 void MnKordAudioProcessorEditor::selectActivePreset(int index)
@@ -1877,13 +1808,24 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     designBox.setColour(juce::ComboBox::outlineColourId, transparent);
     designBox.setColour(juce::ComboBox::focusedOutlineColourId, transparent);
 
-    // Small chips, quieter than a full dropdown but still visibly clickable.
-    for (auto* chip : { &scaleSummaryButton, &chordDefaultsButton })
+    // A small chip, quieter than a full dropdown but still visibly clickable.
+    scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
+    scaleSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
+    scaleSummaryButton.setColour(juce::TextButton::textColourOffId, getMutedTextColour());
+    scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
+
+    // Chord-defaults controls in the CHORD header: toggles light up in the accent when on.
+    chordVelocityLabel.setColour(juce::Label::textColourId, getMutedTextColour());
+    chordVelocityValue.backgroundColour = control;
+    chordVelocityValue.textColour = textColour;
+    chordVelocityValue.repaint();
+
+    for (auto* toggle : { &bassButton, &topButton })
     {
-        chip->setColour(juce::TextButton::buttonColourId, control);
-        chip->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
-        chip->setColour(juce::TextButton::textColourOffId, getMutedTextColour());
-        chip->setColour(juce::TextButton::textColourOnId, textColour);
+        toggle->setColour(juce::TextButton::buttonColourId, control);
+        toggle->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
+        toggle->setColour(juce::TextButton::textColourOffId, getMutedTextColour());
+        toggle->setColour(juce::TextButton::textColourOnId, textColour);
     }
 
     // The primary preset selector, so its text reads at full strength (unlike the muted
@@ -2243,10 +2185,9 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
 
             if (it == notes.end())
             {
-                // A hand-added note gets its degree's default velocity, but no octave copies.
+                // A hand-added note gets the default chord velocity, but no bass/top doubling.
                 notes.push_back(midiNoteNumber);
-                mapping->outputVelocities[midiNoteNumber] = audioProcessor.getActiveChordDefaults()
-                                                                .forInterval(midiNoteNumber - mapping->inputNote).velocity;
+                mapping->outputVelocities[midiNoteNumber] = audioProcessor.getActiveChordDefaults().velocity;
             }
             else
             {

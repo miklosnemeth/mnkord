@@ -19,29 +19,13 @@ struct NoteMapping
     }
 };
 
-// How a newly created chord treats each of its notes, by interval above the chord root
-// (0 = R, 4 = 3, 7 = 5, ...): the velocity it starts with and whether an octave-down / octave-up
-// copy is added.
-struct DegreeDefault
-{
-    int velocity = NoteMapping::defaultOutputVelocity;
-    bool octaveBelow = false;
-    bool octaveAbove = false;
-
-    bool operator==(const DegreeDefault& other) const
-    {
-        return velocity == other.velocity && octaveBelow == other.octaveBelow && octaveAbove == other.octaveAbove;
-    }
-};
-
+// How newly created chords (templates, Fill) start out: every note at one velocity, optionally
+// with the root doubled an octave below the chord (bass) and/or an octave above it (top).
 struct ChordDefaults
 {
-    std::array<DegreeDefault, 12> degrees {};
-
-    const DegreeDefault& forInterval(int semitonesAboveRoot) const
-    {
-        return degrees[(size_t) (((semitonesAboveRoot % 12) + 12) % 12)];
-    }
+    int velocity = NoteMapping::defaultOutputVelocity;
+    bool addBass = false;
+    bool addTop = false;
 };
 
 struct Preset
@@ -112,8 +96,8 @@ public:
     int importPresetsFromFile(const juce::File& file);
     bool exportPresetToFile(int index, const juce::File& file) const;
 
-    // Chord defaults (per-degree velocity and octave doubling) for newly created chords. The
-    // active preset's own, or the last-used ones if it has none yet.
+    // Chord defaults for newly created chords: the active preset's own, or the last-used ones
+    // if it has none yet.
     ChordDefaults getActiveChordDefaults() const;
     // Stores defaults on the active preset and remembers them as the last-used ones.
     void setActiveChordDefaults(const ChordDefaults& defaults);

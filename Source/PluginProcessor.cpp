@@ -436,40 +436,18 @@ std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::chordDefaultsToXml(const
                                                                           const juce::String& tagName)
 {
     auto xml = std::make_unique<juce::XmlElement>(tagName);
-
-    // Only degrees that differ from the plain default (velocity 100, no doubling) are written.
-    for (int interval = 0; interval < 12; ++interval)
-    {
-        const auto& degree = defaults.degrees[(size_t) interval];
-        if (degree == DegreeDefault {})
-            continue;
-
-        auto* degreeXml = xml->createNewChildElement("Degree");
-        degreeXml->setAttribute("interval", interval);
-        degreeXml->setAttribute("velocity", degree.velocity);
-        degreeXml->setAttribute("octaveBelow", degree.octaveBelow);
-        degreeXml->setAttribute("octaveAbove", degree.octaveAbove);
-    }
-
+    xml->setAttribute("velocity", defaults.velocity);
+    xml->setAttribute("bass", defaults.addBass);
+    xml->setAttribute("top", defaults.addTop);
     return xml;
 }
 
 ChordDefaults MnKordAudioProcessor::chordDefaultsFromXml(const juce::XmlElement& xml)
 {
     ChordDefaults defaults;
-
-    for (auto* degreeXml : xml.getChildWithTagNameIterator("Degree"))
-    {
-        const int interval = degreeXml->getIntAttribute("interval", -1);
-        if (interval < 0 || interval >= 12)
-            continue;
-
-        auto& degree = defaults.degrees[(size_t) interval];
-        degree.velocity = juce::jlimit(1, 127, degreeXml->getIntAttribute("velocity", NoteMapping::defaultOutputVelocity));
-        degree.octaveBelow = degreeXml->getBoolAttribute("octaveBelow");
-        degree.octaveAbove = degreeXml->getBoolAttribute("octaveAbove");
-    }
-
+    defaults.velocity = juce::jlimit(1, 127, xml.getIntAttribute("velocity", NoteMapping::defaultOutputVelocity));
+    defaults.addBass = xml.getBoolAttribute("bass");
+    defaults.addTop = xml.getBoolAttribute("top");
     return defaults;
 }
 

@@ -160,7 +160,7 @@ private:
 
     // A number edited by dragging up/down on it (2px per step), like chord-note velocity on
     // the CHORD keys.
-    struct DragValue : public juce::Component
+    struct DragValue : public juce::Component, public juce::SettableTooltipClient
     {
         DragValue(int minimumValue, int maximumValue) : minimum(minimumValue), maximum(maximumValue)
         {
@@ -185,30 +185,6 @@ private:
         int value = 0, dragStartValue = 0;
         juce::Colour textColour, backgroundColour;
         std::function<void(int)> onChange;
-    };
-
-    // Content of the CallOutBox opened by chordDefaultsButton: for each of the 12 degrees (R,
-    // b2 ... 7) the velocity a newly created chord gives that note and whether it adds an
-    // octave-down / octave-up copy. Edits apply immediately to the active preset (and become
-    // the last-used defaults). Same SafePointer reasoning as ScalePopupContent.
-    struct ChordDefaultsContent : public juce::Component
-    {
-        struct DegreeRow
-        {
-            juce::Label degreeLabel;
-            DragValue velocity { 1, 127 };
-            juce::TextButton belowButton { "-1 oct" };
-            juce::TextButton aboveButton { "+1 oct" };
-        };
-
-        explicit ChordDefaultsContent(MnKordAudioProcessorEditor& ownerRef);
-        void resized() override;
-        // Reads every row back into a ChordDefaults and stores it on the processor.
-        void commit();
-
-        juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
-        juce::Label titleLabel, velocityHeader;
-        std::array<DegreeRow, 12> rows;
     };
 
     // Tooltip-style bubble showing a selected chord note's velocity, floated above its key
@@ -328,9 +304,12 @@ private:
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
-    // Opens showChordDefaults(); lives in the CHORD panel header.
-    juce::TextButton chordDefaultsButton { "Chord defaults" };
-    juce::Component::SafePointer<juce::CallOutBox> activeDefaultsPopup;
+    // CHORD panel header controls for the active preset's ChordDefaults (velocity of new
+    // chords, root doubled below / above).
+    juce::Label chordVelocityLabel;
+    DragValue chordVelocityValue { 1, 127 };
+    juce::TextButton bassButton { "Bass" };
+    juce::TextButton topButton { "Top" };
     juce::TextButton newPresetButton;
     juce::TextButton editPresetButton;
     // Re-voices every mapping in the active preset for smooth voice leading between chords.
@@ -385,7 +364,10 @@ private:
     void updateScaleSummaryText();
     void showScalePopup();
     void showPresetBrowser();
-    void showChordDefaults();
+    // Shows the active preset's chord defaults in the CHORD header controls.
+    void refreshChordDefaultsControls();
+    // Stores the CHORD header controls' values as the active preset's chord defaults.
+    void commitChordDefaultsControls();
     // Sets the active preset and clears the current mapping selection, since it belonged to
     // the previously active preset. Used by PresetBrowserContent's row click.
     void selectActivePreset(int index);
