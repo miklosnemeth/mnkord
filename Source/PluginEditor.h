@@ -140,6 +140,9 @@ private:
                                const juce::Drawable* icon,
                                const juce::Colour* textColour) override;
         int getPopupMenuBorderSize() override;
+        // Keeps popup menus (incl. combo box dropdowns) inside the plugin window instead of
+        // opening as separate top-level windows that can hang off its edges.
+        juce::Component* getParentComponentForMenuOptions(const juce::PopupMenu::Options&) override;
         int getPopupMenuBorderSizeWithOptions(const juce::PopupMenu::Options&) override;
         // Without this, JUCE sizes popup items from the raw string width, which is narrower
         // than the 28px-per-side margin drawPopupMenuItem() reserves for the text -- causing
@@ -211,8 +214,8 @@ private:
     // scale-type pickers (live-applied on change, no Save/Cancel needed), plus the Fill
     // triads/7ths actions and how many octaves below/above the middle octave they cover.
     //
-    // The CallOutBox that hosts this is launched with a null parent (see showScalePopup()),
-    // so it becomes an independent top-level window that can outlive the editor if the host
+    // The CallOutBox that hosts this is owned by JUCE's modal-component machinery, not by the
+    // editor (it's only parented to it for display), so it can outlive the editor if the host
     // closes the plugin UI while it's still open. owner is therefore a SafePointer, checked
     // before every use, rather than a raw reference.
     struct ScalePopupContent : public juce::Component, private juce::ComboBox::Listener
@@ -302,9 +305,9 @@ private:
     juce::ComboBox designBox;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
-    // The CallOutBox launched by showScalePopup() (null-parented, so not torn down with the
-    // editor's component tree). Tracked so the destructor can defuse its LookAndFeel pointer
-    // (which would otherwise dangle into this soon-to-be-destroyed editor) before returning.
+    // The CallOutBox launched by showScalePopup() (owned by the modal machinery, not the
+    // editor). Tracked so the destructor can defuse its LookAndFeel pointer (which would
+    // otherwise dangle into this soon-to-be-destroyed editor) before returning.
     juce::Component::SafePointer<juce::CallOutBox> activeScalePopup;
     juce::TextButton scaleSummaryButton;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().

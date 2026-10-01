@@ -213,9 +213,9 @@ namespace
         mapping.outputVelocities[toNote] = velocity;
     }
 
-    // showScalePopup() and showPresetBrowser() both launch a null-parented CallOutBox (an
-    // independent top-level window not torn down with the editor's component tree) whose
-    // content and box point at the editor's flatLookAndFeel. If the popup is still open when
+    // showScalePopup() and showPresetBrowser() both launch a CallOutBox owned by JUCE's modal
+    // machinery rather than the editor (only parented to it for display), whose content and
+    // box point at the editor's flatLookAndFeel. If the popup is still open when
     // the editor is destroyed, clearing that pointer first makes any later repaint fall back to
     // JUCE's default LookAndFeel instead of dereferencing freed memory. Dismissing it is a
     // best-effort extra (it's an async request), not what makes this safe.
@@ -333,15 +333,17 @@ namespace
                 addAndMakeVisible(voicingPanel);
             }
 
-            setSize(420, showGenerationOptions ? 254 + 14 + MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight
-                                               : 128);
+            // Rows are 28px with 10px gaps; tight enough for the dialog to fit inside the plugin
+            // window, which it's now embedded in.
+            setSize(420, showGenerationOptions ? 6 * 28 + 6 * 10 + MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight
+                                               : 3 * 28 + 2 * 10);
         }
 
         void resized() override
         {
             auto area = getLocalBounds();
             const int rowH = 28;
-            const int gap = 14;
+            const int gap = 10;
             const int labelW = 68;
 
             auto nameRow = area.removeFromTop(rowH);
@@ -577,6 +579,17 @@ void MnKordAudioProcessorEditor::FlatLookAndFeel::drawPopupMenuItem(juce::Graphi
         tick.lineTo(tickArea.getRight(), tickArea.getY());
         g.strokePath(tick, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
+}
+
+juce::Component* MnKordAudioProcessorEditor::FlatLookAndFeel::getParentComponentForMenuOptions(const juce::PopupMenu::Options& options)
+{
+    if (auto* parent = options.getParentComponent())
+        return parent;
+
+    if (auto* target = options.getTargetComponent())
+        return target->findParentComponentOfClass<juce::AudioProcessorEditor>();
+
+    return nullptr;
 }
 
 int MnKordAudioProcessorEditor::FlatLookAndFeel::getPopupMenuBorderSize()
@@ -1523,7 +1536,7 @@ void MnKordAudioProcessorEditor::ScalePopupContent::updateFillButtons()
 
 void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboBox*)
 {
-    // The CallOutBox hosting this is a top-level window (see showScalePopup()), so it can
+    // The CallOutBox hosting this is owned by the modal machinery (see showScalePopup()), so it can
     // outlive the editor if the host closes the plugin UI while it's still open.
     if (owner == nullptr)
         return;
@@ -1540,15 +1553,13 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
 
 void MnKordAudioProcessorEditor::showScalePopup()
 {
-    const auto screenBounds = localAreaToGlobal(scaleSummaryButton.getBounds());
-
     logUi("showScalePopup: current=" + scaleSummaryButton.getButtonText()
-        + " buttonBounds=" + scaleSummaryButton.getBounds().toString()
-        + " screenBounds=" + screenBounds.toString());
+        + " buttonBounds=" + scaleSummaryButton.getBounds().toString());
 
+    // Parented to the editor so the box stays inside the plugin window.
     auto content = std::make_unique<ScalePopupContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
-    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), screenBounds, nullptr);
+    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), scaleSummaryButton.getBounds(), this);
     box.setLookAndFeel(&flatLookAndFeel);
     activeScalePopup = &box;
 
@@ -1616,7 +1627,8 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     addAndMakeVisible(listBox);
 
     rebuildRows();
-    setSize(260, 374);
+    // Kept short enough (plus the box's border) to fit below the preset chip inside the window.
+    setSize(260, 330);
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
@@ -1640,7 +1652,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
 {
     rows.clear();
 
-    // The CallOutBox hosting this is a top-level window (see showPresetBrowser()), so it can
+    // The CallOutBox hosting this is owned by the modal machinery (see showPresetBrowser()), so it can
     // outlive the editor if the host closes the plugin UI while it's still open.
     if (owner != nullptr)
     {
@@ -1751,11 +1763,10 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::listBoxItemClicked(int ro
 
 void MnKordAudioProcessorEditor::showPresetBrowser()
 {
-    const auto screenBounds = localAreaToGlobal(presetSummaryButton.getBounds());
-
+    // Parented to the editor so the box stays inside the plugin window.
     auto content = std::make_unique<PresetBrowserContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
-    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), screenBounds, nullptr);
+    auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), presetSummaryButton.getBounds(), this);
     box.setLookAndFeel(&flatLookAndFeel);
     activePresetPopup = &box;
 }
@@ -2127,6 +2138,9 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
 {
     auto* dialog = new juce::AlertWindow("Save preset", "", juce::MessageBoxIconType::NoIcon, this);
     dialog->setLookAndFeel(&flatLookAndFeel);
+    // A child of the editor rather than its own desktop window, so it stays inside the plugin
+    // window; added before the content so its layout centres it within the editor.
+    addChildComponent(dialog);
 
     auto* content = new PresetMetadataContent(seed, getTextColour(), getControlColour(), getAccentColour(),
                                               showGenerationOptions, scaleRoot, scaleType, initVoicing);
@@ -2326,7 +2340,7 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
-    menu.showMenuAsync(juce::PopupMenu::Options(), [safeThis](int result)
+    menu.showMenuAsync(juce::PopupMenu::Options().withParentComponent(this), [safeThis](int result)
     {
         if (safeThis == nullptr || result == 0)
             return;
@@ -2363,7 +2377,7 @@ void MnKordAudioProcessorEditor::showInvertMenu()
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
-    menu.showMenuAsync(juce::PopupMenu::Options(), [safeThis](int result)
+    menu.showMenuAsync(juce::PopupMenu::Options().withParentComponent(this), [safeThis](int result)
     {
         logUi("showInvertMenu: result=" + juce::String(result));
 
