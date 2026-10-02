@@ -10,7 +10,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Invert a chord (right-click a CHORD key)
 - Preset library: read-only factory presets (diatonic, pop progression, power chords, jazz 7ths)
   plus your own presets, saved as files shared by every project (see below)
-- Preset browser with group/author filters and search; unsaved-changes marker, Save, Revert
+- Preset browser with GROUP / AUTHOR columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert
 - Preset metadata: name, group, author
 - XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
 - Host program list mirrors the preset list

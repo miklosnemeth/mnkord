@@ -31,6 +31,7 @@ MnKordAudioProcessor::MnKordAudioProcessor()
     : AudioProcessor(BusesProperties())
 {
     presets = buildLibrary();
+    loadFavorites();
     activePresetIndex = presets.empty() ? -1 : 0;
 }
 
@@ -592,8 +593,47 @@ bool MnKordAudioProcessor::saveUserPreset(int index)
     return true;
 }
 
+juce::String MnKordAudioProcessor::favoriteKeyFor(const Preset& preset) const
+{
+    if (preset.isFactory)
+        return "F|" + preset.name;
+
+    return preset.file == juce::File() ? juce::String()
+                                       : "U|" + preset.file.getRelativePathFrom(getUserFolder());
+}
+
+void MnKordAudioProcessor::loadFavorites()
+{
+    favoriteKeys.clear();
+    favoriteKeys.addLines(getLibraryFolder().getChildFile("favorites.txt").loadFileAsString());
+    favoriteKeys.removeEmptyStrings();
+}
+
+bool MnKordAudioProcessor::isFavoritePreset(const Preset& preset) const
+{
+    const auto key = favoriteKeyFor(preset);
+    return key.isNotEmpty() && favoriteKeys.contains(key);
+}
+
+void MnKordAudioProcessor::setFavoritePreset(const Preset& preset, bool shouldBeFavorite)
+{
+    const auto key = favoriteKeyFor(preset);
+    if (key.isEmpty() || favoriteKeys.contains(key) == shouldBeFavorite)
+        return;
+
+    if (shouldBeFavorite)
+        favoriteKeys.add(key);
+    else
+        favoriteKeys.removeString(key);
+
+    const auto file = getLibraryFolder().getChildFile("favorites.txt");
+    file.getParentDirectory().createDirectory();
+    file.replaceWithText(favoriteKeys.joinIntoString("\n"));
+}
+
 void MnKordAudioProcessor::refreshUserLibrary()
 {
+    loadFavorites();
     auto onDisk = loadUserPresets();
 
     const juce::ScopedLock lock(stateLock);

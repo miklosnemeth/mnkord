@@ -261,43 +261,76 @@ private:
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
 
-    // Content shown in the CallOutBox opened by clicking presetSummaryButton: group- and
-    // author-filter dropdowns and a search box above a scrollable, group-headed list of
-    // presets (see refreshPresetBox()'s grouping). Clicking a preset row applies it and
-    // dismisses the popup; clicking a group heading does nothing. See ScalePopupContent above
-    // for why owner is a SafePointer.
+    // Content shown in the CallOutBox opened by clicking presetSummaryButton: GROUP and AUTHOR
+    // columns that filter the PRESETS column (each row has a favourite star), plus a search box,
+    // a favourites-only toggle and tick / cross buttons. Clicking a preset loads it and keeps the
+    // browser open so presets can be auditioned; the tick keeps the current one, the cross goes
+    // back to the preset the browser was opened on. See ScalePopupContent above for why owner is
+    // a SafePointer.
     struct PresetBrowserContent : public juce::Component,
-                                  private juce::ListBoxModel,
-                                  private juce::ComboBox::Listener
+                                  private juce::Timer
     {
-        // One row of the flattened, filtered, group-headed preset list.
-        struct Row
+        // A small header icon: tick, cross, or a star (toggle).
+        struct IconButton : public juce::Button
         {
-            bool isGroupHeading = false;
-            juce::String text;      // group name, or preset name
-            int presetIndex = -1;   // valid (>= 0) only when !isGroupHeading
+            enum class Kind { Check, Cross, Star };
+
+            explicit IconButton(Kind k) : juce::Button("icon"), kind(k) {}
+            void paintButton(juce::Graphics&, bool highlighted, bool down) override;
+
+            Kind kind;
+            juce::Colour dimColour, litColour;
+        };
+
+        // Item 0 is always "All"; items 1.. are the distinct group / author labels (built from
+        // the preset list at the time the browser was opened).
+        struct FilterColumn : public juce::ListBoxModel
+        {
+            explicit FilterColumn(PresetBrowserContent& ownerRef);
+            int getNumRows() override { return items.size(); }
+            void paintListBoxItem(int row, juce::Graphics&, int width, int height, bool rowIsSelected) override;
+            void listBoxItemClicked(int row, const juce::MouseEvent&) override;
+
+            PresetBrowserContent& owner;
+            juce::StringArray items;
+            int selected = 0;
+            juce::ListBox box;
+        };
+
+        // The filtered presets (indices into the processor's list). A click on the star area
+        // toggles the favourite, a click elsewhere loads the preset.
+        struct PresetColumn : public juce::ListBoxModel
+        {
+            explicit PresetColumn(PresetBrowserContent& ownerRef)
+                : owner(ownerRef), box("BrowserPresets", this) {}
+            int getNumRows() override;
+            void paintListBoxItem(int row, juce::Graphics&, int width, int height, bool rowIsSelected) override;
+            void listBoxItemClicked(int row, const juce::MouseEvent&) override;
+            void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override;
+
+            PresetBrowserContent& owner;
+            std::vector<int> rows;
+            juce::ListBox box;
         };
 
         explicit PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef);
+        void paint(juce::Graphics&) override;
         void resized() override;
-        // Re-filters/re-groups from the current preset list, both filter dropdowns and the
-        // search text, called on every keystroke in searchBox and every filter dropdown change.
+        void timerCallback() override;
+        // Re-filters the PRESETS column from both columns, the favourites toggle and the search text.
         void rebuildRows();
-        void comboBoxChanged(juce::ComboBox*) override;
-
-        int getNumRows() override;
-        void paintListBoxItem(int rowNumber, juce::Graphics&, int width, int height, bool rowIsSelected) override;
-        void listBoxItemClicked(int rowNumber, const juce::MouseEvent&) override;
+        void closeBrowser();
 
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
-        // Item 1 is always "All groups"/"All authors"; items 2.. are one per distinct
-        // preset.group/preset.author (built in the constructor from the preset list at the
-        // time the popup was opened).
-        juce::ComboBox groupFilterBox;
-        juce::ComboBox authorFilterBox;
+        FilterColumn groupColumn;
+        FilterColumn authorColumn;
+        PresetColumn presetColumn;
         juce::TextEditor searchBox;
-        juce::ListBox listBox { "PresetBrowser", this };
-        std::vector<Row> rows;
+        IconButton favoritesOnlyButton;
+        IconButton confirmButton;
+        IconButton cancelButton;
+        int startIndex = -1;
+        juce::Rectangle<int> headerArea;
     };
 
     //==============================================================================

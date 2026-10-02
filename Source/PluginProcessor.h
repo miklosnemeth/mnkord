@@ -110,6 +110,11 @@ public:
     // Picks up user preset files added or removed since the library was loaded.
     void refreshUserLibrary();
 
+    // Favourites are shared by every project, kept in Documents\MNAudio\mnKordavorites.txt
+    // (message thread only). Factory presets are keyed by name, user presets by file.
+    bool isFavoritePreset(const Preset& preset) const;
+    void setFavoritePreset(const Preset& preset, bool shouldBeFavorite);
+
     // Guards presets/mappings across the audio and GUI threads. The editor must hold this
     // while structurally mutating presets/mappings obtained via getPresets().
     juce::CriticalSection& getStateLock() { return stateLock; }
@@ -147,6 +152,10 @@ public:
 
 private:
     //==============================================================================
+    juce::String favoriteKeyFor(const Preset& preset) const;
+    void loadFavorites();
+    juce::StringArray favoriteKeys;
+
     std::vector<Preset> presets;
     int activePresetIndex = -1;
 

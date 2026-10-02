@@ -1614,42 +1614,115 @@ namespace
         return preset.author.isNotEmpty() ? preset.author : juce::String("No author");
     }
 
-    // Fills a filter dropdown with "All <label>s" (id 1) plus one item per distinct value
-    // toStringId returns for a preset (in first-appearance order).
-    void populateFilterBox(juce::ComboBox& box, const std::vector<Preset>& presets,
-                           const juce::String& allLabel,
-                           const std::function<juce::String(const Preset&)>& labelFor)
+    // "All" followed by the distinct values labelFor yields, in first-appearance order.
+    juce::StringArray distinctLabels(const std::vector<Preset>& presets,
+                                     const std::function<juce::String(const Preset&)>& labelFor)
     {
-        box.addItem(allLabel, 1);
-
-        juce::StringArray valuesInOrder;
+        juce::StringArray values;
+        values.add("All");
         for (const auto& preset : presets)
-            valuesInOrder.addIfNotAlreadyThere(labelFor(preset));
-
-        for (int i = 0; i < valuesInOrder.size(); ++i)
-            box.addItem(valuesInOrder[i], i + 2);
-
-        box.setSelectedId(1, juce::dontSendNotification);
+            values.addIfNotAlreadyThere(labelFor(preset));
+        return values;
     }
 }
 
-MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef)
-    : owner(&ownerRef)
+void MnKordAudioProcessorEditor::PresetBrowserContent::IconButton::paintButton(juce::Graphics& g, bool highlighted,
+                                                                               bool down)
 {
-    const auto& presets = owner->audioProcessor.getPresets();
-    populateFilterBox(groupFilterBox, presets, "All groups", groupLabelFor);
-    populateFilterBox(authorFilterBox, presets, "All authors", authorLabelFor);
+    auto bounds = getLocalBounds().toFloat();
+    const bool lit = highlighted || down || (kind == Kind::Star && getToggleState());
+    g.setColour(lit ? litColour : dimColour);
 
-    for (auto* box : { &groupFilterBox, &authorFilterBox })
+    const auto centre = bounds.getCentre();
+    const float r = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.27f;
+
+    if (kind == Kind::Check)
     {
-        box->setColour(juce::ComboBox::backgroundColourId, owner->getControlColour());
-        box->setColour(juce::ComboBox::textColourId, owner->getTextColour());
-        box->setColour(juce::ComboBox::outlineColourId, owner->getAccentColour().withAlpha(0.4f));
-        box->addListener(this);
-        addAndMakeVisible(box);
+        juce::Path p;
+        p.startNewSubPath(centre.x - r, centre.y + r * 0.1f);
+        p.lineTo(centre.x - r * 0.3f, centre.y + r * 0.8f);
+        p.lineTo(centre.x + r, centre.y - r * 0.7f);
+        g.strokePath(p, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    else if (kind == Kind::Cross)
+    {
+        juce::Path p;
+        p.startNewSubPath(centre.x - r, centre.y - r);
+        p.lineTo(centre.x + r, centre.y + r);
+        p.startNewSubPath(centre.x + r, centre.y - r);
+        p.lineTo(centre.x - r, centre.y + r);
+        g.strokePath(p, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    else
+    {
+        juce::Path star;
+        star.addStar(centre, 5, r * 0.5f, r * 1.15f, -juce::MathConstants<float>::halfPi);
+        if (getToggleState())
+            g.fillPath(star);
+        else
+            g.strokePath(star, juce::PathStrokeType(1.4f));
+    }
+}
+
+MnKordAudioProcessorEditor::PresetBrowserContent::FilterColumn::FilterColumn(PresetBrowserContent& ownerRef)
+    : owner(ownerRef), box("BrowserColumn", this)
+{
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::FilterColumn::paintListBoxItem(int row, juce::Graphics& g,
+                                                                                      int width, int height, bool)
+{
+    auto* editor = owner.owner.getComponent();
+    if (editor == nullptr || row < 0 || row >= items.size())
+        return;
+
+    const bool isSelected = row == selected;
+    if (isSelected)
+    {
+        g.setColour(editor->getAccentColour().withAlpha(0.18f));
+        g.fillRect(0, 0, width, height);
     }
 
-    searchBox.setTextToShowWhenEmpty("Search presets...", owner->getMutedTextColour());
+    g.setColour(isSelected ? editor->getAccentColour()
+                           : (row == 0 ? editor->getMutedTextColour() : editor->getTextColour()));
+    g.setFont(juce::FontOptions(14.0f));
+    g.drawText(items[row], 10, 0, width - 14, height, juce::Justification::centredLeft, true);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::FilterColumn::listBoxItemClicked(int row,
+                                                                                         const juce::MouseEvent&)
+{
+    if (row < 0 || row >= items.size())
+        return;
+
+    selected = row;
+    box.repaint();
+    owner.rebuildRows();
+}
+
+MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAudioProcessorEditor& ownerRef)
+    : owner(&ownerRef),
+      groupColumn(*this),
+      authorColumn(*this),
+      presetColumn(*this),
+      favoritesOnlyButton(IconButton::Kind::Star),
+      confirmButton(IconButton::Kind::Check),
+      cancelButton(IconButton::Kind::Cross),
+      startIndex(ownerRef.audioProcessor.getActivePresetIndex())
+{
+    const auto& presets = owner->audioProcessor.getPresets();
+    groupColumn.items = distinctLabels(presets, groupLabelFor);
+    authorColumn.items = distinctLabels(presets, authorLabelFor);
+
+    for (auto* column : { &groupColumn.box, &authorColumn.box, &presetColumn.box })
+    {
+        column->setRowHeight(26);
+        column->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+        column->setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+        addAndMakeVisible(column);
+    }
+
+    searchBox.setTextToShowWhenEmpty("Search...", owner->getMutedTextColour());
     searchBox.setColour(juce::TextEditor::backgroundColourId, owner->getControlColour());
     searchBox.setColour(juce::TextEditor::textColourId, owner->getTextColour());
     searchBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
@@ -1657,144 +1730,200 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     searchBox.onTextChange = [this] { rebuildRows(); };
     addAndMakeVisible(searchBox);
 
-    listBox.setRowHeight(26);
-    listBox.setColour(juce::ListBox::backgroundColourId, owner->getPanelColour());
-    listBox.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
-    addAndMakeVisible(listBox);
+    for (auto* button : { &favoritesOnlyButton, &confirmButton, &cancelButton })
+    {
+        button->dimColour = owner->getMutedTextColour();
+        button->litColour = owner->getAccentColour();
+        addAndMakeVisible(button);
+    }
+
+    favoritesOnlyButton.setClickingTogglesState(true);
+    favoritesOnlyButton.setTooltip("Show favorites only");
+    favoritesOnlyButton.onClick = [this] { rebuildRows(); };
+    confirmButton.setTooltip("Keep this preset");
+    confirmButton.onClick = [this] { closeBrowser(); };
+    cancelButton.setTooltip("Close and go back to the preset you started from");
+    cancelButton.onClick = [this]
+    {
+        if (owner != nullptr && startIndex >= 0 && startIndex < (int) owner->audioProcessor.getPresets().size())
+            owner->selectActivePreset(startIndex);
+
+        closeBrowser();
+    };
 
     rebuildRows();
-    // Kept short enough (plus the box's border) to fit below the preset chip inside the window.
-    setSize(260, 330);
+    startTimerHz(8);
+
+    // Wide enough for the three columns, short enough to sit below the header inside the window.
+    setSize(640, 330);
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::closeBrowser()
+{
+    if (auto* box = findParentComponentOfClass<juce::CallOutBox>())
+        box->dismiss();
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::timerCallback()
+{
+    // A preset switch may be answered later (unsaved-changes dialog), so follow the active preset.
+    presetColumn.box.repaint();
+}
+
+void MnKordAudioProcessorEditor::PresetBrowserContent::paint(juce::Graphics& g)
+{
+    if (owner == nullptr)
+        return;
+
+    g.setColour(owner->getMutedTextColour());
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+
+    const auto drawTitle = [&](const juce::String& text, juce::Rectangle<int> column)
+    {
+        g.drawText(text, column.getX() + 10, headerArea.getY(), column.getWidth() - 10, headerArea.getHeight(),
+                   juce::Justification::centredLeft);
+    };
+
+    drawTitle("GROUP", groupColumn.box.getBounds());
+    drawTitle("AUTHOR", authorColumn.box.getBounds());
+    drawTitle("PRESETS", presetColumn.box.getBounds().withTrimmedLeft(24));
+
+    g.setColour(owner->getMutedTextColour().withAlpha(0.25f));
+    for (auto* column : { &authorColumn.box, &presetColumn.box })
+        g.fillRect(column->getX() - 4, column->getY(), 1, column->getHeight());
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
 {
-    auto area = getLocalBounds().reduced(8);
-    groupFilterBox.setBounds(area.removeFromTop(26));
+    auto area = getLocalBounds().reduced(10);
+    headerArea = area.removeFromTop(30);
     area.removeFromTop(6);
-    authorFilterBox.setBounds(area.removeFromTop(26));
-    area.removeFromTop(6);
-    searchBox.setBounds(area.removeFromTop(28));
-    area.removeFromTop(6);
-    listBox.setBounds(area);
-}
 
-void MnKordAudioProcessorEditor::PresetBrowserContent::comboBoxChanged(juce::ComboBox*)
-{
-    rebuildRows();
+    auto header = headerArea;
+    cancelButton.setBounds(header.removeFromRight(28));
+    confirmButton.setBounds(header.removeFromRight(28));
+    header.removeFromRight(8);
+    searchBox.setBounds(header.removeFromRight(150).reduced(0, 2));
+
+    groupColumn.box.setBounds(area.removeFromLeft(140));
+    area.removeFromLeft(8);
+    authorColumn.box.setBounds(area.removeFromLeft(140));
+    area.removeFromLeft(8);
+    presetColumn.box.setBounds(area);
+    favoritesOnlyButton.setBounds(presetColumn.box.getX() + 1, headerArea.getY() + 1, 28, 28);
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
 {
-    rows.clear();
+    presetColumn.rows.clear();
 
     // The CallOutBox hosting this is owned by the modal machinery (see showPresetBrowser()), so it can
     // outlive the editor if the host closes the plugin UI while it's still open.
     if (owner != nullptr)
     {
         const auto& presets = owner->audioProcessor.getPresets();
-        const int activeIndex = owner->audioProcessor.getActivePresetIndex();
         const auto filter = searchBox.getText().trim();
-        const auto selectedGroupId = groupFilterBox.getSelectedId();
-        const auto selectedGroupText = selectedGroupId > 1 ? groupFilterBox.getText() : juce::String();
-        const auto selectedAuthorId = authorFilterBox.getSelectedId();
-        const auto selectedAuthorText = selectedAuthorId > 1 ? authorFilterBox.getText() : juce::String();
+        const auto group = groupColumn.selected > 0 ? groupColumn.items[groupColumn.selected] : juce::String();
+        const auto author = authorColumn.selected > 0 ? authorColumn.items[authorColumn.selected] : juce::String();
+        const bool favoritesOnly = favoritesOnlyButton.getToggleState();
 
-        // A preset stays listed while searching if it matches, OR if it's the active preset --
-        // so a search that doesn't match it can't silently orphan the current selection. Both
-        // filter dropdowns apply the same exception, for the same reason.
-        auto isShown = [&](int index)
-        {
-            if (index == activeIndex)
-                return true;
-
-            const auto& preset = presets[(size_t) index];
-
-            if (selectedGroupId > 1 && groupLabelFor(preset) != selectedGroupText)
-                return false;
-
-            if (selectedAuthorId > 1 && authorLabelFor(preset) != selectedAuthorText)
-                return false;
-
-            return filter.isEmpty() || preset.name.containsIgnoreCase(filter)
-                                     || preset.group.containsIgnoreCase(filter)
-                                     || preset.author.containsIgnoreCase(filter);
-        };
-
-        juce::StringArray groupsInOrder;
         for (int i = 0; i < (int) presets.size(); ++i)
-            if (isShown(i))
-                groupsInOrder.addIfNotAlreadyThere(groupLabelFor(presets[(size_t) i]));
-
-        // A single selected group is already named by groupFilterBox -- repeating it as a row
-        // heading would be redundant, so only show headings when browsing "All groups".
-        const bool showHeadings = selectedGroupId <= 1;
-
-        for (const auto& group : groupsInOrder)
         {
-            if (showHeadings)
-                rows.push_back({ true, group, -1 });
+            const auto& preset = presets[(size_t) i];
 
-            for (int i = 0; i < (int) presets.size(); ++i)
-                if (isShown(i) && groupLabelFor(presets[(size_t) i]) == group)
-                    rows.push_back({ false, presets[(size_t) i].name, i });
+            if (group.isNotEmpty() && groupLabelFor(preset) != group)
+                continue;
+            if (author.isNotEmpty() && authorLabelFor(preset) != author)
+                continue;
+            if (favoritesOnly && ! owner->audioProcessor.isFavoritePreset(preset))
+                continue;
+            if (filter.isNotEmpty() && ! (preset.name.containsIgnoreCase(filter)
+                                          || preset.group.containsIgnoreCase(filter)
+                                          || preset.author.containsIgnoreCase(filter)))
+                continue;
+
+            presetColumn.rows.push_back(i);
         }
     }
 
-    listBox.updateContent();
-    listBox.repaint();
+    presetColumn.box.updateContent();
+    presetColumn.box.repaint();
 }
 
-int MnKordAudioProcessorEditor::PresetBrowserContent::getNumRows()
+int MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::getNumRows()
 {
     return (int) rows.size();
 }
 
-void MnKordAudioProcessorEditor::PresetBrowserContent::paintListBoxItem(int rowNumber, juce::Graphics& g,
-                                                                        int width, int height, bool rowIsSelected)
+void MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::paintListBoxItem(int row, juce::Graphics& g,
+                                                                                      int width, int height, bool)
 {
-    if (owner == nullptr || rowNumber < 0 || rowNumber >= (int) rows.size())
+    auto* editor = owner.owner.getComponent();
+    if (editor == nullptr || row < 0 || row >= (int) rows.size())
         return;
 
-    const auto& row = rows[(size_t) rowNumber];
-
-    if (row.isGroupHeading)
-    {
-        g.setColour(owner->getMutedTextColour());
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        g.drawText(row.text.toUpperCase(), 10, 0, width - 10, height, juce::Justification::centredLeft);
+    const auto& presets = editor->audioProcessor.getPresets();
+    const int presetIndex = rows[(size_t) row];
+    if (presetIndex < 0 || presetIndex >= (int) presets.size())
         return;
-    }
 
-    if (rowIsSelected)
+    const auto& preset = presets[(size_t) presetIndex];
+    const bool isActive = presetIndex == editor->audioProcessor.getActivePresetIndex();
+
+    if (isActive)
     {
-        g.setColour(owner->getAccentColour().withAlpha(0.18f));
+        g.setColour(editor->getAccentColour().withAlpha(0.18f));
         g.fillRect(0, 0, width, height);
     }
 
-    const bool isActive = row.presetIndex == owner->audioProcessor.getActivePresetIndex();
-    g.setColour(isActive ? owner->getAccentColour() : owner->getTextColour());
+    const auto starCentre = juce::Point<float>(15.0f, (float) height * 0.5f);
+    juce::Path star;
+    star.addStar(starCentre, 5, 3.4f, 7.0f, -juce::MathConstants<float>::halfPi);
+    if (editor->audioProcessor.isFavoritePreset(preset))
+    {
+        g.setColour(editor->getAccentColour());
+        g.fillPath(star);
+    }
+    else
+    {
+        g.setColour(editor->getMutedTextColour().withAlpha(0.7f));
+        g.strokePath(star, juce::PathStrokeType(1.2f));
+    }
+
+    g.setColour(isActive ? editor->getAccentColour() : editor->getTextColour());
     g.setFont(juce::FontOptions(14.0f));
-    g.drawText(row.text, 18, 0, width - 26, height, juce::Justification::centredLeft, true);
+    g.drawText(preset.name, 34, 0, width - 40, height, juce::Justification::centredLeft, true);
 }
 
-void MnKordAudioProcessorEditor::PresetBrowserContent::listBoxItemClicked(int rowNumber, const juce::MouseEvent&)
+void MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::listBoxItemClicked(int row,
+                                                                                         const juce::MouseEvent& e)
 {
-    if (owner == nullptr || rowNumber < 0 || rowNumber >= (int) rows.size())
+    auto* editor = owner.owner.getComponent();
+    if (editor == nullptr || row < 0 || row >= (int) rows.size())
         return;
 
-    const auto& row = rows[(size_t) rowNumber];
+    const int presetIndex = rows[(size_t) row];
+    const auto& presets = editor->audioProcessor.getPresets();
+    if (presetIndex < 0 || presetIndex >= (int) presets.size())
+        return;
 
-    if (row.isGroupHeading)
+    if (e.x < 30)
     {
-        listBox.deselectAllRows();
+        const auto& preset = presets[(size_t) presetIndex];
+        editor->audioProcessor.setFavoritePreset(preset, ! editor->audioProcessor.isFavoritePreset(preset));
+        owner.rebuildRows();
         return;
     }
 
-    owner->selectActivePreset(row.presetIndex);
+    // Auditioning: the browser stays open; the tick keeps the preset, the cross goes back.
+    editor->selectActivePreset(presetIndex);
+}
 
-    if (auto* box = findParentComponentOfClass<juce::CallOutBox>())
-        box->dismiss();
+void MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::listBoxItemDoubleClicked(int row,
+                                                                                               const juce::MouseEvent& e)
+{
+    if (row >= 0 && row < (int) rows.size() && e.x >= 30)
+        owner.closeBrowser();
 }
 
 void MnKordAudioProcessorEditor::showPresetBrowser()
