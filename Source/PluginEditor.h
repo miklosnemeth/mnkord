@@ -287,10 +287,10 @@ private:
     struct PresetBrowserContent : public juce::Component,
                                   private juce::Timer
     {
-        // A small header icon: tick, cross, or a star (toggle).
+        // A small icon button: tick, cross, a star (toggle), or a previous / next chevron.
         struct IconButton : public juce::Button
         {
-            enum class Kind { Check, Cross, Star };
+            enum class Kind { Check, Cross, Star, Prev, Next };
 
             explicit IconButton(Kind k) : juce::Button("icon"), kind(k) {}
             void paintButton(juce::Graphics&, bool highlighted, bool down) override;
@@ -372,6 +372,9 @@ private:
     juce::TextButton copyOctaveUpButton, copyOctaveDownButton;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
     juce::TextButton presetSummaryButton;
+    // Step to the previous / next preset in the library.
+    PresetBrowserContent::IconButton prevPresetButton { PresetBrowserContent::IconButton::Kind::Prev };
+    PresetBrowserContent::IconButton nextPresetButton { PresetBrowserContent::IconButton::Kind::Next };
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
@@ -449,6 +452,11 @@ private:
     void revertActivePreset();
     void deleteActivePreset();
     void showPresetMenu();
+    // Right-click menu of a row in the preset browser (Load, Duplicate, Rename, Show in folder, Delete).
+    void showPresetRowMenu(int presetIndex);
+    void duplicatePreset(int presetIndex);
+    // Selects the previous (-1) / next (+1) preset, wrapping around.
+    void stepPreset(int delta);
     // Shows an OK-only message dialog inside the plugin window.
     void showMessage(const juce::String& title, const juce::String& message);
     void showSaveFailedWarning();

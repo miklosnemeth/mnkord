@@ -12,7 +12,8 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Preset library: read-only factory presets (diatonic, pop progression, power chords, jazz 7ths)
   plus your own presets, saved as files shared by every project (see below)
 - Preset browser with GROUP / AUTHOR / STYLE (tag) columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert
-- Preset metadata: name, group, author
+- Preset metadata: name, group, author, style tags
+- Previous / next preset arrows next to the preset name; right-click a preset in the browser for Load, Duplicate, Rename, Show in folder and Delete
 - XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
 - Host program list mirrors the preset list
 - Sustain pedal handling with note ref-counting (no stuck notes)

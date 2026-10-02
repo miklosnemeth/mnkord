@@ -953,6 +953,12 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     presetSummaryButton.addListener(this);
     addAndMakeVisible(presetSummaryButton);
+    prevPresetButton.setTooltip("Previous preset");
+    nextPresetButton.setTooltip("Next preset");
+    prevPresetButton.onClick = [this] { stepPreset(-1); };
+    nextPresetButton.onClick = [this] { stepPreset(1); };
+    addAndMakeVisible(prevPresetButton);
+    addAndMakeVisible(nextPresetButton);
 
     themeToggleButton.addListener(this);
     addAndMakeVisible(themeToggleButton);
@@ -1084,9 +1090,13 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 200 + 8 + 62 + 8 + 62 + 8 + 76;
+    const int groupWidth = 26 + 4 + 200 + 4 + 26 + 8 + 62 + 8 + 62 + 8 + 76;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
+    prevPresetButton.setBounds(controls.removeFromLeft(26));
+    controls.removeFromLeft(4);
     presetSummaryButton.setBounds(controls.removeFromLeft(200));
+    controls.removeFromLeft(4);
+    nextPresetButton.setBounds(controls.removeFromLeft(26));
     controls.removeFromLeft(8);
     newPresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
@@ -1848,6 +1858,15 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::IconButton::paintButton(j
         p.lineTo(centre.x - r, centre.y + r);
         g.strokePath(p, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
+    else if (kind == Kind::Prev || kind == Kind::Next)
+    {
+        const float direction = kind == Kind::Prev ? -1.0f : 1.0f;
+        juce::Path p;
+        p.startNewSubPath(centre.x - direction * r * 0.5f, centre.y - r * 1.1f);
+        p.lineTo(centre.x + direction * r * 0.5f, centre.y);
+        p.lineTo(centre.x - direction * r * 0.5f, centre.y + r * 1.1f);
+        g.strokePath(p, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
     else
     {
         juce::Path star;
@@ -2111,6 +2130,12 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::listBoxItem
     if (presetIndex < 0 || presetIndex >= (int) presets.size())
         return;
 
+    if (e.mods.isPopupMenu())
+    {
+        editor->showPresetRowMenu(presetIndex);
+        return;
+    }
+
     if (e.x < 30)
     {
         const auto& preset = presets[(size_t) presetIndex];
@@ -2291,6 +2316,144 @@ void MnKordAudioProcessorEditor::deleteActivePreset()
     selectedMappingIndex = -1;
     refreshPresetBox();
     setSelectedMappingIndex(selectedMappingIndex);
+}
+
+void MnKordAudioProcessorEditor::stepPreset(int delta)
+{
+    const int count = (int) audioProcessor.getPresets().size();
+    const int active = audioProcessor.getActivePresetIndex();
+    if (count < 2 || active < 0)
+        return;
+
+    selectActivePreset(((active + delta) % count + count) % count);
+}
+
+void MnKordAudioProcessorEditor::duplicatePreset(int presetIndex)
+{
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+
+    // Duplicating saves a new preset and selects it, so unsaved edits get the usual question first.
+    confirmLeavePreset([safeThis, presetIndex]
+    {
+        if (safeThis == nullptr)
+            return;
+
+        auto& editor = *safeThis;
+        const auto& presets = editor.audioProcessor.getPresets();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return;
+
+        Preset copy = presets[(size_t) presetIndex];
+        const auto baseName = copy.name;
+
+        auto nameTaken = [&presets](const juce::String& name)
+        {
+            return std::any_of(presets.begin(), presets.end(), [&name](const Preset& p) { return p.name == name; });
+        };
+
+        copy.name = baseName + " copy";
+        for (int n = 2; nameTaken(copy.name); ++n)
+            copy.name = baseName + " copy " + juce::String(n);
+
+        copy.group = copy.isFactory ? "User" : copy.group;
+        copy.author = copy.isFactory ? juce::String() : copy.author;
+        copy.isFactory = false;
+        copy.file = {};
+        copy.savedXml = {};
+
+        const bool written = editor.audioProcessor.addPreset(copy);
+        editor.selectedMappingIndex = -1;
+        editor.refreshPresetBox();
+        editor.setSelectedMappingIndex(editor.selectedMappingIndex);
+
+        if (! written)
+            editor.showSaveFailedWarning();
+    });
+}
+
+void MnKordAudioProcessorEditor::showPresetRowMenu(int presetIndex)
+{
+    const auto& presets = audioProcessor.getPresets();
+    if (presetIndex < 0 || presetIndex >= (int) presets.size())
+        return;
+
+    const auto& preset = presets[(size_t) presetIndex];
+
+    auto menu = makeStyledMenu();
+    menu.addItem(1, "Load");
+    menu.addItem(2, "Duplicate");
+    menu.addItem(3, "Rename / edit info...", ! preset.isFactory);
+    menu.addItem(4, "Show in folder", preset.file.existsAsFile());
+    menu.addSeparator();
+    menu.addColouredItem(5, "Delete", juce::Colour(0xffcf4b41), ! preset.isFactory);
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+
+    const auto mouse = juce::Desktop::getInstance().getMousePosition();
+    menu.showMenuAsync(juce::PopupMenu::Options()
+                           .withTargetScreenArea(juce::Rectangle<int>(mouse.x, mouse.y, 1, 1))
+                           .withParentComponent(this),
+                       [safeThis, presetIndex](int result)
+                       {
+                           if (safeThis == nullptr || result == 0)
+                               return;
+
+                           auto& editor = *safeThis;
+                           const auto& list = editor.audioProcessor.getPresets();
+                           if (presetIndex >= (int) list.size())
+                               return;
+
+                           switch (result)
+                           {
+                               case 1:
+                                   editor.selectActivePreset(presetIndex);
+                                   return;   // the browser stays open for auditioning
+                               case 2:
+                                   editor.duplicatePreset(presetIndex);
+                                   break;
+                               case 3:
+                                   if (presetIndex == editor.audioProcessor.getActivePresetIndex())
+                                   {
+                                       editor.editActivePresetMetadata();
+                                   }
+                                   else
+                                   {
+                                       editor.confirmLeavePreset([safeThis, presetIndex]
+                                       {
+                                           if (safeThis == nullptr
+                                               || presetIndex >= (int) safeThis->audioProcessor.getPresets().size())
+                                               return;
+
+                                           safeThis->audioProcessor.setActivePresetIndex(presetIndex);
+                                           safeThis->selectedMappingIndex = -1;
+                                           safeThis->refreshPresetBox();
+                                           safeThis->setSelectedMappingIndex(safeThis->selectedMappingIndex);
+                                           safeThis->editActivePresetMetadata();
+                                       });
+                                   }
+                                   break;
+                               case 4:
+                                   list[(size_t) presetIndex].file.revealToUser();
+                                   return;
+                               case 5:
+                                   if (! editor.audioProcessor.deletePreset(presetIndex))
+                                   {
+                                       editor.showMessage("Couldn't delete the preset",
+                                                          "The preset file couldn't be moved to the recycle bin, so it was left in place.");
+                                       return;
+                                   }
+
+                                   editor.selectedMappingIndex = -1;
+                                   editor.refreshPresetBox();
+                                   editor.setSelectedMappingIndex(editor.selectedMappingIndex);
+                                   break;
+                               default: break;
+                           }
+
+                           // The browser's rows are stale after these, so close it.
+                           if (editor.activePresetPopup != nullptr)
+                               editor.activePresetPopup->dismiss();
+                       });
 }
 
 void MnKordAudioProcessorEditor::showPresetMenu()
@@ -2491,6 +2654,13 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
     // The primary preset selector, so its text reads at full strength (unlike the muted
     // scale chip above), matching how the preset name looked in the combo box it replaced.
+    for (auto* arrow : { &prevPresetButton, &nextPresetButton })
+    {
+        arrow->dimColour = getMutedTextColour();
+        arrow->litColour = getAccentColour();
+        arrow->repaint();
+    }
+
     presetSummaryButton.setColour(juce::TextButton::buttonColourId, control);
     presetSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
     presetSummaryButton.setColour(juce::TextButton::textColourOffId, textColour);
