@@ -977,6 +977,17 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     startTimerHz(30);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
+    copyOctaveUpButton.setButtonText("Copy up");
+    copyOctaveDownButton.setButtonText("Copy down");
+    copyOctaveUpButton.setTooltip("Copy the selected octave's chords one octave up");
+    copyOctaveDownButton.setTooltip("Copy the selected octave's chords one octave down");
+    for (auto* button : { &copyOctaveUpButton, &copyOctaveDownButton })
+    {
+        button->addListener(this);
+        addAndMakeVisible(button);
+    }
+    addAndMakeVisible(octaveStrip);
+    updateOctaveCopyButtons();
     outputKeyboardLabel.setText("CHORD", juce::dontSendNotification);
     selectedInputLabel.setText("-", juce::dontSendNotification);
     chordNotesLabel.setText("-", juce::dontSendNotification);
@@ -1093,8 +1104,14 @@ void MnKordAudioProcessorEditor::resized()
     auto inputHeader = inputPanel.removeFromTop(24);
     inputKeyboardLabel.setBounds(inputHeader.removeFromLeft(120));
     scaleSummaryButton.setBounds(inputHeader.removeFromRight(110));
+    inputHeader.removeFromRight(8);
+    copyOctaveDownButton.setBounds(inputHeader.removeFromRight(76));
+    inputHeader.removeFromRight(6);
+    copyOctaveUpButton.setBounds(inputHeader.removeFromRight(66));
     selectedInputLabel.setBounds(inputHeader);
-    inputPanel.removeFromTop(8);
+    inputPanel.removeFromTop(2);
+    octaveStrip.setBounds(inputPanel.removeFromTop(14));
+    inputPanel.removeFromTop(2);
     inputKeyboard.setBounds(inputPanel);
     // 5 octaves (7 white keys each) fill the visible width exactly; the rest of
     // setAvailableRange()'s range is reachable via the scroll buttons/drag. Starting at C2
@@ -1110,6 +1127,147 @@ void MnKordAudioProcessorEditor::resized()
     outputPanel.removeFromTop(8);
     outputKeyboard.setBounds(outputPanel);
     outputKeyboard.setKeyWidth((float) outputPanel.getWidth() / (5 * 7));
+}
+
+//==============================================================================
+juce::Range<float> MnKordAudioProcessorEditor::OctaveStrip::segmentRange(int start) const
+{
+    constexpr int lowest = 21, highest = 108;   // the keyboards' available range
+    const auto& keyboard = owner.inputKeyboard;
+
+    const int first = juce::jlimit(lowest, highest, start);
+    const int last = juce::jlimit(lowest, highest, start + 11);
+    if (start + 11 < lowest || start > highest)
+        return {};
+
+    const float x0 = keyboard.getRectangleForKey(first).getX();
+    const float x1 = keyboard.getRectangleForKey(last).getRight();
+    return juce::Range<float>(juce::jmax(0.0f, x0), juce::jmin((float) getWidth(), x1));
+}
+
+int MnKordAudioProcessorEditor::OctaveStrip::octaveStartAt(float x) const
+{
+    const int rootPitchClass = ((owner.scaleRoot % 12) + 12) % 12;
+
+    for (int start = rootPitchClass - 12; start <= 120; start += 12)
+    {
+        const auto range = segmentRange(start);
+        if (! range.isEmpty() && x >= range.getStart() && x < range.getEnd())
+            return start;
+    }
+
+    return -1;
+}
+
+void MnKordAudioProcessorEditor::OctaveStrip::mouseDown(const juce::MouseEvent& e)
+{
+    const int start = octaveStartAt((float) e.x);
+    selectedStart = (start < 0 || start == selectedStart) ? -1 : start;
+    owner.updateOctaveCopyButtons();
+    repaint();
+}
+
+void MnKordAudioProcessorEditor::OctaveStrip::paint(juce::Graphics& g)
+{
+    const int rootPitchClass = ((owner.scaleRoot % 12) + 12) % 12;
+    g.setFont(juce::FontOptions(11.0f));
+
+    for (int start = rootPitchClass - 12; start <= 120; start += 12)
+    {
+        const auto range = segmentRange(start);
+        if (range.isEmpty())
+            continue;
+
+        const auto segment = juce::Rectangle<float>(range.getStart() + 1.0f, 1.0f, range.getLength() - 2.0f,
+                                                    (float) getHeight() - 2.0f);
+        const bool isSelected = start == selectedStart;
+
+        g.setColour(isSelected ? owner.getAccentColour().withAlpha(0.35f)
+                               : owner.getControlColour().withAlpha(0.7f));
+        g.fillRoundedRectangle(segment, 3.0f);
+
+        if (isSelected)
+        {
+            g.setColour(owner.getAccentColour());
+            g.drawRoundedRectangle(segment, 3.0f, 1.0f);
+        }
+
+        // A segment cut by the edge of the range has no fixed label.
+        if (start >= 0 && start + 11 <= 127)
+        {
+            g.setColour(isSelected ? owner.getAccentColour() : owner.getMutedTextColour());
+            g.drawText(NoteName::toString(start) + " - " + NoteName::toString(start + 11), segment.toNearestInt(),
+                       juce::Justification::centred, true);
+        }
+    }
+}
+
+void MnKordAudioProcessorEditor::updateOctaveCopyButtons()
+{
+    const bool enabled = octaveStrip.selectedStart >= 0;
+    copyOctaveUpButton.setEnabled(enabled && octaveStrip.selectedStart + 12 <= 127);
+    copyOctaveDownButton.setEnabled(enabled && octaveStrip.selectedStart - 12 >= 0);
+}
+
+void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
+{
+    const int start = octaveStrip.selectedStart;
+    if (start < 0)
+        return;
+
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return;
+
+        auto& mappings = presets[(size_t) presetIndex].mappings;
+
+        // Collect first: the copies may land on mappings that are sources themselves.
+        std::vector<NoteMapping> copies;
+        for (const auto& mapping : mappings)
+        {
+            if (mapping.inputNote < start || mapping.inputNote >= start + 12)
+                continue;
+
+            NoteMapping copy;
+            copy.inputNote = mapping.inputNote + semitones;
+            if (copy.inputNote < 0 || copy.inputNote > 127)
+                continue;
+
+            for (const int note : mapping.outputNotes)
+            {
+                const int shifted = note + semitones;
+                if (shifted < 0 || shifted > 127)
+                    continue;
+
+                copy.outputNotes.push_back(shifted);
+                copy.outputVelocities[shifted] = mapping.velocityFor(note);
+            }
+
+            if (! copy.outputNotes.empty())
+                copies.push_back(std::move(copy));
+        }
+
+        for (auto& copy : copies)
+        {
+            const auto existing = std::find_if(mappings.begin(), mappings.end(),
+                                               [&copy](const NoteMapping& m) { return m.inputNote == copy.inputNote; });
+            if (existing != mappings.end())
+                *existing = std::move(copy);
+            else
+                mappings.push_back(std::move(copy));
+        }
+    }
+
+    // Selecting the copy lets the next click chain on to the following octave.
+    octaveStrip.selectedStart = start + semitones;
+    updateOctaveCopyButtons();
+    octaveStrip.repaint();
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
 }
 
 //==============================================================================
@@ -1165,7 +1323,11 @@ void MnKordAudioProcessorEditor::ThemeToggleButton::paintButton(juce::Graphics& 
 
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
-    if (button == &themeToggleButton)
+    if (button == &copyOctaveUpButton)
+        copySelectedOctave(12);
+    else if (button == &copyOctaveDownButton)
+        copySelectedOctave(-12);
+    else if (button == &themeToggleButton)
     {
         visualTheme = visualTheme == VisualTheme::Dark ? VisualTheme::Light : VisualTheme::Dark;
         applyVisualTheme();
@@ -2457,6 +2619,8 @@ void MnKordAudioProcessorEditor::timerCallback()
         // Edits mutate the preset in place, so unsaved changes are found by comparing.
         updateDirtyState();
     }
+
+    octaveStrip.repaint();   // follows the keyboard when it scrolls or the scale root changes
 
     const auto input = audioProcessor.getActiveInputNotes();
     if (input != playingInputNotes)

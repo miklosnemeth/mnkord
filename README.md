@@ -8,6 +8,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Map any MIDI note to an arbitrary chord (click INPUT key, then CHORD keys)
 - Chord templates: Maj, Min, Sus2, Sus4, 7, Maj7, Min7, Dim, Add9
 - Invert a chord (right-click a CHORD key)
+- Octave strip above the INPUT keyboard: click an octave (it starts on the scale root), then **Copy up** / **Copy down** to duplicate its chords one octave higher or lower
 - Preset library: read-only factory presets (diatonic, pop progression, power chords, jazz 7ths)
   plus your own presets, saved as files shared by every project (see below)
 - Preset browser with GROUP / AUTHOR / STYLE (tag) columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert

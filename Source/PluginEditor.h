@@ -204,6 +204,23 @@ private:
         bool velocityDragMoved = false;
     };
 
+    // A thin strip above the INPUT keyboard with one segment per octave (starting on the scale
+    // root, like the auto-fill's octaves). Clicking a segment selects that octave so its mappings
+    // can be copied an octave up or down; clicking it again deselects.
+    struct OctaveStrip : public juce::Component
+    {
+        explicit OctaveStrip(MnKordAudioProcessorEditor& ownerRef) : owner(ownerRef) {}
+        void paint(juce::Graphics&) override;
+        void mouseDown(const juce::MouseEvent&) override;
+        // Segment [start, start + 12) containing x, or -1.
+        int octaveStartAt(float x) const;
+        // The x range of the segment starting at the given note, clipped to the strip.
+        juce::Range<float> segmentRange(int start) const;
+
+        MnKordAudioProcessorEditor& owner;
+        int selectedStart = -1;
+    };
+
     // Tooltip-style bubble showing a selected chord note's velocity, floated above its key
     // while hovering or dragging it. Lives on the editor (not the keyboard) so it can sit above
     // the keyboard's top edge.
@@ -351,6 +368,8 @@ private:
     // otherwise dangle into this soon-to-be-destroyed editor) before returning.
     juce::Component::SafePointer<juce::CallOutBox> activeScalePopup;
     juce::TextButton scaleSummaryButton;
+    OctaveStrip octaveStrip { *this };
+    juce::TextButton copyOctaveUpButton, copyOctaveDownButton;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
     juce::TextButton presetSummaryButton;
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
@@ -471,6 +490,10 @@ private:
     juce::PopupMenu makeStyledMenu();
     void setSelectedMappingIndex(int index);
     void keyboardNoteClicked(KeyboardRole role, int midiNoteNumber);
+    // Copies the mappings of the octave selected in octaveStrip by +/-12 semitones (INPUT notes
+    // and chord notes), replacing mappings already there, and selects the copy.
+    void copySelectedOctave(int semitones);
+    void updateOctaveCopyButtons();
     // Selects/creates the mapping for midiNoteNumber, then shows a right-click popup menu of
     // chord templates plus Octave up/down, Clear chord and Delete mapping, at the current
     // mouse position; picking one applies it.
