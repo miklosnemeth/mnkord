@@ -953,6 +953,14 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     presetSummaryButton.addListener(this);
     addAndMakeVisible(presetSummaryButton);
+    undoButton.setTooltip("Undo (Ctrl+Z)");
+    redoButton.setTooltip("Redo (Ctrl+Y)");
+    undoButton.onClick = [this] { undoEdit(); };
+    redoButton.onClick = [this] { redoEdit(); };
+    addAndMakeVisible(undoButton);
+    addAndMakeVisible(redoButton);
+    setWantsKeyboardFocus(true);
+    updateHistoryButtons();
     prevPresetButton.setTooltip("Previous preset");
     nextPresetButton.setTooltip("Next preset");
     prevPresetButton.onClick = [this] { stepPreset(-1); };
@@ -1104,7 +1112,10 @@ void MnKordAudioProcessorEditor::resized()
     controls.removeFromLeft(8);
     presetMenuButton.setBounds(controls.removeFromLeft(76));
 
-    themeToggleButton.setBounds(juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() }));
+    const auto themeBounds = juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() });
+    themeToggleButton.setBounds(themeBounds);
+    redoButton.setBounds(themeBounds.translated(-34, 0));
+    undoButton.setBounds(themeBounds.translated(-62, 0));
 
     // Left/right/bottom margins of 14, top starting exactly where the header ends.
     auto area = getLocalBounds().reduced(14).withTrimmedTop(60);
@@ -1836,7 +1847,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::IconButton::paintButton(j
 {
     auto bounds = getLocalBounds().toFloat();
     const bool lit = highlighted || down || (kind == Kind::Star && getToggleState());
-    g.setColour(lit ? litColour : dimColour);
+    g.setColour(! isEnabled() ? dimColour.withAlpha(0.3f) : (lit ? litColour : dimColour));
 
     const auto centre = bounds.getCentre();
     const float r = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.27f;
@@ -1857,6 +1868,27 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::IconButton::paintButton(j
         p.startNewSubPath(centre.x + r, centre.y - r);
         p.lineTo(centre.x - r, centre.y + r);
         g.strokePath(p, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    else if (kind == Kind::Undo || kind == Kind::Redo)
+    {
+        // An open arc with an arrowhead on its lower-left end (mirrored for redo).
+        const float radius = r * 1.2f;
+        juce::Path arc;
+        arc.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, -0.75f * juce::MathConstants<float>::pi,
+                          0.45f * juce::MathConstants<float>::pi, true);
+        juce::Path head;
+        const juce::Point<float> tip(centre.x - radius * 0.7071f, centre.y + radius * 0.7071f);
+        head.startNewSubPath(tip.x - radius * 0.1f, tip.y - radius * 0.85f);
+        head.lineTo(tip);
+        head.lineTo(tip.x + radius * 0.85f, tip.y + radius * 0.1f);
+        if (kind == Kind::Redo)
+        {
+            const auto flip = juce::AffineTransform::scale(-1.0f, 1.0f, centre.x, centre.y);
+            arc.applyTransform(flip);
+            head.applyTransform(flip);
+        }
+        g.strokePath(arc, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(head, juce::PathStrokeType(1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
     else if (kind == Kind::Prev || kind == Kind::Next)
     {
@@ -2318,6 +2350,147 @@ void MnKordAudioProcessorEditor::deleteActivePreset()
     setSelectedMappingIndex(selectedMappingIndex);
 }
 
+namespace
+{
+    bool sameMappings(const std::vector<NoteMapping>& a, const std::vector<NoteMapping>& b)
+    {
+        if (a.size() != b.size())
+            return false;
+
+        for (size_t i = 0; i < a.size(); ++i)
+            if (a[i].inputNote != b[i].inputNote || a[i].outputNotes != b[i].outputNotes
+                || a[i].outputVelocities != b[i].outputVelocities)
+                return false;
+
+        return true;
+    }
+}
+
+void MnKordAudioProcessorEditor::updateHistoryButtons()
+{
+    undoButton.setEnabled(! undoStack.empty());
+    redoButton.setEnabled(! redoStack.empty());
+}
+
+void MnKordAudioProcessorEditor::trackHistory()
+{
+    const auto& presets = audioProcessor.getPresets();
+    const int index = audioProcessor.getActivePresetIndex();
+    if (index < 0 || index >= (int) presets.size())
+        return;
+
+    const auto& preset = presets[(size_t) index];
+    const auto key = juce::String(index) + (preset.isFactory ? "|F|" : "|U|")
+                     + (preset.file != juce::File() ? preset.file.getFullPathName() : preset.name);
+
+    if (key != historyKey)
+    {
+        historyKey = key;
+        historyMappings = preset.mappings;
+        undoStack.clear();
+        redoStack.clear();
+        lastEditTimeMs = 0;
+        updateHistoryButtons();
+        return;
+    }
+
+    if (sameMappings(historyMappings, preset.mappings))
+        return;
+
+    // Changes arriving in quick succession (a velocity drag, a burst of clicks) are one step.
+    const auto now = juce::Time::getMillisecondCounter();
+    if (now - lastEditTimeMs > 600)
+    {
+        undoStack.push_back(historyMappings);
+        if (undoStack.size() > 100)
+            undoStack.erase(undoStack.begin());
+        redoStack.clear();
+    }
+
+    historyMappings = preset.mappings;
+    lastEditTimeMs = now;
+    updateHistoryButtons();
+}
+
+void MnKordAudioProcessorEditor::undoEdit()
+{
+    trackHistory();
+    if (undoStack.empty())
+        return;
+
+    const int index = audioProcessor.getActivePresetIndex();
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+        auto& presets = audioProcessor.getPresets();
+        if (index < 0 || index >= (int) presets.size())
+            return;
+
+        redoStack.push_back(presets[(size_t) index].mappings);
+        presets[(size_t) index].mappings = undoStack.back();
+        historyMappings = presets[(size_t) index].mappings;
+    }
+
+    undoStack.pop_back();
+    lastEditTimeMs = 0;
+    updateHistoryButtons();
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::redoEdit()
+{
+    trackHistory();
+    if (redoStack.empty())
+        return;
+
+    const int index = audioProcessor.getActivePresetIndex();
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+        auto& presets = audioProcessor.getPresets();
+        if (index < 0 || index >= (int) presets.size())
+            return;
+
+        undoStack.push_back(presets[(size_t) index].mappings);
+        presets[(size_t) index].mappings = redoStack.back();
+        historyMappings = presets[(size_t) index].mappings;
+    }
+
+    redoStack.pop_back();
+    lastEditTimeMs = 0;
+    updateHistoryButtons();
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
+}
+
+bool MnKordAudioProcessorEditor::keyPressed(const juce::KeyPress& key)
+{
+    const auto mods = key.getModifiers();
+    const int code = key.getKeyCode();
+
+    if (mods.isCommandDown() && code == 'Z')
+    {
+        if (mods.isShiftDown())
+            redoEdit();
+        else
+            undoEdit();
+        return true;
+    }
+
+    if (mods.isCommandDown() && code == 'Y')
+    {
+        redoEdit();
+        return true;
+    }
+
+    return false;
+}
+
+void MnKordAudioProcessorEditor::mouseDown(const juce::MouseEvent&)
+{
+    // Lets the undo shortcuts work after clicking anywhere in the editor.
+    grabKeyboardFocus();
+}
+
 void MnKordAudioProcessorEditor::stepPreset(int delta)
 {
     const int count = (int) audioProcessor.getPresets().size();
@@ -2654,7 +2827,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
     // The primary preset selector, so its text reads at full strength (unlike the muted
     // scale chip above), matching how the preset name looked in the combo box it replaced.
-    for (auto* arrow : { &prevPresetButton, &nextPresetButton })
+    for (auto* arrow : { &prevPresetButton, &nextPresetButton, &undoButton, &redoButton })
     {
         arrow->dimColour = getMutedTextColour();
         arrow->litColour = getAccentColour();
@@ -2791,6 +2964,7 @@ void MnKordAudioProcessorEditor::timerCallback()
     }
 
     octaveStrip.repaint();   // follows the keyboard when it scrolls or the scale root changes
+    trackHistory();
 
     const auto input = audioProcessor.getActiveInputNotes();
     if (input != playingInputNotes)

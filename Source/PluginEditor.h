@@ -17,6 +17,8 @@ public:
     // Listener callbacks
     void buttonClicked(juce::Button*) override;
     void timerCallback() override;
+    bool keyPressed(const juce::KeyPress&) override;
+    void mouseDown(const juce::MouseEvent&) override;
 
     // Restricts which notes are clickable/highlighted on the INPUT keyboard, to make it
     // easier to build diatonic mappings without hitting out-of-scale keys by accident.
@@ -290,7 +292,7 @@ private:
         // A small icon button: tick, cross, a star (toggle), or a previous / next chevron.
         struct IconButton : public juce::Button
         {
-            enum class Kind { Check, Cross, Star, Prev, Next };
+            enum class Kind { Check, Cross, Star, Prev, Next, Undo, Redo };
 
             explicit IconButton(Kind k) : juce::Button("icon"), kind(k) {}
             void paintButton(juce::Graphics&, bool highlighted, bool down) override;
@@ -372,6 +374,8 @@ private:
     juce::TextButton copyOctaveUpButton, copyOctaveDownButton;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
     juce::TextButton presetSummaryButton;
+    PresetBrowserContent::IconButton undoButton { PresetBrowserContent::IconButton::Kind::Undo };
+    PresetBrowserContent::IconButton redoButton { PresetBrowserContent::IconButton::Kind::Redo };
     // Step to the previous / next preset in the library.
     PresetBrowserContent::IconButton prevPresetButton { PresetBrowserContent::IconButton::Kind::Prev };
     PresetBrowserContent::IconButton nextPresetButton { PresetBrowserContent::IconButton::Kind::Next };
@@ -421,6 +425,14 @@ private:
     // Whether the active preset had unsaved changes when the chip/Save button last reflected
     // it; polled in timerCallback() because edits mutate presets directly.
     bool lastSyncedDirty = false;
+
+    // Undo history of the active preset's mappings. Edits are noticed by comparing the mappings
+    // on the timer rather than at every edit site; edits within a short window merge into one step.
+    // The history is dropped whenever another preset becomes active.
+    std::vector<std::vector<NoteMapping>> undoStack, redoStack;
+    std::vector<NoteMapping> historyMappings;
+    juce::String historyKey;
+    juce::uint32 lastEditTimeMs = 0;
     int timerTick = 0;
 
     // Notes currently being played (INPUT) and the chord notes sounding for them (CHORD), as
@@ -452,6 +464,10 @@ private:
     void revertActivePreset();
     void deleteActivePreset();
     void showPresetMenu();
+    void trackHistory();
+    void undoEdit();
+    void redoEdit();
+    void updateHistoryButtons();
     // Right-click menu of a row in the preset browser (Load, Duplicate, Rename, Show in folder, Delete).
     void showPresetRowMenu(int presetIndex);
     void duplicatePreset(int presetIndex);
