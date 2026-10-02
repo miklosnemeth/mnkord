@@ -25,6 +25,15 @@ struct Preset
     juce::String group;
     juce::String author;
     std::vector<NoteMapping> mappings;
+
+    // Where it lives. Factory presets are built into the plugin (and mirrored into the Factory
+    // folder); user presets are one XML file each in the User folder. A user preset with no
+    // file hasn't been written there (e.g. it was restored from a project on another machine).
+    bool isFactory = false;
+    juce::File file;
+    // The preset's serialized content at the last load/save, to tell whether it has unsaved
+    // changes. Empty = never saved.
+    juce::String savedXml;
 };
 
 //==============================================================================
@@ -55,7 +64,7 @@ public:
     double getTailLengthSeconds() const override;
 
     //==============================================================================
-    // Host program list mirrors the user preset list.
+    // Host program list mirrors the preset list (factory presets first).
     int getNumPrograms() override;
     int getCurrentProgram() override;
     void setCurrentProgram(int index) override;
@@ -71,16 +80,42 @@ public:
     std::vector<Preset>& getPresets() { return presets; }
     const std::vector<Preset>& getPresets() const { return presets; }
     int getActivePresetIndex() const { return activePresetIndex; }
+
+    // The preset library lives in Documents/MNAudio/mnKord: "Factory" mirrors the built-in
+    // presets (read only, rewritten when they change) and "User" holds one XML file per
+    // saved user preset, shared by every project and instance.
+    static juce::File getLibraryFolder();
+    static juce::File getFactoryFolder();
+    static juce::File getUserFolder();
+    // Relocates the library (for tests, or a portable setup). An empty File restores the default.
+    static void overrideLibraryFolder(const juce::File& folder);
+
+    // Selects a preset. The one being left silently loses unsaved changes (the editor asks
+    // first); the project state keeps only the active preset's working copy.
     void setActivePresetIndex(int index);
-    void addPreset(const Preset& preset);
-    void deletePreset(int index);
+    // Saves a copy of preset as a new user preset (a new file), selects it, and returns
+    // whether the file could be written (the preset is added and selected either way).
+    bool addPreset(const Preset& preset);
+    // Moves a user preset's file to the recycle bin and removes it. False for factory
+    // presets or if the file couldn't be trashed.
+    bool deletePreset(int index);
+
+    bool isPresetDirty(int index) const;
+    // Factory presets can always be reverted; user presets only while their file exists.
+    bool canRevertPreset(int index) const;
+    // Reloads a preset's content from its file (or the built-in version for factory presets).
+    bool revertPreset(int index);
+    // Writes a user preset back to its file (creating one if it has none).
+    bool saveUserPreset(int index);
+    // Picks up user preset files added or removed since the library was loaded.
+    void refreshUserLibrary();
 
     // Guards presets/mappings across the audio and GUI threads. The editor must hold this
     // while structurally mutating presets/mappings obtained via getPresets().
     juce::CriticalSection& getStateLock() { return stateLock; }
 
-    // File I/O. Import appends every recognised preset and selects the last one.
-    // Returns how many presets were added (0 = invalid/empty file).
+    // File I/O. Import saves every recognised preset in the file as a new user preset and
+    // selects the last one. Returns how many presets were added (0 = invalid/empty file).
     int importPresetsFromFile(const juce::File& file);
     bool exportPresetToFile(int index, const juce::File& file) const;
 
@@ -158,6 +193,21 @@ private:
     static Preset presetFromXml(const juce::XmlElement& xml);
     static std::vector<Preset> presetsFromXmlRoot(const juce::XmlElement& root);
     static std::vector<Preset> createFactoryPresets();
+
+    // Library helpers. None of them touch the live preset list or take stateLock, so file I/O
+    // never blocks the audio thread: callers read/write files first, then swap results in
+    // under the lock.
+    static juce::String fingerprint(const Preset& preset);
+    static std::vector<Preset> buildFactoryPresets();      // built in, flagged, with fingerprints
+    static std::vector<Preset> loadUserPresets();          // one preset per file in User/
+    static std::vector<Preset> buildLibrary();             // factory (synced to disk) + user
+    static void syncFactoryFolder(const std::vector<Preset>& factory);
+    static juce::File uniqueUserFile(const juce::String& presetName);
+    static bool writePresetFile(const Preset& preset, const juce::File& file, bool factoryMirror);
+    static bool loadPresetFile(const juce::File& file, Preset& result);   // exactly one preset
+    // Writes preset as a new user file and returns the preset as it should be listed
+    // (isFactory false, file and fingerprint set if the write worked).
+    static Preset saveAsNewUserPreset(const Preset& preset, bool& written);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MnKordAudioProcessor)
 };

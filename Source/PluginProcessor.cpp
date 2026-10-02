@@ -30,7 +30,7 @@ namespace
 MnKordAudioProcessor::MnKordAudioProcessor()
     : AudioProcessor(BusesProperties())
 {
-    presets = createFactoryPresets();
+    presets = buildLibrary();
     activePresetIndex = presets.empty() ? -1 : 0;
 }
 
@@ -94,7 +94,9 @@ const juce::String MnKordAudioProcessor::getProgramName(int index)
 void MnKordAudioProcessor::changeProgramName(int index, const juce::String& newName)
 {
     const juce::ScopedLock lock(stateLock);
-    if (index >= 0 && index < (int) presets.size())
+
+    // Factory presets are read only; renaming a user preset leaves it with unsaved changes.
+    if (index >= 0 && index < (int) presets.size() && ! presets[(size_t) index].isFactory)
         presets[(size_t) index].name = newName;
 }
 
@@ -306,8 +308,335 @@ void MnKordAudioProcessor::clearActiveNotes()
 }
 
 //==============================================================================
+// Library folders
+namespace
+{
+    juce::File& libraryFolderOverride()
+    {
+        static juce::File folder;
+        return folder;
+    }
+}
+
+void MnKordAudioProcessor::overrideLibraryFolder(const juce::File& folder)
+{
+    libraryFolderOverride() = folder;
+}
+
+juce::File MnKordAudioProcessor::getLibraryFolder()
+{
+    if (libraryFolderOverride() != juce::File())
+        return libraryFolderOverride();
+
+    return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+        .getChildFile("MNAudio").getChildFile("mnKord");
+}
+
+juce::File MnKordAudioProcessor::getFactoryFolder() { return getLibraryFolder().getChildFile("Factory"); }
+juce::File MnKordAudioProcessor::getUserFolder()    { return getLibraryFolder().getChildFile("User"); }
+
+juce::String MnKordAudioProcessor::fingerprint(const Preset& preset)
+{
+    return presetToXml(preset)->toString(juce::XmlElement::TextFormat().singleLine().withoutHeader());
+}
+
+bool MnKordAudioProcessor::writePresetFile(const Preset& preset, const juce::File& file, bool factoryMirror)
+{
+    if (! file.getParentDirectory().createDirectory().wasOk())
+        return false;
+
+    juce::XmlElement root("mnKordPreset");
+    root.setAttribute("version", 1);
+    if (factoryMirror)
+        root.setAttribute("factory", 1);   // marks files the plugin generated, so stale ones can be cleaned up
+    root.addChildElement(presetToXml(preset).release());
+    return root.writeTo(file);
+}
+
+bool MnKordAudioProcessor::loadPresetFile(const juce::File& file, Preset& result)
+{
+    const auto xml = juce::XmlDocument::parse(file);
+    if (xml == nullptr)
+        return false;
+
+    auto loaded = presetsFromXmlRoot(*xml);
+    if (loaded.size() != 1)
+        return false;
+
+    result = std::move(loaded.front());
+    result.isFactory = false;
+    result.file = file;
+    result.savedXml = fingerprint(result);
+    return true;
+}
+
+juce::File MnKordAudioProcessor::uniqueUserFile(const juce::String& presetName)
+{
+    auto legal = juce::File::createLegalFileName(presetName.trim());
+    if (legal.isEmpty())
+        legal = "Preset";
+
+    const auto folder = getUserFolder();
+    auto file = folder.getChildFile(legal + ".xml");
+
+    for (int n = 2; file.exists(); ++n)
+        file = folder.getChildFile(legal + " " + juce::String(n) + ".xml");
+
+    return file;
+}
+
+Preset MnKordAudioProcessor::saveAsNewUserPreset(const Preset& preset, bool& written)
+{
+    Preset result = preset;
+    result.isFactory = false;
+    result.file = {};
+    result.savedXml = {};
+
+    const auto file = uniqueUserFile(result.name);
+    written = writePresetFile(result, file, false);
+
+    if (written)
+    {
+        result.file = file;
+        result.savedXml = fingerprint(result);
+    }
+
+    return result;
+}
+
+std::vector<Preset> MnKordAudioProcessor::buildFactoryPresets()
+{
+    auto factory = createFactoryPresets();
+    for (auto& preset : factory)
+    {
+        preset.isFactory = true;
+        preset.file = getFactoryFolder().getChildFile(juce::File::createLegalFileName(preset.name) + ".xml");
+        preset.savedXml = fingerprint(preset);
+    }
+    return factory;
+}
+
+void MnKordAudioProcessor::syncFactoryFolder(const std::vector<Preset>& factory)
+{
+    const auto folder = getFactoryFolder();
+    if (! folder.createDirectory().wasOk())
+        return;
+
+    std::vector<juce::File> current;
+    for (const auto& preset : factory)
+    {
+        current.push_back(preset.file);
+
+        // Only touch the file when its content differs, so a plain start doesn't rewrite it.
+        juce::XmlElement root("mnKordPreset");
+        root.setAttribute("version", 1);
+        root.setAttribute("factory", 1);
+        root.addChildElement(presetToXml(preset).release());
+
+        const auto text = root.toString();
+        if (! preset.file.existsAsFile() || preset.file.loadFileAsString() != text)
+            preset.file.replaceWithText(text);
+    }
+
+    // Remove files this plugin generated earlier for presets that no longer exist. Anything
+    // without the marker is somebody else's file and stays.
+    for (const auto& file : folder.findChildFiles(juce::File::findFiles, false, "*.xml"))
+    {
+        if (std::find(current.begin(), current.end(), file) != current.end())
+            continue;
+
+        const auto xml = juce::XmlDocument::parse(file);
+        if (xml != nullptr && xml->getIntAttribute("factory") == 1)
+            file.deleteFile();
+    }
+}
+
+std::vector<Preset> MnKordAudioProcessor::loadUserPresets()
+{
+    std::vector<Preset> user;
+
+    const auto folder = getUserFolder();
+    folder.createDirectory();   // so the folder exists to drop presets into
+
+    auto files = folder.findChildFiles(juce::File::findFiles, true, "*.xml");
+    files.sort();
+
+    for (const auto& file : files)
+    {
+        Preset preset;
+        if (loadPresetFile(file, preset))
+            user.push_back(std::move(preset));
+    }
+
+    std::stable_sort(user.begin(), user.end(), [](const Preset& a, const Preset& b)
+    {
+        return a.name.compareIgnoreCase(b.name) < 0;
+    });
+
+    return user;
+}
+
+std::vector<Preset> MnKordAudioProcessor::buildLibrary()
+{
+    auto library = buildFactoryPresets();
+    syncFactoryFolder(library);
+
+    auto user = loadUserPresets();
+    library.insert(library.end(), std::make_move_iterator(user.begin()), std::make_move_iterator(user.end()));
+    return library;
+}
+
+//==============================================================================
+bool MnKordAudioProcessor::isPresetDirty(int index) const
+{
+    const juce::ScopedLock lock(stateLock);
+
+    if (index < 0 || index >= (int) presets.size())
+        return false;
+
+    const auto& preset = presets[(size_t) index];
+    return preset.savedXml.isEmpty() || fingerprint(preset) != preset.savedXml;
+}
+
+bool MnKordAudioProcessor::canRevertPreset(int index) const
+{
+    const juce::ScopedLock lock(stateLock);
+
+    if (index < 0 || index >= (int) presets.size())
+        return false;
+
+    const auto& preset = presets[(size_t) index];
+    return preset.isFactory || preset.file.existsAsFile();
+}
+
+bool MnKordAudioProcessor::revertPreset(int index)
+{
+    bool isFactory = false;
+    juce::String name;
+    juce::File file;
+
+    {
+        const juce::ScopedLock lock(stateLock);
+        if (index < 0 || index >= (int) presets.size())
+            return false;
+
+        isFactory = presets[(size_t) index].isFactory;
+        name = presets[(size_t) index].name;
+        file = presets[(size_t) index].file;
+    }
+
+    // Read outside the lock, so the audio thread never waits on the disk.
+    Preset fresh;
+    if (isFactory)
+    {
+        bool found = false;
+        for (auto& candidate : buildFactoryPresets())
+        {
+            if (candidate.name == name)
+            {
+                fresh = std::move(candidate);
+                found = true;
+                break;
+            }
+        }
+
+        if (! found)
+            return false;
+    }
+    else if (! loadPresetFile(file, fresh))
+    {
+        return false;
+    }
+
+    const juce::ScopedLock lock(stateLock);
+    if (index >= (int) presets.size() || presets[(size_t) index].isFactory != isFactory || presets[(size_t) index].file != file)
+        return false;
+
+    auto& preset = presets[(size_t) index];
+    preset.name = fresh.name;
+    preset.group = fresh.group;
+    preset.author = fresh.author;
+    preset.mappings = std::move(fresh.mappings);
+    preset.savedXml = fingerprint(preset);
+
+    if (index == activePresetIndex)
+        clearActiveNotes();
+
+    return true;
+}
+
+bool MnKordAudioProcessor::saveUserPreset(int index)
+{
+    Preset copy;
+
+    {
+        const juce::ScopedLock lock(stateLock);
+        if (index < 0 || index >= (int) presets.size() || presets[(size_t) index].isFactory)
+            return false;
+
+        copy = presets[(size_t) index];
+    }
+
+    const auto file = copy.file != juce::File() ? copy.file : uniqueUserFile(copy.name);
+    if (! writePresetFile(copy, file, false))
+        return false;
+
+    const juce::ScopedLock lock(stateLock);
+    if (index < (int) presets.size() && ! presets[(size_t) index].isFactory && presets[(size_t) index].name == copy.name)
+    {
+        presets[(size_t) index].file = file;
+        // The content that was written, so edits made while saving still show as unsaved.
+        presets[(size_t) index].savedXml = fingerprint(copy);
+    }
+
+    return true;
+}
+
+void MnKordAudioProcessor::refreshUserLibrary()
+{
+    auto onDisk = loadUserPresets();
+
+    const juce::ScopedLock lock(stateLock);
+
+    for (auto& candidate : onDisk)
+    {
+        const bool known = std::any_of(presets.begin(), presets.end(),
+                                       [&candidate](const Preset& p) { return ! p.isFactory && p.file == candidate.file; });
+        if (! known)
+            presets.push_back(std::move(candidate));
+    }
+
+    // Drop user presets whose file was removed, unless they're the active one or have unsaved
+    // changes -- those stay as the working copy.
+    for (int i = (int) presets.size() - 1; i >= 0; --i)
+    {
+        const auto& preset = presets[(size_t) i];
+        if (preset.isFactory || preset.file == juce::File() || preset.file.existsAsFile() || i == activePresetIndex)
+            continue;
+
+        if (fingerprint(preset) != preset.savedXml)
+            continue;
+
+        presets.erase(presets.begin() + i);
+        if (i < activePresetIndex)
+            --activePresetIndex;
+    }
+}
+
+//==============================================================================
 void MnKordAudioProcessor::setActivePresetIndex(int index)
 {
+    int previous = -1;
+    {
+        const juce::ScopedLock lock(stateLock);
+        previous = activePresetIndex;
+    }
+
+    // Leaving a preset with unsaved changes discards them (the editor has asked by now; a host
+    // program change just does it), so at most the active preset ever holds unsaved edits.
+    if (previous != index && isPresetDirty(previous) && canRevertPreset(previous))
+        revertPreset(previous);
+
     const juce::ScopedLock lock(stateLock);
 
     if (index >= 0 && index < (int) presets.size())
@@ -318,36 +647,58 @@ void MnKordAudioProcessor::setActivePresetIndex(int index)
     clearActiveNotes();
 }
 
-void MnKordAudioProcessor::addPreset(const Preset& preset)
+bool MnKordAudioProcessor::addPreset(const Preset& preset)
 {
-    const juce::ScopedLock lock(stateLock);
+    int previous = -1;
+    {
+        const juce::ScopedLock lock(stateLock);
+        previous = activePresetIndex;
+    }
 
-    presets.push_back(preset);
+    // The new preset is a copy of what was on screen; the one it was copied from goes back to
+    // its saved state, as with any "save as".
+    if (isPresetDirty(previous) && canRevertPreset(previous))
+        revertPreset(previous);
+
+    bool written = false;
+    auto saved = saveAsNewUserPreset(preset, written);
+
+    const juce::ScopedLock lock(stateLock);
+    presets.push_back(std::move(saved));
     activePresetIndex = (int) presets.size() - 1;
     clearActiveNotes();
+    return written;
 }
 
-void MnKordAudioProcessor::deletePreset(int index)
+bool MnKordAudioProcessor::deletePreset(int index)
 {
+    juce::File file;
+
+    {
+        const juce::ScopedLock lock(stateLock);
+        if (index < 0 || index >= (int) presets.size() || presets[(size_t) index].isFactory)
+            return false;
+
+        file = presets[(size_t) index].file;
+    }
+
+    // Recoverable: the file goes to the recycle bin rather than being deleted outright.
+    if (file != juce::File() && file.exists() && ! file.moveToTrash())
+        return false;
+
     const juce::ScopedLock lock(stateLock);
-
-    if (index < 0 || index >= (int) presets.size())
-        return;
-
-    // Always keep at least one preset: with zero presets there's no active preset for the
-    // editor to create mappings against, so every key click would silently do nothing.
-    if (presets.size() <= 1)
-        return;
+    if (index >= (int) presets.size() || presets[(size_t) index].isFactory || presets[(size_t) index].file != file)
+        return false;
 
     presets.erase(presets.begin() + index);
 
     if (index < activePresetIndex)
         --activePresetIndex;
-
-    if (activePresetIndex >= (int) presets.size())
-        activePresetIndex = (int) presets.size() - 1;
+    else if (index == activePresetIndex)
+        activePresetIndex = juce::jmin(index, (int) presets.size() - 1);
 
     clearActiveNotes();
+    return true;
 }
 
 //==============================================================================
@@ -362,19 +713,24 @@ bool MnKordAudioProcessor::hasEditor() const
 }
 
 //==============================================================================
+// Project/DAW state holds the active preset's working copy, not the preset list: the library
+// lives in the Factory/User folders, and a project must replay the same even if those change.
 void MnKordAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     const juce::ScopedLock lock(stateLock);
 
     juce::XmlElement root("mnKordState");
-    root.setAttribute("version", 1);
-    root.setAttribute("activePreset", activePresetIndex);
+    root.setAttribute("version", 2);
 
-    auto* presetsXml = new juce::XmlElement("Presets");
-    for (const auto& preset : presets)
-        presetsXml->addChildElement(presetToXml(preset).release());
+    if (activePresetIndex >= 0 && activePresetIndex < (int) presets.size())
+    {
+        const auto& active = presets[(size_t) activePresetIndex];
+        root.setAttribute("activeFactory", active.isFactory);
+        if (! active.isFactory && active.file != juce::File())
+            root.setAttribute("activeFile", active.file.getRelativePathFrom(getUserFolder()));
 
-    root.addChildElement(presetsXml);
+        root.addChildElement(presetToXml(active).release());
+    }
 
     juce::String xmlString = root.toString();
     destData.append(xmlString.toRawUTF8(), xmlString.getNumBytesAsUTF8());
@@ -387,17 +743,91 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
     if (root == nullptr)
         return;
 
-    auto loaded = presetsFromXmlRoot(*root);
+    // All file I/O happens here, before the lock; the result is swapped in at the end.
+    auto library = buildLibrary();
+    int active = library.empty() ? -1 : 0;
+
+    if (auto* presetXml = root->getChildByName("Preset"))
+    {
+        Preset working = presetFromXml(*presetXml);
+        const bool wasFactory = root->getBoolAttribute("activeFactory");
+        const auto activeFile = root->getStringAttribute("activeFile");
+
+        int match = -1;
+        for (int i = 0; i < (int) library.size() && match < 0; ++i)
+        {
+            const auto& candidate = library[(size_t) i];
+            if (candidate.isFactory != wasFactory)
+                continue;
+
+            if (wasFactory ? candidate.name == working.name
+                           : (activeFile.isNotEmpty() ? candidate.file == getUserFolder().getChildFile(activeFile)
+                                                      : (candidate.file == juce::File() && candidate.name == working.name)))
+                match = i;
+        }
+
+        if (match >= 0)
+        {
+            // The project's working copy wins over the library's: if they differ, the preset is
+            // restored with those edits still unsaved.
+            auto& entry = library[(size_t) match];
+            if (fingerprint(working) != fingerprint(entry))
+            {
+                entry.name = working.name;
+                entry.group = working.group;
+                entry.author = working.author;
+                entry.mappings = std::move(working.mappings);
+            }
+
+            active = match;
+        }
+        else
+        {
+            // Not in this machine's library (or it was deleted): keep it playable as an unsaved
+            // user preset, which "Save" will then write to the User folder.
+            working.isFactory = false;
+            working.file = {};
+            working.savedXml = {};
+            library.push_back(std::move(working));
+            active = (int) library.size() - 1;
+        }
+    }
+    else if (auto* legacyPresets = root->getChildByName("Presets"))
+    {
+        // Version 1 state stored the whole preset list. Keep the user's own presets by moving
+        // them into the User folder; built-in ones are already in the library.
+        const auto old = presetsFromXmlRoot(*root);
+        const int oldActive = root->getIntAttribute("activePreset", 0);
+        const juce::String activeName = oldActive >= 0 && oldActive < (int) old.size() ? old[(size_t) oldActive].name : juce::String();
+        juce::ignoreUnused(legacyPresets);
+
+        for (const auto& preset : old)
+        {
+            const bool builtIn = std::any_of(library.begin(), library.end(),
+                                             [&preset](const Preset& p) { return p.isFactory && p.name == preset.name; });
+            const bool alreadyMigrated = std::any_of(library.begin(), library.end(),
+                                                     [&preset](const Preset& p) { return ! p.isFactory && p.name == preset.name
+                                                                                                && fingerprint(p) == fingerprint(preset); });
+            if (builtIn || alreadyMigrated)
+                continue;
+
+            bool written = false;
+            library.push_back(saveAsNewUserPreset(preset, written));
+        }
+
+        for (int i = 0; i < (int) library.size(); ++i)
+        {
+            if (library[(size_t) i].name == activeName)
+            {
+                active = i;
+                break;
+            }
+        }
+    }
 
     const juce::ScopedLock lock(stateLock);
-    // Never leave the plugin with zero presets (e.g. a saved state from a session where every
-    // preset was deleted): the editor has no way to create a mapping without an active preset,
-    // so it would silently stop responding to any key click.
-    presets = loaded.empty() ? createFactoryPresets() : std::move(loaded);
-    activePresetIndex = root->getIntAttribute("activePreset", presets.empty() ? -1 : 0);
-    if (activePresetIndex < 0 || activePresetIndex >= (int) presets.size())
-        activePresetIndex = presets.empty() ? -1 : 0;
-
+    presets = std::move(library);
+    activePresetIndex = active;
     clearActiveNotes();
 }
 
@@ -511,10 +941,28 @@ int MnKordAudioProcessor::importPresetsFromFile(const juce::File& file)
     if (loaded.empty())
         return 0;
 
-    const int added = (int) loaded.size();
+    int previous = -1;
+    {
+        const juce::ScopedLock lock(stateLock);
+        previous = activePresetIndex;
+    }
+
+    // Leaving the active preset for the imported one, like any other switch.
+    if (isPresetDirty(previous) && canRevertPreset(previous))
+        revertPreset(previous);
+
+    // Every imported preset becomes its own file in the User folder.
+    std::vector<Preset> imported;
+    for (const auto& preset : loaded)
+    {
+        bool written = false;
+        imported.push_back(saveAsNewUserPreset(preset, written));
+    }
+
+    const int added = (int) imported.size();
 
     const juce::ScopedLock lock(stateLock);
-    for (auto& preset : loaded)
+    for (auto& preset : imported)
         presets.push_back(std::move(preset));
 
     activePresetIndex = (int) presets.size() - 1;

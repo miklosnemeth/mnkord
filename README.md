@@ -8,13 +8,15 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Map any MIDI note to an arbitrary chord (click INPUT key, then CHORD keys)
 - Chord templates: Maj, Min, Sus2, Sus4, 7, Maj7, Min7, Dim, Add9
 - Invert a chord (right-click a CHORD key)
-- Factory preset bank (diatonic, pop progression, power chords, jazz 7ths)
+- Preset library: read-only factory presets (diatonic, pop progression, power chords, jazz 7ths)
+  plus your own presets, saved as files shared by every project (see below)
+- Preset browser with group/author filters and search; unsaved-changes marker, Save, Revert
 - Preset metadata: name, group, author
 - XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
-- Host program list mirrors user presets
+- Host program list mirrors the preset list
 - Sustain pedal handling with note ref-counting (no stuck notes)
 - Non-note MIDI (CC, pitch bend, aftertouch, …) passes through
-- Visual themes: Graphite, Frost, Neon
+- Dark / light theme switch
 
 ## Requirements
 
@@ -48,16 +50,29 @@ or your DAW’s custom VST3 folder, then rescan plugins.
 ## Usage
 
 1. Load **mnKord** as a MIDI effect (or run the Standalone and route MIDI in/out).
-2. Choose a factory preset, or **New** / **Save as**.
+2. Pick a preset from the chip in the header, or create one with **New**.
 3. Click a key on the **INPUT** keyboard to select or create a mapping.
-4. Click keys on the **CHORD** keyboard to add/remove chord tones, or use the template buttons.
-5. **Export** shares the active preset as `.xml`; **Import** accepts either a single preset or a multi-preset bank file (adding every preset it contains).
+4. Click keys on the **CHORD** keyboard to add/remove chord tones, or right-click an INPUT key for chord templates.
+5. **Save** writes your changes (a dot next to the preset name marks unsaved ones). The **Preset** menu has Save as, Revert, Rename, Import, Export, Show in folder and Delete.
 
 Unmapped input notes are dropped. Mapped notes expand to their chord; overlapping chords share output notes via reference counting so notes do not cut each other off incorrectly.
 
+## Preset library
+
+Presets live in `Documents\MNAudio\mnKord`:
+
+| Folder | Contents |
+|--------|----------|
+| `Factory` | The built-in presets, written by the plugin and rewritten when they change. Read only: edit and **Save as** to keep a variant. |
+| `User` | One `.xml` file per preset you saved, shared by every project and plugin instance. Drop a file in and it shows up the next time the browser opens. |
+
+A DAW project stores the **active preset's current state**, not a reference, so it plays back the same even if the files change or the project is opened on another machine; in that case the preset comes back as an unsaved one that **Save** writes into that machine's `User` folder. Leaving a preset with unsaved changes asks whether to save them, and **Delete** moves the file to the recycle bin.
+
+Projects saved by earlier versions (which stored the whole preset list) are migrated: their own presets are written to `User` the first time they open.
+
 ## Preset file format
 
-Single preset:
+Single preset (one per file in the `User` folder):
 
 ```xml
 <mnKordPreset version="1">
@@ -67,7 +82,7 @@ Single preset:
 </mnKordPreset>
 ```
 
-Bank (also accepted: root with a `Presets` child, as used in DAW state):
+Bank (accepted by **Import**, which saves each preset in it as its own file):
 
 ```xml
 <mnKordBank version="1">
@@ -84,8 +99,8 @@ Bank (also accepted: root with a `Presets` child, as used in DAW state):
 ```text
 CMakeLists.txt
 Source/
-  PluginProcessor.h/.cpp   # MIDI engine, presets, state, file I/O
-  PluginEditor.h/.cpp      # UI, keyboards, themes, import/export
+  PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
+  PluginEditor.h/.cpp      # UI, keyboards, themes, preset browser/menu
   NoteName.h/.cpp          # MIDI note ↔ name helpers
 ```
 

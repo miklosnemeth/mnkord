@@ -4,7 +4,6 @@
 
 //==============================================================================
 class MnKordAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                   public juce::ComboBox::Listener,
                                    public juce::Button::Listener,
                                    public juce::Timer
 {
@@ -16,7 +15,6 @@ public:
     void resized() override;
 
     // Listener callbacks
-    void comboBoxChanged(juce::ComboBox*) override;
     void buttonClicked(juce::Button*) override;
     void timerCallback() override;
 
@@ -99,9 +97,18 @@ private:
 
     enum class VisualTheme
     {
-        Graphite,
-        Frost,
-        Neon
+        Dark,
+        Light
+    };
+
+    // Dark/light switch for the header: draws the icon of the theme a click switches to (a
+    // sun while dark, a moon while light).
+    struct ThemeToggleButton : public juce::Button
+    {
+        ThemeToggleButton() : juce::Button({}) {}
+        void paintButton(juce::Graphics&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+        bool showSun = true;
     };
 
     struct FlatLookAndFeel : public juce::LookAndFeel_V4
@@ -302,7 +309,7 @@ private:
 
     // Preset controls
     FlatLookAndFeel flatLookAndFeel;
-    juce::ComboBox designBox;
+    ThemeToggleButton themeToggleButton;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
     // The CallOutBox launched by showScalePopup() (owned by the modal machinery, not the
@@ -316,13 +323,12 @@ private:
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
     juce::TextButton newPresetButton;
-    juce::TextButton editPresetButton;
     // Re-voices every mapping in the active preset for smooth voice leading between chords.
     juce::TextButton compactVoicingButton;
+    // Writes the active user preset back to its file; enabled while it has unsaved changes.
     juce::TextButton savePresetButton;
-    juce::TextButton deletePresetButton;
-    juce::TextButton importPresetButton;
-    juce::TextButton exportPresetButton;
+    // Opens the preset menu: Save as, Revert, Rename, Import, Export, Show in folder, Delete.
+    juce::TextButton presetMenuButton;
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::Label selectedInputLabel;
     juce::Label chordNotesLabel;
@@ -338,7 +344,7 @@ private:
     juce::Label outputKeyboardLabel;
 
     int selectedMappingIndex = -1;
-    VisualTheme visualTheme = VisualTheme::Graphite;
+    VisualTheme visualTheme = VisualTheme::Dark;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
     // Octaves below / above the middle octave (the scale root in octave 4 up to the note
@@ -357,24 +363,47 @@ private:
     // so no longer 1:1 with the preset list) item count or selection.
     int lastSyncedActivePresetIndex = -2;
     int lastSyncedPresetCount = -1;
+    // Whether the active preset had unsaved changes when the chip/Save button last reflected
+    // it; polled in timerCallback() because edits mutate presets directly.
+    bool lastSyncedDirty = false;
+    int timerTick = 0;
 
     // Notes currently being played (INPUT) and the chord notes sounding for them (CHORD), as
     // last polled from the processor by timerCallback(); drawn as a live overlay on the keys.
     MnKordAudioProcessor::NoteBits playingInputNotes, playingOutputNotes;
 
     //==============================================================================
-    // Updates presetSummaryButton's text and deletePresetButton's enabled state from the
-    // current preset list/active index. Call after any preset add/remove/rename.
+    // Updates presetSummaryButton's text (with a marker while the preset has unsaved changes)
+    // and the Save button from the current preset list/active index. Call after any preset
+    // add/remove/rename/save.
     void refreshPresetBox();
-    void refreshDesignBox();
+    void updateDirtyState();
     // Refreshes scaleSummaryButton's text ("Full range" / "C Major" / ...) from the current
     // scaleRoot/scaleType.
     void updateScaleSummaryText();
     void showScalePopup();
     void showPresetBrowser();
     // Sets the active preset and clears the current mapping selection, since it belonged to
-    // the previously active preset. Used by PresetBrowserContent's row click.
+    // the previously active preset. Used by PresetBrowserContent's row click; asks about
+    // unsaved changes first.
     void selectActivePreset(int index);
+    // Calls proceed() now if the active preset has no unsaved changes; otherwise asks first
+    // (user preset: Save / Discard / Cancel, factory preset: Discard / Cancel) and calls it on
+    // Save or Discard. Used before anything that switches away from the active preset.
+    void confirmLeavePreset(std::function<void()> proceed);
+    // "Save": writes the active user preset to its file; a factory or never-saved preset goes
+    // through Save as instead.
+    void saveActivePreset();
+    void revertActivePreset();
+    void deleteActivePreset();
+    void showPresetMenu();
+    // Shows an OK-only message dialog inside the plugin window.
+    void showMessage(const juce::String& title, const juce::String& message);
+    void showSaveFailedWarning();
+    // Dialogs are children of the editor but modal, so any still open when the editor goes
+    // away must be dismissed first; they're tracked here for that.
+    void trackDialog(juce::Component* dialog);
+    juce::Array<juce::Component::SafePointer<juce::Component>> openDialogs;
     void applyVisualTheme();
     bool isInSelectedScale(int midiNoteNumber) const;
     static const std::vector<int>& scaleIntervals(Scale scale);

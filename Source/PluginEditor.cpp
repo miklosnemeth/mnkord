@@ -933,22 +933,20 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     presetSummaryButton.addListener(this);
     addAndMakeVisible(presetSummaryButton);
 
-    designBox.addListener(this);
-    addAndMakeVisible(designBox);
+    themeToggleButton.addListener(this);
+    addAndMakeVisible(themeToggleButton);
 
     scaleSummaryButton.addListener(this);
     addAndMakeVisible(scaleSummaryButton);
 
     newPresetButton.setButtonText("New");
-    editPresetButton.setButtonText("Edit");
     compactVoicingButton.setButtonText("Compact");
-    savePresetButton.setButtonText("Save as");
-    deletePresetButton.setButtonText("Delete");
-    importPresetButton.setButtonText("Import");
-    exportPresetButton.setButtonText("Export");
+    savePresetButton.setButtonText("Save");
+    presetMenuButton.setButtonText("Preset");
+    savePresetButton.setTooltip("Save changes to this preset");
+    presetMenuButton.setTooltip("Save as, revert, rename, import, export, delete");
 
-    for (auto* button : { &newPresetButton, &editPresetButton, &compactVoicingButton, &savePresetButton,
-                          &deletePresetButton, &importPresetButton, &exportPresetButton })
+    for (auto* button : { &newPresetButton, &compactVoicingButton, &savePresetButton, &presetMenuButton })
     {
         button->addListener(this);
         addAndMakeVisible(button);
@@ -986,9 +984,9 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     velocityBubble.setInterceptsMouseClicks(false, false);
     addChildComponent(velocityBubble);
 
-    setSize(1100, 456);
+    // The header's button row needs 640px plus the 172px title column and 36px of margins.
+    setSize(980, 456);
 
-    refreshDesignBox();
     updateScaleSummaryText();
     applyVisualTheme();
     refreshPresetBox();
@@ -1001,6 +999,12 @@ MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 
     defusePopup(activeScalePopup);
     defusePopup(activePresetPopup);
+
+    // Dialogs are modal children of this editor: dismiss any still open (with the "cancel"
+    // result, so their callbacks don't act) before the editor they point into goes away.
+    for (auto& dialog : openDialogs)
+        if (dialog != nullptr)
+            dialog->exitModalState(0);
 
     setLookAndFeel(nullptr);
 }
@@ -1049,25 +1053,19 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 180 + 8 + 110 + 8 + 62 + 8 + 60 + 8 + 90 + 8 + 80 + 8 + 72 + 8 + 72 + 8 + 72;
+    const int groupWidth = 200 + 8 + 34 + 8 + 62 + 8 + 62 + 8 + 90 + 8 + 76;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
-    presetSummaryButton.setBounds(controls.removeFromLeft(180));
+    presetSummaryButton.setBounds(controls.removeFromLeft(200));
     controls.removeFromLeft(8);
-    designBox.setBounds(controls.removeFromLeft(110));
+    themeToggleButton.setBounds(controls.removeFromLeft(34));
     controls.removeFromLeft(8);
     newPresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
-    editPresetButton.setBounds(controls.removeFromLeft(60));
+    savePresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
     compactVoicingButton.setBounds(controls.removeFromLeft(90));
     controls.removeFromLeft(8);
-    savePresetButton.setBounds(controls.removeFromLeft(80));
-    controls.removeFromLeft(8);
-    deletePresetButton.setBounds(controls.removeFromLeft(72));
-    controls.removeFromLeft(8);
-    importPresetButton.setBounds(controls.removeFromLeft(72));
-    controls.removeFromLeft(8);
-    exportPresetButton.setBounds(controls.removeFromLeft(72));
+    presetMenuButton.setBounds(controls.removeFromLeft(76));
 
     // Left/right/bottom margins of 14, top starting exactly where the header ends.
     auto area = getLocalBounds().reduced(14).withTrimmedTop(60);
@@ -1097,24 +1095,65 @@ void MnKordAudioProcessorEditor::resized()
 }
 
 //==============================================================================
-void MnKordAudioProcessorEditor::comboBoxChanged(juce::ComboBox* box)
+void MnKordAudioProcessorEditor::ThemeToggleButton::paintButton(juce::Graphics& g,
+                                                                  bool shouldDrawButtonAsHighlighted,
+                                                                  bool shouldDrawButtonAsDown)
 {
-    if (box == &designBox)
-    {
-        switch (designBox.getSelectedItemIndex())
-        {
-            case 1:  visualTheme = VisualTheme::Frost; break;
-            case 2:  visualTheme = VisualTheme::Neon; break;
-            default: visualTheme = VisualTheme::Graphite; break;
-        }
+    auto bounds = getLocalBounds().toFloat();
 
-        applyVisualTheme();
+    auto fill = findColour(juce::TextButton::buttonColourId);
+    if (shouldDrawButtonAsDown)
+        fill = fill.brighter(0.16f);
+    else if (shouldDrawButtonAsHighlighted)
+        fill = fill.brighter(0.08f);
+
+    g.setColour(fill);
+    g.fillRoundedRectangle(bounds, 7.0f);
+
+    const auto centre = bounds.getCentre();
+    const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.2f;
+    g.setColour(findColour(juce::TextButton::textColourOffId));
+
+    if (showSun)
+    {
+        g.fillEllipse(juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre));
+
+        juce::Path rays;
+        for (int i = 0; i < 8; ++i)
+        {
+            const float angle = juce::MathConstants<float>::twoPi * (float) i / 8.0f;
+            const auto direction = juce::Point<float>(std::cos(angle), std::sin(angle));
+            rays.startNewSubPath(centre + direction * (radius * 1.55f));
+            rays.lineTo(centre + direction * (radius * 2.05f));
+        }
+        g.strokePath(rays, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    else
+    {
+        // A crescent: a disc with an offset disc cut out of it.
+        const float moonRadius = radius * 1.5f;
+        juce::Path moon;
+        moon.addEllipse(juce::Rectangle<float>(moonRadius * 2.0f, moonRadius * 2.0f).withCentre(centre));
+
+        juce::Path bite;
+        bite.addEllipse(juce::Rectangle<float>(moonRadius * 1.8f, moonRadius * 1.8f)
+                            .withCentre(centre + juce::Point<float>(moonRadius * 0.7f, -moonRadius * 0.55f)));
+
+        moon.setUsingNonZeroWinding(false);
+        moon.addPath(bite);
+        g.fillPath(moon);
     }
 }
 
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
-    if (button == &presetSummaryButton)
+    if (button == &themeToggleButton)
+    {
+        visualTheme = visualTheme == VisualTheme::Dark ? VisualTheme::Light : VisualTheme::Dark;
+        applyVisualTheme();
+        repaint();
+    }
+    else if (button == &presetSummaryButton)
     {
         logUi("buttonClicked: preset chip");
         showPresetBrowser();
@@ -1122,32 +1161,43 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     else if (button == &newPresetButton)
     {
         logUi("buttonClicked: New");
-        Preset seed;
-        seed.name = "Preset " + juce::String((int) audioProcessor.getPresets().size() + 1);
-        promptPresetMetadata(seed, true, [this](const Preset& p, const DiatonicFillOptions& fillOptions)
+
+        juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+        confirmLeavePreset([safeThis]
         {
-            Preset preset = p;
-            if (fillOptions.scaleType != Scale::Chromatic)
-                populateDiatonicChords(preset, fillOptions);
+            if (safeThis == nullptr)
+                return;
 
-            // The dialog's scale choice also becomes the active INPUT-keyboard scale filter, and
-            // its voicing the one Fill uses next.
-            scaleRoot = fillOptions.scaleRoot;
-            scaleType = fillOptions.scaleType;
-            initVoicing = fillOptions.voicing;
-            updateScaleSummaryText();
-            inputKeyboard.repaint();
+            auto& self = *safeThis;
+            Preset seed;
+            seed.name = "Preset " + juce::String((int) self.audioProcessor.getPresets().size() + 1);
+            self.promptPresetMetadata(seed, true, [safeThis](const Preset& p, const DiatonicFillOptions& fillOptions)
+            {
+                if (safeThis == nullptr)
+                    return;
 
-            audioProcessor.addPreset(preset);
-            selectedMappingIndex = -1;
-            refreshPresetBox();
-            setSelectedMappingIndex(selectedMappingIndex);
+                auto& editor = *safeThis;
+                Preset preset = p;
+                if (fillOptions.scaleType != Scale::Chromatic)
+                    editor.populateDiatonicChords(preset, fillOptions);
+
+                // The dialog's scale choice also becomes the active INPUT-keyboard scale filter,
+                // and its voicing the one Fill uses next.
+                editor.scaleRoot = fillOptions.scaleRoot;
+                editor.scaleType = fillOptions.scaleType;
+                editor.initVoicing = fillOptions.voicing;
+                editor.updateScaleSummaryText();
+                editor.inputKeyboard.repaint();
+
+                const bool written = editor.audioProcessor.addPreset(preset);
+                editor.selectedMappingIndex = -1;
+                editor.refreshPresetBox();
+                editor.setSelectedMappingIndex(editor.selectedMappingIndex);
+
+                if (! written)
+                    editor.showSaveFailedWarning();
+            });
         });
-    }
-    else if (button == &editPresetButton)
-    {
-        logUi("buttonClicked: Edit");
-        editActivePresetMetadata();
     }
     else if (button == &compactVoicingButton)
     {
@@ -1156,30 +1206,13 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     }
     else if (button == &savePresetButton)
     {
-        logUi("buttonClicked: Save as");
-        saveCurrentPresetAs();
+        logUi("buttonClicked: Save");
+        saveActivePreset();
     }
-    else if (button == &deletePresetButton)
+    else if (button == &presetMenuButton)
     {
-        logUi("buttonClicked: Delete preset");
-        const int index = audioProcessor.getActivePresetIndex();
-        if (index >= 0)
-        {
-            audioProcessor.deletePreset(index);
-            selectedMappingIndex = -1;
-            refreshPresetBox();
-            setSelectedMappingIndex(selectedMappingIndex);
-        }
-    }
-    else if (button == &importPresetButton)
-    {
-        logUi("buttonClicked: Import");
-        importPresetsFromChooser();
-    }
-    else if (button == &exportPresetButton)
-    {
-        logUi("buttonClicked: Export");
-        exportPresetsFromChooser();
+        logUi("buttonClicked: preset menu");
+        showPresetMenu();
     }
     else if (button == &scaleSummaryButton)
     {
@@ -1198,28 +1231,39 @@ void MnKordAudioProcessorEditor::refreshPresetBox()
     const auto& presets = audioProcessor.getPresets();
     const int activeIndex = audioProcessor.getActivePresetIndex();
 
-    presetSummaryButton.setButtonText(activeIndex >= 0 && activeIndex < (int) presets.size()
-        ? presets[(size_t) activeIndex].name
-        : "No preset");
-
     lastSyncedActivePresetIndex = activeIndex;
     lastSyncedPresetCount = (int) presets.size();
 
-    // The processor refuses to delete the last remaining preset (there'd be no active preset
-    // left to edit), so grey the button out instead of leaving it a silent no-op.
-    deletePresetButton.setEnabled(presets.size() > 1);
+    // Sets the chip text (name plus the unsaved-changes marker) and the Save button.
+    lastSyncedDirty = ! audioProcessor.isPresetDirty(activeIndex);
+    updateDirtyState();
 
     updatePresetMetaLabel();
     refreshSummaryLabels();
 }
 
-void MnKordAudioProcessorEditor::refreshDesignBox()
+void MnKordAudioProcessorEditor::updateDirtyState()
 {
-    designBox.clear();
-    designBox.addItem("Graphite", 1);
-    designBox.addItem("Frost", 2);
-    designBox.addItem("Neon", 3);
-    designBox.setSelectedItemIndex(0, juce::dontSendNotification);
+    const auto& presets = audioProcessor.getPresets();
+    const int activeIndex = audioProcessor.getActivePresetIndex();
+    const bool valid = activeIndex >= 0 && activeIndex < (int) presets.size();
+    const bool dirty = valid && audioProcessor.isPresetDirty(activeIndex);
+
+    if (dirty == lastSyncedDirty && presetSummaryButton.getButtonText().isNotEmpty() && valid)
+        return;
+
+    lastSyncedDirty = dirty;
+
+    // "Save" is for user presets; a changed factory preset can only go through Save as.
+    const bool isFactory = valid && presets[(size_t) activeIndex].isFactory;
+    juce::String text = valid ? presets[(size_t) activeIndex].name : juce::String("No preset");
+    if (dirty)
+        text += "  \xe2\x80\xa2";   // bullet (U+2022); the geometric dot U+25CF isn't in every font
+
+    presetSummaryButton.setButtonText(text);
+    savePresetButton.setEnabled(dirty);
+    savePresetButton.setTooltip(isFactory ? "Factory presets can't be overwritten: Save opens Save as"
+                                          : "Save changes to this preset");
 }
 
 int MnKordAudioProcessorEditor::scaleTypeIndexFor(Scale scale)
@@ -1763,6 +1807,9 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::listBoxItemClicked(int ro
 
 void MnKordAudioProcessorEditor::showPresetBrowser()
 {
+    // Presets saved by another instance (or dropped into the User folder) show up.
+    audioProcessor.refreshUserLibrary();
+
     // Parented to the editor so the box stays inside the plugin window.
     auto content = std::make_unique<PresetBrowserContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
@@ -1773,9 +1820,208 @@ void MnKordAudioProcessorEditor::showPresetBrowser()
 
 void MnKordAudioProcessorEditor::selectActivePreset(int index)
 {
-    audioProcessor.setActivePresetIndex(index);
-    selectedMappingIndex = -1;
+    if (index == audioProcessor.getActivePresetIndex())
+        return;
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+    confirmLeavePreset([safeThis, index]
+    {
+        if (safeThis == nullptr)
+            return;
+
+        safeThis->audioProcessor.setActivePresetIndex(index);
+        safeThis->selectedMappingIndex = -1;
+        safeThis->setSelectedMappingIndex(safeThis->selectedMappingIndex);
+    });
+}
+
+void MnKordAudioProcessorEditor::trackDialog(juce::Component* dialog)
+{
+    openDialogs.removeIf([](const auto& d) { return d == nullptr; });
+    openDialogs.add(dialog);
+}
+
+void MnKordAudioProcessorEditor::showMessage(const juce::String& title, const juce::String& message)
+{
+    auto* dialog = new juce::AlertWindow(title, message, juce::MessageBoxIconType::WarningIcon, this);
+    dialog->setLookAndFeel(&flatLookAndFeel);
+    addChildComponent(dialog);
+    trackDialog(dialog);
+
+    dialog->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    dialog->enterModalState(true,
+                            juce::ModalCallbackFunction::create([dialog](int) { dialog->setLookAndFeel(nullptr); }),
+                            true);
+}
+
+void MnKordAudioProcessorEditor::showSaveFailedWarning()
+{
+    showMessage("Couldn't save the preset",
+                "mnKord couldn't write the preset file to:\n"
+                    + MnKordAudioProcessor::getUserFolder().getFullPathName()
+                    + "\n\nThe preset stays loaded, with its changes still unsaved.");
+}
+
+void MnKordAudioProcessorEditor::confirmLeavePreset(std::function<void()> proceed)
+{
+    const int index = audioProcessor.getActivePresetIndex();
+    const auto& presets = audioProcessor.getPresets();
+
+    if (index < 0 || index >= (int) presets.size() || ! audioProcessor.isPresetDirty(index))
+    {
+        proceed();
+        return;
+    }
+
+    const bool isFactory = presets[(size_t) index].isFactory;
+    juce::String message = "\"" + presets[(size_t) index].name + "\" has unsaved changes.";
+    if (isFactory)
+        message += "\n\nFactory presets can't be overwritten. Discard the changes, or cancel and use "
+                   "Save as to keep them.";
+
+    auto* dialog = new juce::AlertWindow("Unsaved changes", message, juce::MessageBoxIconType::QuestionIcon, this);
+    dialog->setLookAndFeel(&flatLookAndFeel);
+    addChildComponent(dialog);
+    trackDialog(dialog);
+
+    if (! isFactory)
+        dialog->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+
+    dialog->addButton("Discard", 2);
+    dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+    dialog->enterModalState(true,
+                            juce::ModalCallbackFunction::create([safeThis, dialog, index, proceed](int result)
+                            {
+                                dialog->setLookAndFeel(nullptr);
+
+                                if (safeThis == nullptr)
+                                    return;
+
+                                if (result == 1)
+                                {
+                                    if (! safeThis->audioProcessor.saveUserPreset(index))
+                                    {
+                                        safeThis->showSaveFailedWarning();
+                                        return;
+                                    }
+                                }
+                                else if (result != 2)
+                                {
+                                    return;
+                                }
+
+                                proceed();
+                            }),
+                            true);
+}
+
+void MnKordAudioProcessorEditor::saveActivePreset()
+{
+    const auto& presets = audioProcessor.getPresets();
+    const int index = audioProcessor.getActivePresetIndex();
+
+    if (index < 0 || index >= (int) presets.size())
+        return;
+
+    // A factory preset can't be overwritten, so saving it means saving a copy.
+    if (presets[(size_t) index].isFactory)
+    {
+        saveCurrentPresetAs();
+        return;
+    }
+
+    if (! audioProcessor.saveUserPreset(index))
+        showSaveFailedWarning();
+
+    refreshPresetBox();
+}
+
+void MnKordAudioProcessorEditor::revertActivePreset()
+{
+    const int index = audioProcessor.getActivePresetIndex();
+    if (index < 0)
+        return;
+
+    audioProcessor.revertPreset(index);
+    refreshPresetBox();
     setSelectedMappingIndex(selectedMappingIndex);
+}
+
+void MnKordAudioProcessorEditor::deleteActivePreset()
+{
+    const int index = audioProcessor.getActivePresetIndex();
+    if (index < 0)
+        return;
+
+    // The file goes to the recycle bin, so this can be undone from there.
+    if (! audioProcessor.deletePreset(index))
+    {
+        showMessage("Couldn't delete the preset",
+                    "The preset file couldn't be moved to the recycle bin, so it was left in place.");
+        return;
+    }
+
+    selectedMappingIndex = -1;
+    refreshPresetBox();
+    setSelectedMappingIndex(selectedMappingIndex);
+}
+
+void MnKordAudioProcessorEditor::showPresetMenu()
+{
+    const auto& presets = audioProcessor.getPresets();
+    const int index = audioProcessor.getActivePresetIndex();
+    const bool valid = index >= 0 && index < (int) presets.size();
+    const bool isFactory = valid && presets[(size_t) index].isFactory;
+    const bool dirty = valid && audioProcessor.isPresetDirty(index);
+
+    auto menu = makeStyledMenu();
+    menu.addItem(1, "Save as...", valid);
+    menu.addItem(2, "Revert to saved", dirty && audioProcessor.canRevertPreset(index));
+    menu.addItem(3, "Rename / edit info...", valid && ! isFactory);
+    menu.addSeparator();
+    menu.addItem(4, "Import...");
+    menu.addItem(5, "Export...", valid);
+    menu.addItem(6, "Show in folder", valid && presets[(size_t) index].file.existsAsFile());
+    menu.addSeparator();
+    menu.addColouredItem(7, "Delete", juce::Colour(0xffcf4b41), valid && ! isFactory);
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetMenuButton).withParentComponent(this),
+                       [safeThis](int result)
+                       {
+                           if (safeThis == nullptr || result == 0)
+                               return;
+
+                           auto& editor = *safeThis;
+
+                           switch (result)
+                           {
+                               case 1: editor.saveCurrentPresetAs(); break;
+                               case 2: editor.revertActivePreset(); break;
+                               case 3: editor.editActivePresetMetadata(); break;
+                               case 4:
+                                   editor.confirmLeavePreset([safeThis]
+                                   {
+                                       if (safeThis != nullptr)
+                                           safeThis->importPresetsFromChooser();
+                                   });
+                                   break;
+                               case 5: editor.exportPresetsFromChooser(); break;
+                               case 6:
+                               {
+                                   const auto& list = editor.audioProcessor.getPresets();
+                                   const int active = editor.audioProcessor.getActivePresetIndex();
+                                   if (active >= 0 && active < (int) list.size())
+                                       list[(size_t) active].file.revealToUser();
+                                   break;
+                               }
+                               case 7: editor.deleteActivePreset(); break;
+                               default: break;
+                           }
+                       });
 }
 
 const std::vector<int>& MnKordAudioProcessorEditor::scaleIntervals(Scale scale)
@@ -1905,12 +2151,13 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
 {
     const auto control = getControlColour();
     const auto textColour = getTextColour();
-    const auto transparent = juce::Colours::transparentBlack;
 
-    designBox.setColour(juce::ComboBox::backgroundColourId, control);
-    designBox.setColour(juce::ComboBox::textColourId, textColour);
-    designBox.setColour(juce::ComboBox::outlineColourId, transparent);
-    designBox.setColour(juce::ComboBox::focusedOutlineColourId, transparent);
+    themeToggleButton.showSun = visualTheme == VisualTheme::Dark;
+    themeToggleButton.setTooltip(visualTheme == VisualTheme::Dark ? "Switch to the light theme"
+                                                                  : "Switch to the dark theme");
+    themeToggleButton.setColour(juce::TextButton::buttonColourId, control);
+    themeToggleButton.setColour(juce::TextButton::textColourOffId, textColour);
+    themeToggleButton.repaint();
 
     // A small chip, quieter than a full dropdown but still visibly clickable.
     scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
@@ -1946,8 +2193,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
-    for (auto* button : { &newPresetButton, &editPresetButton, &compactVoicingButton, &savePresetButton,
-                          &deletePresetButton, &importPresetButton, &exportPresetButton })
+    for (auto* button : { &newPresetButton, &compactVoicingButton, &savePresetButton, &presetMenuButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -1955,9 +2201,8 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
         button->setColour(juce::TextButton::textColourOnId, textColour);
     }
 
-    // Destructive action gets a subtle red tint so it reads as distinct from the rest.
-    const auto dangerColour = control.interpolatedWith(juce::Colour(0xffcf4b41), 0.35f);
-    deletePresetButton.setColour(juce::TextButton::buttonColourId, dangerColour);
+    // Save lights up in the accent while there are unsaved changes (it's greyed out otherwise).
+    savePresetButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
 
     // Compact voicing gets a subtle accent tint so it reads as the "smart" action.
     const auto accentPillColour = control.interpolatedWith(getAccentColour(), 0.2f);
@@ -1992,10 +2237,14 @@ void MnKordAudioProcessorEditor::saveCurrentPresetAs()
 
     promptPresetMetadata(presets[(size_t) index], false, [this](const Preset& p, const DiatonicFillOptions&)
     {
-        audioProcessor.addPreset(p);
+        // A new user preset (its own file), leaving the one it was copied from at its saved state.
+        const bool written = audioProcessor.addPreset(p);
         selectedMappingIndex = -1;
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
+
+        if (! written)
+            showSaveFailedWarning();
     });
 }
 
@@ -2004,7 +2253,8 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
     const int index = audioProcessor.getActivePresetIndex();
     const auto& presets = audioProcessor.getPresets();
 
-    if (index < 0 || index >= (int) presets.size())
+    // Factory presets can't be changed (Save as makes an editable copy).
+    if (index < 0 || index >= (int) presets.size() || presets[(size_t) index].isFactory)
         return;
 
     promptPresetMetadata(presets[(size_t) index], false, [this, index](const Preset& p, const DiatonicFillOptions&)
@@ -2043,6 +2293,11 @@ void MnKordAudioProcessorEditor::timerCallback()
         refreshPresetBox();
         setSelectedMappingIndex(selectedMappingIndex);
     }
+    else if ((++timerTick & 3) == 0)
+    {
+        // Edits mutate the preset in place, so unsaved changes are found by comparing.
+        updateDirtyState();
+    }
 
     const auto input = audioProcessor.getActiveInputNotes();
     if (input != playingInputNotes)
@@ -2078,12 +2333,7 @@ void MnKordAudioProcessorEditor::importPresetsFromChooser()
         const int added = audioProcessor.importPresetsFromFile(file);
         if (added <= 0)
         {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::MessageBoxIconType::WarningIcon,
-                "Import failed",
-                "Could not read any presets from:\n" + file.getFullPathName(),
-                "OK",
-                this);
+            showMessage("Import failed", "Could not read any presets from:\n" + file.getFullPathName());
             return;
         }
 
@@ -2121,14 +2371,7 @@ void MnKordAudioProcessorEditor::exportPresetsFromChooser()
             file = file.withFileExtension(".xml");
 
         if (! audioProcessor.exportPresetToFile(active, file))
-        {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::MessageBoxIconType::WarningIcon,
-                "Export failed",
-                "Could not write:\n" + file.getFullPathName(),
-                "OK",
-                this);
-        }
+            showMessage("Export failed", "Could not write:\n" + file.getFullPathName());
     });
 }
 
@@ -2141,6 +2384,7 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
     // A child of the editor rather than its own desktop window, so it stays inside the plugin
     // window; added before the content so its layout centres it within the editor.
     addChildComponent(dialog);
+    trackDialog(dialog);
 
     auto* content = new PresetMetadataContent(seed, getTextColour(), getControlColour(), getAccentColour(),
                                               showGenerationOptions, scaleRoot, scaleType, initVoicing);
@@ -2819,8 +3063,7 @@ juce::Colour MnKordAudioProcessorEditor::getBackgroundColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffeef2f0);
-        case VisualTheme::Neon: return juce::Colour(0xff080c10);
+        case VisualTheme::Light: return juce::Colour(0xffeef2f0);
         default: return juce::Colour(0xff101315);
     }
 }
@@ -2829,8 +3072,7 @@ juce::Colour MnKordAudioProcessorEditor::getPanelColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffffffff);
-        case VisualTheme::Neon: return juce::Colour(0xff101820);
+        case VisualTheme::Light: return juce::Colour(0xffffffff);
         default: return juce::Colour(0xff191e21);
     }
 }
@@ -2839,8 +3081,7 @@ juce::Colour MnKordAudioProcessorEditor::getPanelLineColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffd8dfdc);
-        case VisualTheme::Neon: return juce::Colour(0xff1c2a33);
+        case VisualTheme::Light: return juce::Colour(0xffd8dfdc);
         default: return juce::Colour(0xff2a3237);
     }
 }
@@ -2849,8 +3090,7 @@ juce::Colour MnKordAudioProcessorEditor::getTextColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xff17201b);
-        case VisualTheme::Neon: return juce::Colour(0xffeffff5);
+        case VisualTheme::Light: return juce::Colour(0xff17201b);
         default: return juce::Colour(0xffeef3ef);
     }
 }
@@ -2859,8 +3099,7 @@ juce::Colour MnKordAudioProcessorEditor::getMutedTextColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xff66736d);
-        case VisualTheme::Neon: return juce::Colour(0xff7a9187);
+        case VisualTheme::Light: return juce::Colour(0xff66736d);
         default: return juce::Colour(0xff95a09a);
     }
 }
@@ -2869,8 +3108,7 @@ juce::Colour MnKordAudioProcessorEditor::getAccentColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xff11b85f);
-        case VisualTheme::Neon: return juce::Colour(0xff39ff88);
+        case VisualTheme::Light: return juce::Colour(0xff11b85f);
         default: return juce::Colour(0xff2ee66b);
     }
 }
@@ -2879,8 +3117,7 @@ juce::Colour MnKordAudioProcessorEditor::getControlColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffdde5e1);
-        case VisualTheme::Neon: return juce::Colour(0xff16222b);
+        case VisualTheme::Light: return juce::Colour(0xffdde5e1);
         default: return juce::Colour(0xff242b2f);
     }
 }
@@ -2889,8 +3126,7 @@ juce::Colour MnKordAudioProcessorEditor::getWhiteKeyTopColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffffffff);
-        case VisualTheme::Neon: return juce::Colour(0xffedf2ee);
+        case VisualTheme::Light: return juce::Colour(0xffffffff);
         default: return juce::Colour(0xfffbfcfb);
     }
 }
@@ -2899,8 +3135,7 @@ juce::Colour MnKordAudioProcessorEditor::getWhiteKeyBottomColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xffdce3df);
-        case VisualTheme::Neon: return juce::Colour(0xffbfc9c2);
+        case VisualTheme::Light: return juce::Colour(0xffdce3df);
         default: return juce::Colour(0xffd7ddd8);
     }
 }
@@ -2909,8 +3144,7 @@ juce::Colour MnKordAudioProcessorEditor::getBlackKeyTopColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xff26302d);
-        case VisualTheme::Neon: return juce::Colour(0xff1f2d35);
+        case VisualTheme::Light: return juce::Colour(0xff26302d);
         default: return juce::Colour(0xff252b2e);
     }
 }
@@ -2919,8 +3153,7 @@ juce::Colour MnKordAudioProcessorEditor::getBlackKeyBottomColour() const
 {
     switch (visualTheme)
     {
-        case VisualTheme::Frost: return juce::Colour(0xff0e1211);
-        case VisualTheme::Neon: return juce::Colour(0xff07090b);
+        case VisualTheme::Light: return juce::Colour(0xff0e1211);
         default: return juce::Colour(0xff111416);
     }
 }
