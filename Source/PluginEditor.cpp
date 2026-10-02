@@ -1053,11 +1053,9 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 200 + 8 + 34 + 8 + 62 + 8 + 62 + 8 + 90 + 8 + 76;
+    const int groupWidth = 200 + 8 + 62 + 8 + 62 + 8 + 90 + 8 + 76;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
     presetSummaryButton.setBounds(controls.removeFromLeft(200));
-    controls.removeFromLeft(8);
-    themeToggleButton.setBounds(controls.removeFromLeft(34));
     controls.removeFromLeft(8);
     newPresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
@@ -1066,6 +1064,8 @@ void MnKordAudioProcessorEditor::resized()
     compactVoicingButton.setBounds(controls.removeFromLeft(90));
     controls.removeFromLeft(8);
     presetMenuButton.setBounds(controls.removeFromLeft(76));
+
+    themeToggleButton.setBounds(juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() }));
 
     // Left/right/bottom margins of 14, top starting exactly where the header ends.
     auto area = getLocalBounds().reduced(14).withTrimmedTop(60);
