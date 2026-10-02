@@ -476,6 +476,8 @@ private:
     void duplicatePreset(int presetIndex);
     // Selects the previous (-1) / next (+1) preset, wrapping around.
     void stepPreset(int delta);
+    // Shifts the active preset's INPUT keys and/or chord notes; refuses if a note would leave 0-127.
+    void transposePreset(int semitones, bool inputs, bool outputs);
     // Shows an OK-only message dialog inside the plugin window.
     void showMessage(const juce::String& title, const juce::String& message);
     void showSaveFailedWarning();

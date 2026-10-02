@@ -2498,6 +2498,64 @@ void MnKordAudioProcessorEditor::mouseDown(const juce::MouseEvent&)
     grabKeyboardFocus();
 }
 
+void MnKordAudioProcessorEditor::transposePreset(int semitones, bool inputs, bool outputs)
+{
+    bool outOfRange = false;
+
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return;
+
+        auto& mappings = presets[(size_t) presetIndex].mappings;
+        auto fits = [semitones](int note) { return note + semitones >= 0 && note + semitones <= 127; };
+
+        for (const auto& mapping : mappings)
+        {
+            if (inputs && ! fits(mapping.inputNote))
+                outOfRange = true;
+
+            if (outputs)
+                for (const int note : mapping.outputNotes)
+                    if (! fits(note))
+                        outOfRange = true;
+        }
+
+        // All or nothing: a transposition that pushes a note off the keyboard changes nothing.
+        if (! outOfRange)
+        {
+            for (auto& mapping : mappings)
+            {
+                if (inputs)
+                    mapping.inputNote += semitones;
+
+                if (outputs)
+                {
+                    for (auto& note : mapping.outputNotes)
+                        note += semitones;
+
+                    std::map<int, int> shifted;
+                    for (const auto& [note, velocity] : mapping.outputVelocities)
+                        shifted[note + semitones] = velocity;
+                    mapping.outputVelocities = std::move(shifted);
+                }
+            }
+        }
+    }
+
+    if (outOfRange)
+    {
+        showMessage("Can't transpose", "Some notes would end up outside the MIDI range (0-127).");
+        return;
+    }
+
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
+}
+
 void MnKordAudioProcessorEditor::stepPreset(int delta)
 {
     const int count = (int) audioProcessor.getPresets().size();
@@ -2648,6 +2706,19 @@ void MnKordAudioProcessorEditor::showPresetMenu()
     menu.addItem(1, "Save as...", valid);
     menu.addItem(2, "Revert to saved", dirty && audioProcessor.canRevertPreset(index));
     menu.addItem(3, "Rename / edit info...", valid && ! isFactory);
+
+    auto transposeMenu = makeStyledMenu();
+    transposeMenu.addItem(10, "Key up a semitone (keys and chords)");
+    transposeMenu.addItem(11, "Key down a semitone (keys and chords)");
+    transposeMenu.addItem(12, "Key up an octave (keys and chords)");
+    transposeMenu.addItem(13, "Key down an octave (keys and chords)");
+    transposeMenu.addSeparator();
+    transposeMenu.addItem(14, "Chords up a semitone");
+    transposeMenu.addItem(15, "Chords down a semitone");
+    transposeMenu.addItem(16, "Chords up an octave");
+    transposeMenu.addItem(17, "Chords down an octave");
+    menu.addSubMenu("Transpose", transposeMenu, valid);
+
     menu.addSeparator();
     menu.addItem(4, "Import...");
     menu.addItem(5, "Export...", valid);
@@ -2687,6 +2758,14 @@ void MnKordAudioProcessorEditor::showPresetMenu()
                                    break;
                                }
                                case 7: editor.deleteActivePreset(); break;
+                               case 10: editor.transposePreset(1, true, true); break;
+                               case 11: editor.transposePreset(-1, true, true); break;
+                               case 12: editor.transposePreset(12, true, true); break;
+                               case 13: editor.transposePreset(-12, true, true); break;
+                               case 14: editor.transposePreset(1, false, true); break;
+                               case 15: editor.transposePreset(-1, false, true); break;
+                               case 16: editor.transposePreset(12, false, true); break;
+                               case 17: editor.transposePreset(-12, false, true); break;
                                default: break;
                            }
                        });
