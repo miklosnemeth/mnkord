@@ -370,6 +370,9 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
         if (message.isNoteOn())
         {
+            lastNoteOnStamp.store((((lastNoteOnStamp.load(std::memory_order_relaxed) >> 8) + 1) << 8)
+                                      | (std::uint32_t) message.getNoteNumber(),
+                                  std::memory_order_relaxed);
             handleNoteOn(channel, message.getNoteNumber(), samplePosition, outputMessages);
         }
         else if (message.isNoteOff())

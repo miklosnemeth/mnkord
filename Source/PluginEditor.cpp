@@ -991,6 +991,11 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     startTimerHz(30);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
+    learnButton.setButtonText("Learn");
+    learnButton.setTooltip("MIDI learn: play a key on your controller to select its mapping");
+    learnButton.setClickingTogglesState(true);
+    learnButton.onClick = [this] { learnStamp = audioProcessor.getInputNoteOnStamp(); };
+    addAndMakeVisible(learnButton);
     copyOctaveUpButton.setButtonText("Copy up");
     copyOctaveDownButton.setButtonText("Copy down");
     copyOctaveUpButton.setTooltip("Copy the selected octave's chords one octave up");
@@ -1129,6 +1134,8 @@ void MnKordAudioProcessorEditor::resized()
     copyOctaveDownButton.setBounds(inputHeader.removeFromRight(76));
     inputHeader.removeFromRight(6);
     copyOctaveUpButton.setBounds(inputHeader.removeFromRight(66));
+    inputHeader.removeFromRight(6);
+    learnButton.setBounds(inputHeader.removeFromRight(56));
     selectedInputLabel.setBounds(inputHeader);
     inputPanel.removeFromTop(2);
     octaveStrip.setBounds(inputPanel.removeFromTop(14));
@@ -2861,7 +2868,8 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
-    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton })
+    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton, &learnButton,
+                          &copyOctaveUpButton, &copyOctaveDownButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -2965,6 +2973,22 @@ void MnKordAudioProcessorEditor::timerCallback()
 
     octaveStrip.repaint();   // follows the keyboard when it scrolls or the scale root changes
     trackHistory();
+
+    const auto noteStamp = audioProcessor.getInputNoteOnStamp();
+    if (noteStamp != learnStamp)
+    {
+        learnStamp = noteStamp;
+        if (learnButton.getToggleState())
+        {
+            const int note = (int) (noteStamp & 0xffu);
+            keyboardNoteClicked(KeyboardRole::input, note);
+
+            // Bring the key into view if it is outside the visible part of the keyboard.
+            const auto keyArea = inputKeyboard.getRectangleForKey(note);
+            if (keyArea.getX() < 0.0f || keyArea.getRight() > (float) inputKeyboard.getWidth())
+                inputKeyboard.setLowestVisibleKey(juce::jlimit(21, 108, note - 12));
+        }
+    }
 
     const auto input = audioProcessor.getActiveInputNotes();
     if (input != playingInputNotes)

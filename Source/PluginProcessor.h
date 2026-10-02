@@ -152,6 +152,10 @@ public:
     NoteBits getActiveInputNotes() const  { return loadNoteBits(activeInputWords); }
     NoteBits getActiveOutputNotes() const { return loadNoteBits(activeOutputWords); }
 
+    // For MIDI learn: (counter << 8) | note number of the latest note-on that arrived. The
+    // counter changes with every note-on, so the editor can tell a repeated note from none.
+    std::uint32_t getInputNoteOnStamp() const { return lastNoteOnStamp.load(std::memory_order_relaxed); }
+
 private:
     //==============================================================================
     juce::String favoriteKeyFor(const Preset& preset) const;
@@ -177,6 +181,7 @@ private:
 
     using AtomicNoteWords = std::array<std::atomic<std::uint64_t>, 2>;
     AtomicNoteWords activeInputWords {};
+    std::atomic<std::uint32_t> lastNoteOnStamp { 0 };
     AtomicNoteWords activeOutputWords {};
 
     static NoteBits loadNoteBits(const AtomicNoteWords& source)

@@ -372,6 +372,9 @@ private:
     juce::TextButton scaleSummaryButton;
     OctaveStrip octaveStrip { *this };
     juce::TextButton copyOctaveUpButton, copyOctaveDownButton;
+    // While on, the next note played on the MIDI input selects (or creates) its mapping.
+    juce::TextButton learnButton;
+    std::uint32_t learnStamp = 0;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
     juce::TextButton presetSummaryButton;
     PresetBrowserContent::IconButton undoButton { PresetBrowserContent::IconButton::Kind::Undo };
