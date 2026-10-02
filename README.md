@@ -99,7 +99,7 @@ Bank (accepted by **Import**, which saves each preset in it as its own file):
 </mnKordBank>
 ```
 
-`input` / `output` values are MIDI note numbers `0–127`. A mapping may also carry `minVelocity` (a hard velocity layer) and `velocities` (per output note velocities).
+`input` / `output` values are MIDI note numbers `0–127`. A mapping may also carry `minVelocity` (a hard velocity layer) and `velocity` (per output note velocities).
 
 ## Project layout
 
