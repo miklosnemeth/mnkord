@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "NoteName.h"
+#include "ChordSymbol.h"
 #include "BinaryData.h"
 
 #include <functional>
@@ -991,6 +992,16 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     startTimerHz(30);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
+    chordSymbolEditor.setTextToShowWhenEmpty("Type a chord, e.g. Dm9/G", getMutedTextColour());
+    chordSymbolEditor.setTooltip("Replace the selected chord: C, Am7, F#m7b5, Bbmaj9, C6/9, G/B, Dsus4, ...");
+    chordSymbolEditor.onReturnKey = [this] { applyChordSymbol(); };
+    chordSymbolEditor.onEscapeKey = [this] { chordSymbolEditor.clear(); };
+    chordSymbolEditor.onTextChange = [this]
+    {
+        chordSymbolEditor.setColour(juce::TextEditor::textColourId, getTextColour());
+        chordSymbolEditor.applyFontToAllText(chordSymbolEditor.getFont());
+    };
+    addAndMakeVisible(chordSymbolEditor);
     learnButton.setButtonText("Learn");
     learnButton.setTooltip("MIDI learn: play a key on your controller to select its mapping");
     learnButton.setClickingTogglesState(true);
@@ -1151,6 +1162,8 @@ void MnKordAudioProcessorEditor::resized()
     auto outputPanel = area.removeFromTop(184).reduced(14, 10);
     auto outputHeader = outputPanel.removeFromTop(24);
     outputKeyboardLabel.setBounds(outputHeader.removeFromLeft(120));
+    chordSymbolEditor.setBounds(outputHeader.removeFromRight(190).reduced(0, 1));
+    outputHeader.removeFromRight(8);
     chordNotesLabel.setBounds(outputHeader);
     outputPanel.removeFromTop(8);
     outputKeyboard.setBounds(outputPanel);
@@ -2556,6 +2569,33 @@ void MnKordAudioProcessorEditor::transposePreset(int semitones, bool inputs, boo
     refreshSummaryLabels();
 }
 
+void MnKordAudioProcessorEditor::applyChordSymbol()
+{
+    const auto chord = ChordSymbol::parseChord(chordSymbolEditor.getText());
+    if (! chord.valid)
+    {
+        chordSymbolEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xffcf4b41));
+        chordSymbolEditor.applyFontToAllText(chordSymbolEditor.getFont());
+        return;
+    }
+
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+
+        auto* mapping = getSelectedMapping();
+        if (mapping == nullptr)
+            return;   // nothing selected: click an INPUT key first
+
+        const auto voiced = ChordSymbol::voicedMapping(mapping->inputNote, chord);
+        mapping->outputNotes = voiced.outputNotes;
+        mapping->outputVelocities = voiced.outputVelocities;
+    }
+
+    chordSymbolEditor.clear();
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
+}
+
 void MnKordAudioProcessorEditor::stepPreset(int delta)
 {
     const int count = (int) audioProcessor.getPresets().size();
@@ -2896,6 +2936,13 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
 
 void MnKordAudioProcessorEditor::applyVisualTheme()
 {
+    chordSymbolEditor.setColour(juce::TextEditor::backgroundColourId, getControlColour());
+    chordSymbolEditor.setColour(juce::TextEditor::textColourId, getTextColour());
+    chordSymbolEditor.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+    chordSymbolEditor.setColour(juce::TextEditor::focusedOutlineColourId, getAccentColour());
+    chordSymbolEditor.setColour(juce::TextEditor::highlightColourId, getAccentColour().withAlpha(0.25f));
+    chordSymbolEditor.setTextToShowWhenEmpty("Type a chord, e.g. Dm9/G", getMutedTextColour());
+
     const auto control = getControlColour();
     const auto textColour = getTextColour();
 
@@ -3616,7 +3663,10 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
     if (const auto* mapping = getSelectedMapping())
     {
         selectedInputLabel.setText(displayNoteName(mapping->inputNote), juce::dontSendNotification);
-        chordNotesLabel.setText(describeChord(*mapping), juce::dontSendNotification);
+        const auto symbol = ChordSymbol::nameFor(mapping->outputNotes);
+        chordNotesLabel.setText(symbol.isNotEmpty() ? symbol + "   " + describeChord(*mapping)
+                                                    : describeChord(*mapping),
+                                juce::dontSendNotification);
     }
     else
     {

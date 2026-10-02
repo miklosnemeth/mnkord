@@ -43,6 +43,7 @@ target_sources(mnKord PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/NoteName.cpp
+    Source/ChordSymbol.cpp
 )
 
 target_compile_definitions(mnKord
