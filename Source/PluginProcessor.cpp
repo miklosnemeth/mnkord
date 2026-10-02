@@ -36,6 +36,231 @@ namespace
         preset.mappings = std::move(mappings);
         return preset;
     }
+
+    //==========================================================================
+    // Chord-symbol based factory presets: each preset lists a chord symbol ("Dm9", "G/B", "Bbmaj7",
+    // empty = unmapped) for the 12 keys from C4 up, and the chords are voiced here.
+    struct ParsedChord
+    {
+        bool valid = false;
+        int rootPc = 0;
+        int bassPc = -1;               // slash bass, or -1
+        std::vector<int> intervals;    // from the root; extensions above 12 are kept
+    };
+
+    // Pitch class of the note name at the start of s (C, F#, Bb, ...), or -1; used = characters read.
+    int readNoteName(const juce::String& s, int& used)
+    {
+        if (s.isEmpty())
+            return -1;
+
+        int pc = -1;
+        switch (juce::CharacterFunctions::toUpperCase(s[0]))
+        {
+            case 'C': pc = 0; break;
+            case 'D': pc = 2; break;
+            case 'E': pc = 4; break;
+            case 'F': pc = 5; break;
+            case 'G': pc = 7; break;
+            case 'A': pc = 9; break;
+            case 'B': pc = 11; break;
+            default: return -1;
+        }
+
+        used = 1;
+        if (s.length() > 1 && s[1] == '#')      { pc += 1; used = 2; }
+        else if (s.length() > 1 && s[1] == 'b') { pc -= 1; used = 2; }
+
+        return (pc + 12) % 12;
+    }
+
+    ParsedChord parseChord(const juce::String& symbol)
+    {
+        static const struct { const char* suffix; std::vector<int> intervals; } shapes[] = {
+            { "",      { 0, 4, 7 } },            { "m",     { 0, 3, 7 } },
+            { "dim",   { 0, 3, 6 } },            { "aug",   { 0, 4, 8 } },
+            { "sus2",  { 0, 2, 7 } },            { "sus4",  { 0, 5, 7 } },
+            { "5",     { 0, 7, 12 } },           { "6",     { 0, 4, 7, 9 } },
+            { "m6",    { 0, 3, 7, 9 } },         { "maj7",  { 0, 4, 7, 11 } },
+            { "m7",    { 0, 3, 7, 10 } },        { "7",     { 0, 4, 7, 10 } },
+            { "m7b5",  { 0, 3, 6, 10 } },        { "dim7",  { 0, 3, 6, 9 } },
+            { "add9",  { 0, 4, 7, 14 } },        { "madd9", { 0, 3, 7, 14 } },
+            { "maj9",  { 0, 4, 7, 11, 14 } },    { "m9",    { 0, 3, 7, 10, 14 } },
+            { "9",     { 0, 4, 7, 10, 14 } },    { "7sus4", { 0, 5, 7, 10 } },
+            { "mmaj7", { 0, 3, 7, 11 } },        { "7#9",   { 0, 4, 7, 10, 15 } },
+            { "7b9",   { 0, 4, 7, 10, 13 } },    { "6/9",   { 0, 4, 7, 9, 14 } },
+            { "4th",   { 0, 5, 10, 15 } },
+        };
+
+        ParsedChord result;
+        auto text = symbol.trim();
+        if (text.isEmpty())
+            return result;
+
+        // A slash bass only counts when what follows is a note name ("G/B", but not "6/9").
+        const int slash = text.lastIndexOfChar('/');
+        if (slash > 0)
+        {
+            const auto bassText = text.substring(slash + 1);
+            int used = 0;
+            const int bass = readNoteName(bassText, used);
+            if (bass >= 0 && used == bassText.length())
+            {
+                result.bassPc = bass;
+                text = text.substring(0, slash);
+            }
+        }
+
+        int used = 0;
+        const int root = readNoteName(text, used);
+        if (root < 0)
+            return result;
+
+        const auto suffix = text.substring(used);
+        for (const auto& shape : shapes)
+        {
+            if (suffix == shape.suffix)
+            {
+                result.valid = true;
+                result.rootPc = root;
+                result.intervals = shape.intervals;
+                return result;
+            }
+        }
+
+        jassertfalse;   // unknown chord suffix in a factory preset
+        return result;
+    }
+
+    // Closed voicing centred around E4/F4: the inversion (and octave) of the chord whose centre of
+    // gravity is closest to there, with the root (or slash bass) as a separate bass note in C2-B2.
+    NoteMapping voicedMapping(int inputNote, const ParsedChord& chord)
+    {
+        std::vector<int> stack;
+        for (const int interval : chord.intervals)
+            stack.push_back(48 + chord.rootPc + interval);
+
+        std::vector<int> best = stack;
+        double bestDistance = 1.0e9;
+
+        for (size_t rotation = 0; rotation < stack.size(); ++rotation)
+        {
+            std::vector<int> notes = stack;
+            for (size_t i = 0; i < rotation; ++i)
+                notes[i] += 12;
+            std::sort(notes.begin(), notes.end());
+
+            for (const int shift : { -12, 0, 12 })
+            {
+                const int lowest = notes.front() + shift;
+                if (lowest < 50 || lowest > 64)
+                    continue;
+
+                double centroid = 0.0;
+                for (const int note : notes)
+                    centroid += note + shift;
+                centroid /= (double) notes.size();
+
+                const double distance = std::abs(centroid - 64.0);
+                if (distance < bestDistance - 1.0e-9)
+                {
+                    bestDistance = distance;
+                    best = notes;
+                    for (auto& note : best)
+                        note += shift;
+                }
+            }
+        }
+
+        NoteMapping mapping;
+        mapping.inputNote = inputNote;
+
+        const int bassNote = 36 + (chord.bassPc >= 0 ? chord.bassPc : chord.rootPc);
+        mapping.outputNotes.push_back(bassNote);
+        mapping.outputVelocities[bassNote] = 90;
+
+        for (const int note : best)
+            if (note >= 0 && note < 128)
+                mapping.outputNotes.push_back(note);
+
+        return mapping;
+    }
+
+    Preset chordPreset(const juce::String& name, const juce::String& group, const juce::StringArray& tags,
+                       const std::array<const char*, 12>& slots)
+    {
+        std::vector<NoteMapping> mappings;
+        for (size_t i = 0; i < slots.size(); ++i)
+        {
+            const auto chord = parseChord(slots[i]);
+            if (chord.valid)
+                mappings.push_back(voicedMapping(60 + (int) i, chord));
+        }
+
+        auto preset = makePreset(name, group, std::move(mappings));
+        preset.tags = tags;
+        return preset;
+    }
+
+    void appendChordPresets(std::vector<Preset>& factory)
+    {
+        //                                       C      C#     D       D#     E      F        F#       G       G#     A       A#      B
+        factory.push_back(chordPreset("Pop Four Chords", "Pop & Rock", { "Pop" },
+            { "C",  "Fm",  "G",    "Eb",  "Am",  "F",     "D7",    "Em",   "Ab",  "Dm",   "Bb",   "G7" }));
+        factory.push_back(chordPreset("Indie Add9", "Pop & Rock", { "Indie", "Pop" },
+            { "Cadd9", "", "Dsus2", "",   "Em7", "Fmaj7", "",      "Gadd9", "",   "Am7",  "",     "Bm7b5" }));
+        factory.push_back(chordPreset("Singer-Songwriter", "Pop & Rock", { "Folk", "Pop" },
+            { "C",  "",    "G/B",   "",   "Am",  "F",     "",      "G",    "",    "Dm",   "",     "Csus4" }));
+        factory.push_back(chordPreset("Sus Riff Rock", "Pop & Rock", { "Rock" },
+            { "Csus2", "", "Dsus4", "",   "Esus4", "Fsus2", "",    "Gsus4", "",   "Asus4", "Bbsus2", "" }));
+        factory.push_back(chordPreset("Emo Minor Pop", "Pop & Rock", { "Pop", "Minor" },
+            { "Am", "",    "F",     "",   "C",   "G",     "",      "Dm",   "",    "Em",   "",     "E7" }));
+
+        factory.push_back(chordPreset("Jazz Turnarounds", "Jazz & Soul", { "Jazz", "Sevenths" },
+            { "Cmaj7", "Db7", "Dm7", "Eb7", "Em7", "Fmaj7", "F#m7b5", "G7", "Ab7", "Am7", "Bb7", "Bm7b5" }));
+        factory.push_back(chordPreset("Neo-Soul Nines", "Jazz & Soul", { "Neo-soul", "Ninths" },
+            { "Cmaj9", "", "Dm9",   "",   "Em9", "Fmaj9", "",      "G9",   "",    "Am9",  "",     "Bm7b5" }));
+        factory.push_back(chordPreset("Bossa Nova", "Jazz & Soul", { "Latin", "Jazz" },
+            { "Cmaj9", "", "Dm9",   "",   "Em7", "Fmaj7", "",      "G7",   "",    "Am9",  "Bb7",  "Bm7b5" }));
+        factory.push_back(chordPreset("Minor ii-V-i (A)", "Jazz & Soul", { "Jazz", "Minor" },
+            { "Cmaj7", "", "Dm9",   "",   "E7b9", "Fmaj7", "",     "G7",   "",    "Am9",  "",     "Bm7b5" }));
+        factory.push_back(chordPreset("Gospel Sixths", "Jazz & Soul", { "Gospel", "Soul" },
+            { "C6", "",    "Dm7",   "",   "Em7", "F6",     "",      "G7",   "",    "Am7",  "",     "Bdim7" }));
+        factory.push_back(chordPreset("Lo-fi Chill", "Jazz & Soul", { "Lo-fi", "Chill" },
+            { "Cmaj7", "", "Dm9",   "",   "Em7", "Fmaj7", "",      "G7sus4", "",  "Am9",  "",     "Bm7b5" }));
+        factory.push_back(chordPreset("Funk Dominant 9ths", "Jazz & Soul", { "Funk", "Ninths" },
+            { "C9", "",    "D9",    "",   "E9",  "F9",    "",      "G9",   "",    "A9",   "Bb9",  "B9" }));
+
+        factory.push_back(chordPreset("Lydian Dream", "Cinematic", { "Cinematic", "Lydian" },
+            { "Cmaj7", "", "D",     "",   "Em7", "Fmaj7", "F#m7b5", "Gmaj7", "",  "Am7",  "",     "Bm7" }));
+        factory.push_back(chordPreset("Epic Trailer Minor", "Cinematic", { "Cinematic", "Minor" },
+            { "Am", "",    "F",     "",   "C",   "G",     "",      "Dm",   "",    "Em",   "",     "E" }));
+        factory.push_back(chordPreset("Ambient Suspensions", "Cinematic", { "Ambient", "Suspended" },
+            { "Csus2", "", "Dsus4", "",   "Esus4", "Fadd9", "",    "Gsus4", "",   "Asus2", "",    "Bsus4" }));
+        factory.push_back(chordPreset("Dream Six-Nine", "Cinematic", { "Ambient", "Dream pop" },
+            { "C6/9", "",  "Dm9",   "",   "Em7", "Fmaj9", "",      "G6/9", "",    "Am9",  "",     "Bm7b5" }));
+
+        factory.push_back(chordPreset("Dark Phrygian", "Minor & Dark", { "Dark", "Phrygian" },
+            { "Cm", "Db",  "",      "Eb", "",    "Fm",    "",      "Gdim", "Ab",  "",     "Bbm",  "" }));
+        factory.push_back(chordPreset("Harmonic Minor Drama", "Minor & Dark", { "Cinematic", "Minor" },
+            { "Cm", "",    "Ddim",  "",   "Ebaug", "Fm",  "",      "G",    "",    "Ab",   "",     "Bdim" }));
+        factory.push_back(chordPreset("Synthwave Minor", "Minor & Dark", { "Synthwave", "Minor" },
+            { "Cm", "",    "Ab",    "",   "Eb",  "Bb",    "",      "Fm",   "",    "Gm",   "",     "G" }));
+        factory.push_back(chordPreset("Andalusian Cadence", "Minor & Dark", { "Flamenco", "Minor" },
+            { "Am", "",    "G",     "",   "F",   "E",     "",      "Dm",   "",    "C",    "",     "Bdim" }));
+
+        factory.push_back(chordPreset("Quartal Stacks", "Modern", { "Modern", "Quartal" },
+            { "C4th", "",  "D4th",  "",   "E4th", "F4th", "",      "G4th", "",    "A4th", "",     "B4th" }));
+        factory.push_back(chordPreset("Circle of Fifths", "Modern", { "Theory", "Triads" },
+            { "C",  "G",   "D",     "A",  "E",   "B",     "F#",    "Db",   "Ab",  "Eb",   "Bb",   "F" }));
+
+        factory.push_back(chordPreset("Chromatic Major Triads", "Utility", { "Triads", "Utility" },
+            { "C",  "Db",  "D",     "Eb", "E",   "F",     "F#",    "G",    "Ab",  "A",    "Bb",   "B" }));
+        factory.push_back(chordPreset("Chromatic Minor Triads", "Utility", { "Triads", "Minor", "Utility" },
+            { "Cm", "C#m", "Dm",    "Ebm", "Em", "Fm",    "F#m",   "Gm",   "G#m", "Am",   "Bbm",  "Bm" }));
+        factory.push_back(chordPreset("Chromatic Sevenths", "Utility", { "Sevenths", "Utility" },
+            { "Cmaj7", "Db7", "Dm7", "Eb7", "Em7", "Fmaj7", "F#m7b5", "G7", "Abmaj7", "Am7", "Bbmaj7", "Bm7b5" }));
+    }
 }
 
 //==============================================================================
@@ -1106,6 +1331,8 @@ std::vector<Preset> MnKordAudioProcessor::createFactoryPresets()
         makeMapping(69, { 69, 72, 76, 79 }),  // Am7
         makeMapping(71, { 71, 74, 77, 81 })   // Bm7b5
     }));
+
+    appendChordPresets(factory);
 
     return factory;
 }
