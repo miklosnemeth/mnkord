@@ -940,13 +940,12 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(scaleSummaryButton);
 
     newPresetButton.setButtonText("New");
-    compactVoicingButton.setButtonText("Compact");
     savePresetButton.setButtonText("Save");
     presetMenuButton.setButtonText("Preset");
     savePresetButton.setTooltip("Save changes to this preset");
     presetMenuButton.setTooltip("Save as, revert, rename, import, export, delete");
 
-    for (auto* button : { &newPresetButton, &compactVoicingButton, &savePresetButton, &presetMenuButton })
+    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton })
     {
         button->addListener(this);
         addAndMakeVisible(button);
@@ -1053,15 +1052,13 @@ void MnKordAudioProcessorEditor::resized()
     auto titleColumn = headerArea.removeFromLeft(172);
     presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
 
-    const int groupWidth = 200 + 8 + 62 + 8 + 62 + 8 + 90 + 8 + 76;
+    const int groupWidth = 200 + 8 + 62 + 8 + 62 + 8 + 76;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
     presetSummaryButton.setBounds(controls.removeFromLeft(200));
     controls.removeFromLeft(8);
     newPresetButton.setBounds(controls.removeFromLeft(62));
     controls.removeFromLeft(8);
     savePresetButton.setBounds(controls.removeFromLeft(62));
-    controls.removeFromLeft(8);
-    compactVoicingButton.setBounds(controls.removeFromLeft(90));
     controls.removeFromLeft(8);
     presetMenuButton.setBounds(controls.removeFromLeft(76));
 
@@ -1198,11 +1195,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
                     editor.showSaveFailedWarning();
             });
         });
-    }
-    else if (button == &compactVoicingButton)
-    {
-        logUi("buttonClicked: Compact");
-        compactVoiceLeading();
     }
     else if (button == &savePresetButton)
     {
@@ -2193,7 +2185,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
-    for (auto* button : { &newPresetButton, &compactVoicingButton, &savePresetButton, &presetMenuButton })
+    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
@@ -2203,11 +2195,6 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
 
     // Save lights up in the accent while there are unsaved changes (it's greyed out otherwise).
     savePresetButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
-
-    // Compact voicing gets a subtle accent tint so it reads as the "smart" action.
-    const auto accentPillColour = control.interpolatedWith(getAccentColour(), 0.2f);
-    compactVoicingButton.setColour(juce::TextButton::buttonColourId, accentPillColour);
-    compactVoicingButton.setColour(juce::TextButton::textColourOffId, getAccentColour().brighter(0.3f));
 
     for (auto* label : { &inputKeyboardLabel, &outputKeyboardLabel })
         label->setColour(juce::Label::textColourId, getMutedTextColour());
@@ -2814,97 +2801,6 @@ void MnKordAudioProcessorEditor::fitSelectedChordToScale()
         std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
         mapping->outputNotes.erase(std::unique(mapping->outputNotes.begin(), mapping->outputNotes.end()),
                                    mapping->outputNotes.end());
-    }
-
-    refreshKeyboardHighlights();
-    refreshSummaryLabels();
-}
-
-void MnKordAudioProcessorEditor::compactVoiceLeading()
-{
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        auto& mappings = presets[(size_t) presetIndex].mappings;
-        if (mappings.size() < 2)
-            return;
-
-        std::vector<NoteMapping*> ordered;
-        ordered.reserve(mappings.size());
-        for (auto& mapping : mappings)
-            ordered.push_back(&mapping);
-
-        std::sort(ordered.begin(), ordered.end(), [](const NoteMapping* a, const NoteMapping* b)
-        {
-            return a->inputNote < b->inputNote;
-        });
-
-        for (size_t i = 1; i < ordered.size(); ++i)
-        {
-            const auto& previousNotes = ordered[i - 1]->outputNotes;
-            auto& currentNotes = ordered[i]->outputNotes;
-
-            if (previousNotes.empty() || currentNotes.empty())
-                continue;
-
-            double centroid = 0.0;
-            for (const int note : previousNotes)
-                centroid += note;
-            centroid /= (double) previousNotes.size();
-
-            // Each chord tone (by pitch class) moves to whichever octave sits closest to the
-            // previous chord's centroid. No note is forced to be "the bass" -- that's what lets
-            // a chord like iii come out inverted (e.g. B-E-G rather than E-G-B) when that's the
-            // closest voicing to what came before, matching the scale root's chord it's chained
-            // from rather than each chord's own root position.
-            std::vector<int> pitchClasses;
-            for (const int note : currentNotes)
-            {
-                const int pitchClass = ((note % 12) + 12) % 12;
-                if (std::find(pitchClasses.begin(), pitchClasses.end(), pitchClass) == pitchClasses.end())
-                    pitchClasses.push_back(pitchClass);
-            }
-
-            std::vector<int> revoiced;
-            for (const int pitchClass : pitchClasses)
-            {
-                int closest = pitchClass;
-                double closestDistance = 1.0e9;
-
-                for (int candidate = pitchClass; candidate < 128; candidate += 12)
-                {
-                    const double distance = std::abs((double) candidate - centroid);
-                    if (distance < closestDistance)
-                    {
-                        closestDistance = distance;
-                        closest = candidate;
-                    }
-                }
-
-                revoiced.push_back(closest);
-            }
-
-            std::sort(revoiced.begin(), revoiced.end());
-            revoiced.erase(std::unique(revoiced.begin(), revoiced.end()), revoiced.end());
-
-            // Revoicing only changes octaves, so each note keeps the velocity of its pitch class.
-            auto& velocities = ordered[i]->outputVelocities;
-            std::map<int, int> velocityByPitchClass;
-            for (const auto& [note, velocity] : velocities)
-                velocityByPitchClass[((note % 12) + 12) % 12] = velocity;
-
-            velocities.clear();
-            for (const int note : revoiced)
-                if (const auto it = velocityByPitchClass.find(note % 12); it != velocityByPitchClass.end())
-                    velocities[note] = it->second;
-
-            currentNotes = revoiced;
-        }
     }
 
     refreshKeyboardHighlights();

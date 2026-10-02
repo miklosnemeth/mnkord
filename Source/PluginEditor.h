@@ -324,7 +324,6 @@ private:
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
     juce::TextButton newPresetButton;
     // Re-voices every mapping in the active preset for smooth voice leading between chords.
-    juce::TextButton compactVoicingButton;
     // Writes the active user preset back to its file; enabled while it has unsaved changes.
     juce::TextButton savePresetButton;
     // Opens the preset menu: Save as, Revert, Rename, Import, Export, Show in folder, Delete.
@@ -456,7 +455,6 @@ private:
     // Re-voices every mapping's chord in the active preset, processed in ascending input-note
     // order, so each chord picks the octave placement (per pitch class) closest to the
     // previous chord's centroid — minimising jumps between consecutive chords ("voice leading").
-    void compactVoiceLeading();
     void refreshKeyboardHighlights();
     void refreshSummaryLabels();
     bool isHighlightedKey(KeyboardRole role, int midiNoteNumber) const;
