@@ -19,6 +19,20 @@ namespace
         preset.name = name;
         preset.group = group;
         preset.author = "mnKord";
+
+        if (name == "Default")
+            preset.tags = { "Empty" };
+        else if (name == "C Major Diatonic")
+            preset.tags = { "Diatonic", "Triads" };
+        else if (name == "A Minor Diatonic")
+            preset.tags = { "Diatonic", "Minor", "Triads" };
+        else if (name == "Pop I-V-vi-IV")
+            preset.tags = { "Pop", "Triads" };
+        else if (name == "Power Chords")
+            preset.tags = { "Rock", "Power chords" };
+        else if (name == "C Jazz 7ths")
+            preset.tags = { "Jazz", "Sevenths" };
+
         preset.mappings = std::move(mappings);
         return preset;
     }
@@ -557,6 +571,7 @@ bool MnKordAudioProcessor::revertPreset(int index)
     preset.name = fresh.name;
     preset.group = fresh.group;
     preset.author = fresh.author;
+    preset.tags = fresh.tags;
     preset.mappings = std::move(fresh.mappings);
     preset.savedXml = fingerprint(preset);
 
@@ -811,11 +826,17 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
             // The project's working copy wins over the library's: if they differ, the preset is
             // restored with those edits still unsaved.
             auto& entry = library[(size_t) match];
+
+            // Projects saved before style tags existed carry none; that isn't an edit.
+            if (! presetXml->hasAttribute("tags"))
+                working.tags = entry.tags;
+
             if (fingerprint(working) != fingerprint(entry))
             {
                 entry.name = working.name;
                 entry.group = working.group;
                 entry.author = working.author;
+                entry.tags = working.tags;
                 entry.mappings = std::move(working.mappings);
             }
 
@@ -878,6 +899,8 @@ std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::presetToXml(const Preset
     xml->setAttribute("name", preset.name);
     xml->setAttribute("group", preset.group);
     xml->setAttribute("author", preset.author);
+    if (preset.tags.size() > 0)
+        xml->setAttribute("tags", preset.tags.joinIntoString(","));
 
     for (const auto& mapping : preset.mappings)
     {
@@ -912,6 +935,10 @@ Preset MnKordAudioProcessor::presetFromXml(const juce::XmlElement& xml)
     preset.name = xml.getStringAttribute("name");
     preset.group = xml.getStringAttribute("group");
     preset.author = xml.getStringAttribute("author");
+    preset.tags.addTokens(xml.getStringAttribute("tags"), ",;", "");
+    preset.tags.trim();
+    preset.tags.removeEmptyStrings();
+    preset.tags.removeDuplicates(true);
 
     for (auto* mappingXml : xml.getChildIterator())
     {

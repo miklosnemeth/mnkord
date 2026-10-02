@@ -261,8 +261,8 @@ private:
         juce::TextButton fillSeventhsButton { "Fill 7ths" };
     };
 
-    // Content shown in the CallOutBox opened by clicking presetSummaryButton: GROUP and AUTHOR
-    // columns that filter the PRESETS column (each row has a favourite star), plus a search box,
+    // Content shown in the CallOutBox opened by clicking presetSummaryButton: GROUP, AUTHOR and
+    // STYLE (tag) columns that filter the PRESETS column (each row has a favourite star), plus a search box,
     // a favourites-only toggle and tick / cross buttons. Clicking a preset loads it and keeps the
     // browser open so presets can be auditioned; the tick keeps the current one, the cross goes
     // back to the preset the browser was opened on. See ScalePopupContent above for why owner is
@@ -282,7 +282,7 @@ private:
             juce::Colour dimColour, litColour;
         };
 
-        // Item 0 is always "All"; items 1.. are the distinct group / author labels (built from
+        // Item 0 is always "All"; items 1.. are the distinct group / author / style-tag labels (built from
         // the preset list at the time the browser was opened).
         struct FilterColumn : public juce::ListBoxModel
         {
@@ -324,6 +324,7 @@ private:
         juce::Component::SafePointer<MnKordAudioProcessorEditor> owner;
         FilterColumn groupColumn;
         FilterColumn authorColumn;
+        FilterColumn styleColumn;
         PresetColumn presetColumn;
         juce::TextEditor searchBox;
         IconButton favoritesOnlyButton;

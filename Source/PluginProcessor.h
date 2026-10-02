@@ -24,6 +24,8 @@ struct Preset
     juce::String name;
     juce::String group;
     juce::String author;
+    // Free-form style tags (Pop, Jazz, ...), shown as a filter column in the browser.
+    juce::StringArray tags;
     std::vector<NoteMapping> mappings;
 
     // Where it lives. Factory presets are built into the plugin (and mirrored into the Factory

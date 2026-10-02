@@ -252,16 +252,19 @@ namespace
             nameLabel.setText("Name", juce::dontSendNotification);
             groupLabel.setText("Group", juce::dontSendNotification);
             authorLabel.setText("Author", juce::dontSendNotification);
+            tagsLabel.setText("Tags", juce::dontSendNotification);
 
             nameEditor.setText(seedPreset.name);
             groupEditor.setText(seedPreset.group);
             authorEditor.setText(seedPreset.author);
+            tagsEditor.setText(seedPreset.tags.joinIntoString(", "));
+            tagsEditor.setTextToShowWhenEmpty("Pop, Jazz, Ballad (comma separated)", text.withAlpha(0.4f));
 
-            for (auto* label : { &nameLabel, &groupLabel, &authorLabel,
+            for (auto* label : { &nameLabel, &groupLabel, &authorLabel, &tagsLabel,
                                  &scaleLabel, &chordSizeLabel, &inversionLabel, &octaveLabel })
                 label->setColour(juce::Label::textColourId, text);
 
-            for (auto* e : { &nameEditor, &groupEditor, &authorEditor })
+            for (auto* e : { &nameEditor, &groupEditor, &authorEditor, &tagsEditor })
             {
                 e->setColour(juce::TextEditor::backgroundColourId, control);
                 e->setColour(juce::TextEditor::textColourId, text);
@@ -273,9 +276,11 @@ namespace
             addAndMakeVisible(nameLabel);
             addAndMakeVisible(groupLabel);
             addAndMakeVisible(authorLabel);
+            addAndMakeVisible(tagsLabel);
             addAndMakeVisible(nameEditor);
             addAndMakeVisible(groupEditor);
             addAndMakeVisible(authorEditor);
+            addAndMakeVisible(tagsEditor);
 
             if (showGenerationOptions)
             {
@@ -335,8 +340,8 @@ namespace
 
             // Rows are 28px with 10px gaps; tight enough for the dialog to fit inside the plugin
             // window, which it's now embedded in.
-            setSize(420, showGenerationOptions ? 6 * 28 + 6 * 10 + MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight
-                                               : 3 * 28 + 2 * 10);
+            setSize(420, showGenerationOptions ? 7 * 28 + 7 * 10 + MnKordAudioProcessorEditor::InitVoicingPanel::preferredHeight
+                                               : 4 * 28 + 3 * 10);
         }
 
         void resized() override
@@ -361,6 +366,12 @@ namespace
             auto authorRow = area.removeFromTop(rowH);
             authorLabel.setBounds(authorRow.removeFromLeft(labelW));
             authorEditor.setBounds(authorRow);
+
+            area.removeFromTop(gap);
+
+            auto tagsRow = area.removeFromTop(rowH);
+            tagsLabel.setBounds(tagsRow.removeFromLeft(labelW));
+            tagsEditor.setBounds(tagsRow);
 
             if (! showGenerationOptions)
                 return;
@@ -400,6 +411,16 @@ namespace
         juce::String getPresetGroup() const { return groupEditor.getText().trim(); }
         juce::String getPresetAuthor() const { return authorEditor.getText().trim(); }
 
+        juce::StringArray getPresetTags() const
+        {
+            juce::StringArray tags;
+            tags.addTokens(tagsEditor.getText(), ",;", "");
+            tags.trim();
+            tags.removeEmptyStrings();
+            tags.removeDuplicates(true);
+            return tags;
+        }
+
         MnKordAudioProcessorEditor::DiatonicFillOptions getFillOptions() const
         {
             MnKordAudioProcessorEditor::DiatonicFillOptions options;
@@ -421,8 +442,8 @@ namespace
     private:
         bool showGenerationOptions = false;
 
-        juce::Label nameLabel, groupLabel, authorLabel;
-        juce::TextEditor nameEditor, groupEditor, authorEditor;
+        juce::Label nameLabel, groupLabel, authorLabel, tagsLabel;
+        juce::TextEditor nameEditor, groupEditor, authorEditor, tagsEditor;
 
         juce::Label scaleLabel, chordSizeLabel, inversionLabel, octaveLabel;
         juce::ComboBox scaleRootBox, scaleTypeBox, chordSizeBox, inversionBox, octaveBox;
@@ -1624,6 +1645,18 @@ namespace
             values.addIfNotAlreadyThere(labelFor(preset));
         return values;
     }
+
+    // "All" followed by every distinct style tag, alphabetically.
+    juce::StringArray distinctTags(const std::vector<Preset>& presets)
+    {
+        juce::StringArray values;
+        for (const auto& preset : presets)
+            for (const auto& tag : preset.tags)
+                values.addIfNotAlreadyThere(tag, true);
+        values.sortNatural();
+        values.insert(0, "All");
+        return values;
+    }
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::IconButton::paintButton(juce::Graphics& g, bool highlighted,
@@ -1704,6 +1737,7 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     : owner(&ownerRef),
       groupColumn(*this),
       authorColumn(*this),
+      styleColumn(*this),
       presetColumn(*this),
       favoritesOnlyButton(IconButton::Kind::Star),
       confirmButton(IconButton::Kind::Check),
@@ -1713,8 +1747,9 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     const auto& presets = owner->audioProcessor.getPresets();
     groupColumn.items = distinctLabels(presets, groupLabelFor);
     authorColumn.items = distinctLabels(presets, authorLabelFor);
+    styleColumn.items = distinctTags(presets);
 
-    for (auto* column : { &groupColumn.box, &authorColumn.box, &presetColumn.box })
+    for (auto* column : { &groupColumn.box, &authorColumn.box, &styleColumn.box, &presetColumn.box })
     {
         column->setRowHeight(26);
         column->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
@@ -1755,7 +1790,7 @@ MnKordAudioProcessorEditor::PresetBrowserContent::PresetBrowserContent(MnKordAud
     startTimerHz(8);
 
     // Wide enough for the three columns, short enough to sit below the header inside the window.
-    setSize(640, 330);
+    setSize(690, 330);
 }
 
 void MnKordAudioProcessorEditor::PresetBrowserContent::closeBrowser()
@@ -1786,10 +1821,11 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::paint(juce::Graphics& g)
 
     drawTitle("GROUP", groupColumn.box.getBounds());
     drawTitle("AUTHOR", authorColumn.box.getBounds());
+    drawTitle("STYLE", styleColumn.box.getBounds());
     drawTitle("PRESETS", presetColumn.box.getBounds().withTrimmedLeft(24));
 
     g.setColour(owner->getMutedTextColour().withAlpha(0.25f));
-    for (auto* column : { &authorColumn.box, &presetColumn.box })
+    for (auto* column : { &authorColumn.box, &styleColumn.box, &presetColumn.box })
         g.fillRect(column->getX() - 4, column->getY(), 1, column->getHeight());
 }
 
@@ -1805,9 +1841,11 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::resized()
     header.removeFromRight(8);
     searchBox.setBounds(header.removeFromRight(150).reduced(0, 2));
 
-    groupColumn.box.setBounds(area.removeFromLeft(140));
+    groupColumn.box.setBounds(area.removeFromLeft(120));
     area.removeFromLeft(8);
-    authorColumn.box.setBounds(area.removeFromLeft(140));
+    authorColumn.box.setBounds(area.removeFromLeft(120));
+    area.removeFromLeft(8);
+    styleColumn.box.setBounds(area.removeFromLeft(120));
     area.removeFromLeft(8);
     presetColumn.box.setBounds(area);
     favoritesOnlyButton.setBounds(presetColumn.box.getX() + 1, headerArea.getY() + 1, 28, 28);
@@ -1825,6 +1863,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
         const auto filter = searchBox.getText().trim();
         const auto group = groupColumn.selected > 0 ? groupColumn.items[groupColumn.selected] : juce::String();
         const auto author = authorColumn.selected > 0 ? authorColumn.items[authorColumn.selected] : juce::String();
+        const auto style = styleColumn.selected > 0 ? styleColumn.items[styleColumn.selected] : juce::String();
         const bool favoritesOnly = favoritesOnlyButton.getToggleState();
 
         for (int i = 0; i < (int) presets.size(); ++i)
@@ -1835,11 +1874,14 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
                 continue;
             if (author.isNotEmpty() && authorLabelFor(preset) != author)
                 continue;
+            if (style.isNotEmpty() && ! preset.tags.contains(style, true))
+                continue;
             if (favoritesOnly && ! owner->audioProcessor.isFavoritePreset(preset))
                 continue;
             if (filter.isNotEmpty() && ! (preset.name.containsIgnoreCase(filter)
                                           || preset.group.containsIgnoreCase(filter)
-                                          || preset.author.containsIgnoreCase(filter)))
+                                          || preset.author.containsIgnoreCase(filter)
+                                          || preset.tags.joinIntoString(" ").containsIgnoreCase(filter)))
                 continue;
 
             presetColumn.rows.push_back(i);
@@ -2390,6 +2432,7 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
             mutablePresets[(size_t) index].name = p.name;
             mutablePresets[(size_t) index].group = p.group;
             mutablePresets[(size_t) index].author = p.author;
+            mutablePresets[(size_t) index].tags = p.tags;
         }
 
         // refreshPresetBox() already calls updatePresetMetaLabel() internally.
@@ -2515,6 +2558,7 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
                                 const auto name = content->getPresetName();
                                 const auto group = content->getPresetGroup();
                                 const auto author = content->getPresetAuthor();
+                                const auto tags = content->getPresetTags();
                                 const auto fillOptions = content->getFillOptions();
                                 dialog->setLookAndFeel(nullptr);
                                 delete content;
@@ -2526,6 +2570,7 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
                                 preset.name = name;
                                 preset.group = group;
                                 preset.author = author;
+                                preset.tags = tags;
                                 onSave(preset, fillOptions);
                             }),
                             true);
