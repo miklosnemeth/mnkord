@@ -1002,6 +1002,10 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
         chordSymbolEditor.applyFontToAllText(chordSymbolEditor.getFont());
     };
     addAndMakeVisible(chordSymbolEditor);
+    layerButton.addListener(this);
+    layerButton.setTooltip("Velocity layers: edit the soft layer, or a hard layer played at higher velocities");
+    addAndMakeVisible(layerButton);
+    updateLayerButton();
     learnButton.setButtonText("Learn");
     learnButton.setTooltip("MIDI learn: play a key on your controller to select its mapping");
     learnButton.setClickingTogglesState(true);
@@ -1147,6 +1151,8 @@ void MnKordAudioProcessorEditor::resized()
     copyOctaveUpButton.setBounds(inputHeader.removeFromRight(66));
     inputHeader.removeFromRight(6);
     learnButton.setBounds(inputHeader.removeFromRight(56));
+    inputHeader.removeFromRight(6);
+    layerButton.setBounds(inputHeader.removeFromRight(112));
     selectedInputLabel.setBounds(inputHeader);
     inputPanel.removeFromTop(2);
     octaveStrip.setBounds(inputPanel.removeFromTop(14));
@@ -1275,6 +1281,7 @@ void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
 
             NoteMapping copy;
             copy.inputNote = mapping.inputNote + semitones;
+            copy.minVelocity = mapping.minVelocity;
             if (copy.inputNote < 0 || copy.inputNote > 127)
                 continue;
 
@@ -1295,7 +1302,8 @@ void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
         for (auto& copy : copies)
         {
             const auto existing = std::find_if(mappings.begin(), mappings.end(),
-                                               [&copy](const NoteMapping& m) { return m.inputNote == copy.inputNote; });
+                                               [&copy](const NoteMapping& m)
+                                               { return m.inputNote == copy.inputNote && m.minVelocity == copy.minVelocity; });
             if (existing != mappings.end())
                 *existing = std::move(copy);
             else
@@ -1364,7 +1372,9 @@ void MnKordAudioProcessorEditor::ThemeToggleButton::paintButton(juce::Graphics& 
 
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
-    if (button == &copyOctaveUpButton)
+    if (button == &layerButton)
+        showLayerMenu();
+    else if (button == &copyOctaveUpButton)
         copySelectedOctave(12);
     else if (button == &copyOctaveDownButton)
         copySelectedOctave(-12);
@@ -2378,7 +2388,8 @@ namespace
             return false;
 
         for (size_t i = 0; i < a.size(); ++i)
-            if (a[i].inputNote != b[i].inputNote || a[i].outputNotes != b[i].outputNotes
+            if (a[i].inputNote != b[i].inputNote || a[i].minVelocity != b[i].minVelocity
+                || a[i].outputNotes != b[i].outputNotes
                 || a[i].outputVelocities != b[i].outputVelocities)
                 return false;
 
@@ -2594,6 +2605,66 @@ void MnKordAudioProcessorEditor::applyChordSymbol()
     chordSymbolEditor.clear();
     setSelectedMappingIndex(selectedMappingIndex);
     refreshSummaryLabels();
+}
+
+void MnKordAudioProcessorEditor::updateLayerButton()
+{
+    layerButton.setButtonText(hardLayerEditing ? "Hard >= " + juce::String(hardLayerThreshold) : juce::String("Soft layer"));
+    layerButton.setToggleState(hardLayerEditing, juce::dontSendNotification);
+}
+
+void MnKordAudioProcessorEditor::showLayerMenu()
+{
+    auto menu = makeStyledMenu();
+    menu.addItem(1, "Soft layer (plays at any velocity)", true, ! hardLayerEditing);
+
+    const int thresholds[] = { 80, 90, 100, 110, 120 };
+    for (int i = 0; i < 5; ++i)
+        menu.addItem(10 + i, "Hard layer from velocity " + juce::String(thresholds[i]), true,
+                     hardLayerEditing && hardLayerThreshold == thresholds[i]);
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&layerButton).withParentComponent(this),
+                       [safeThis, thresholds](int result)
+                       {
+                           if (safeThis == nullptr || result == 0)
+                               return;
+
+                           auto& editor = *safeThis;
+                           editor.hardLayerEditing = result >= 10;
+                           if (result >= 10)
+                               editor.hardLayerThreshold = thresholds[result - 10];
+
+                           // The threshold belongs to the preset's hard layers as a whole.
+                           if (result >= 10)
+                           {
+                               const juce::ScopedLock lock(editor.audioProcessor.getStateLock());
+                               auto& presets = editor.audioProcessor.getPresets();
+                               const int presetIndex = editor.audioProcessor.getActivePresetIndex();
+                               if (presetIndex >= 0 && presetIndex < (int) presets.size())
+                                   for (auto& mapping : presets[(size_t) presetIndex].mappings)
+                                       if (mapping.minVelocity > 1)
+                                           mapping.minVelocity = editor.hardLayerThreshold;
+                           }
+
+                           editor.updateLayerButton();
+
+                           // Follow the selected key to its mapping in the layer now being edited.
+                           int newSelection = -1;
+                           if (const auto* selected = editor.getSelectedMapping())
+                           {
+                               const auto& presets = editor.audioProcessor.getPresets();
+                               const auto& mappings = presets[(size_t) editor.audioProcessor.getActivePresetIndex()].mappings;
+                               for (int i = 0; i < (int) mappings.size(); ++i)
+                                   if (mappings[(size_t) i].inputNote == selected->inputNote
+                                       && (mappings[(size_t) i].minVelocity > 1) == editor.hardLayerEditing)
+                                       newSelection = i;
+                           }
+
+                           editor.setSelectedMappingIndex(newSelection);
+                           editor.refreshSummaryLabels();
+                       });
 }
 
 void MnKordAudioProcessorEditor::stepPreset(int delta)
@@ -2994,7 +3065,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedBackgroundColourId, getAccentColour().withAlpha(0.18f));
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
-    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton, &learnButton,
+    for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton, &learnButton, &layerButton,
                           &copyOctaveUpButton, &copyOctaveDownButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
@@ -3313,7 +3384,8 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
         {
             for (int i = 0; i < (int) preset.mappings.size(); ++i)
             {
-                if (preset.mappings[(size_t) i].inputNote == midiNoteNumber)
+                if (preset.mappings[(size_t) i].inputNote == midiNoteNumber
+                    && (preset.mappings[(size_t) i].minVelocity > 1) == hardLayerEditing)
                 {
                     logUi("  -> selecting existing mapping index=" + juce::String(i));
                     setSelectedMappingIndex(i);
@@ -3324,6 +3396,18 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
 
             NoteMapping mapping;
             mapping.inputNote = midiNoteNumber;
+            if (hardLayerEditing)
+            {
+                // A new hard layer starts as a copy of the key's soft layer.
+                mapping.minVelocity = hardLayerThreshold;
+                for (const auto& other : preset.mappings)
+                    if (other.inputNote == midiNoteNumber && other.minVelocity <= 1)
+                    {
+                        mapping.outputNotes = other.outputNotes;
+                        mapping.outputVelocities = other.outputVelocities;
+                        break;
+                    }
+            }
             preset.mappings.push_back(mapping);
             logUi("  -> created new mapping, selecting index=" + juce::String((int) preset.mappings.size() - 1));
             setSelectedMappingIndex((int) preset.mappings.size() - 1);
@@ -3662,7 +3746,10 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
 {
     if (const auto* mapping = getSelectedMapping())
     {
-        selectedInputLabel.setText(displayNoteName(mapping->inputNote), juce::dontSendNotification);
+        selectedInputLabel.setText(displayNoteName(mapping->inputNote)
+                                       + (mapping->minVelocity > 1 ? "   hard layer, velocity " + juce::String(mapping->minVelocity) + "+"
+                                                                   : juce::String()),
+                                   juce::dontSendNotification);
         const auto symbol = ChordSymbol::nameFor(mapping->outputNotes);
         chordNotesLabel.setText(symbol.isNotEmpty() ? symbol + "   " + describeChord(*mapping)
                                                     : describeChord(*mapping),

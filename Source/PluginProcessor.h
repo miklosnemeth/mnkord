@@ -7,6 +7,9 @@ struct NoteMapping
     static constexpr int defaultOutputVelocity = 100;
 
     int inputNote = -1;
+    // Lowest input velocity that plays this mapping. A note can have a second, "hard" mapping with a
+    // higher minVelocity: the harder one is played, the further up the layers it goes.
+    int minVelocity = 1;
     std::vector<int> outputNotes;
     // Per output note velocity, independent of the played input velocity. Notes without an
     // entry use defaultOutputVelocity.
@@ -196,7 +199,7 @@ private:
     // hold stateLock.
     void publishActiveNotes();
 
-    void handleNoteOn(int channel, int note, int samplePosition, juce::MidiBuffer& output);
+    void handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output);
     void handleNoteOff(int channel, int note, int samplePosition, juce::MidiBuffer& output);
     void handleSustain(bool down, int samplePosition, juce::MidiBuffer& output);
     // Delivers note-offs for notesToFlush into the output buffer. Caller must hold stateLock.

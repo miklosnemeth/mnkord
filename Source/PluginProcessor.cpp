@@ -232,7 +232,7 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             lastNoteOnStamp.store((((lastNoteOnStamp.load(std::memory_order_relaxed) >> 8) + 1) << 8)
                                       | (std::uint32_t) message.getNoteNumber(),
                                   std::memory_order_relaxed);
-            handleNoteOn(channel, message.getNoteNumber(), samplePosition, outputMessages);
+            handleNoteOn(channel, message.getNoteNumber(), message.getVelocity(), samplePosition, outputMessages);
         }
         else if (message.isNoteOff())
         {
@@ -280,7 +280,8 @@ void MnKordAudioProcessor::publishActiveNotes()
 }
 
 //==============================================================================
-void MnKordAudioProcessor::handleNoteOn(int channel, int note, int samplePosition, juce::MidiBuffer& output)
+void MnKordAudioProcessor::handleNoteOn(int channel, int note, int velocity, int samplePosition,
+                                        juce::MidiBuffer& output)
 {
     if (activePresetIndex < 0 || activePresetIndex >= (int) presets.size())
         return;
@@ -288,15 +289,24 @@ void MnKordAudioProcessor::handleNoteOn(int channel, int note, int samplePositio
     const auto& preset = presets[activePresetIndex];
 
     // Find the mapping for this input note
+    // Of the layers for this note, the hardest one the played velocity reaches; a note played softer
+    // than every layer still plays the softest one rather than being dropped.
     const NoteMapping* mapping = nullptr;
+    const NoteMapping* softest = nullptr;
     for (const auto& m : preset.mappings)
     {
-        if (m.inputNote == note)
-        {
+        if (m.inputNote != note)
+            continue;
+
+        if (softest == nullptr || m.minVelocity < softest->minVelocity)
+            softest = &m;
+
+        if (m.minVelocity <= velocity && (mapping == nullptr || m.minVelocity > mapping->minVelocity))
             mapping = &m;
-            break;
-        }
     }
+
+    if (mapping == nullptr)
+        mapping = softest;
 
     if (mapping == nullptr)
         return; // Unmapped note is dropped
@@ -993,6 +1003,8 @@ std::unique_ptr<juce::XmlElement> MnKordAudioProcessor::presetToXml(const Preset
     {
         auto* mappingXml = new juce::XmlElement("Mapping");
         mappingXml->setAttribute("input", mapping.inputNote);
+        if (mapping.minVelocity > 1)
+            mappingXml->setAttribute("minVelocity", mapping.minVelocity);
 
         juce::StringArray outputs, velocities;
         bool anyCustomVelocity = false;
@@ -1034,6 +1046,7 @@ Preset MnKordAudioProcessor::presetFromXml(const juce::XmlElement& xml)
 
         NoteMapping mapping;
         mapping.inputNote = mappingXml->getIntAttribute("input", -1);
+        mapping.minVelocity = juce::jlimit(1, 127, mappingXml->getIntAttribute("minVelocity", 1));
 
         juce::StringArray tokens;
         tokens.addTokens(mappingXml->getStringAttribute("output"), " ", {});

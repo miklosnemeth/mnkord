@@ -374,6 +374,11 @@ private:
     juce::TextButton copyOctaveUpButton, copyOctaveDownButton;
     // While on, the next note played on the MIDI input selects (or creates) its mapping.
     juce::TextButton learnButton;
+    // Velocity layers: which layer of a key the INPUT keyboard edits. The hard layer plays when the
+    // input velocity reaches hardLayerThreshold.
+    juce::TextButton layerButton;
+    bool hardLayerEditing = false;
+    int hardLayerThreshold = 100;
     // Typing a chord symbol ("Dm9/G") and pressing Enter replaces the selected mapping's chord.
     juce::TextEditor chordSymbolEditor;
     std::uint32_t learnStamp = 0;
@@ -478,6 +483,8 @@ private:
     void duplicatePreset(int presetIndex);
     // Selects the previous (-1) / next (+1) preset, wrapping around.
     void stepPreset(int delta);
+    void showLayerMenu();
+    void updateLayerButton();
     void applyChordSymbol();
     // Shifts the active preset's INPUT keys and/or chord notes; refuses if a note would leave 0-127.
     void transposePreset(int semitones, bool inputs, bool outputs);
