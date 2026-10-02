@@ -66,3 +66,25 @@ target_link_libraries(mnKord
         juce::juce_audio_utils
         juce::juce_gui_extra
 )
+
+# Console tests for the preset library, project state, chord symbols and velocity layers:
+#   cmake -S . -B build-tests -DMNKORD_BUILD_TESTS=ON
+#   cmake --build build-tests --config Release --target mnKordTests
+#   build-tests/Release/mnKordTests.exe
+option(MNKORD_BUILD_TESTS "Build the console tests (mnKordTests)" OFF)
+if(MNKORD_BUILD_TESTS)
+    add_executable(mnKordTests Tests/LibraryTests.cpp)
+    target_include_directories(mnKordTests PRIVATE
+        Source
+        "${CMAKE_CURRENT_BINARY_DIR}/mnKord_artefacts/JuceLibraryCode"
+        "${CMAKE_CURRENT_BINARY_DIR}/juce_binarydata_mnKordFonts/JuceLibraryCode")
+    if(MSVC)
+        target_compile_options(mnKordTests PRIVATE /utf-8)
+    endif()
+    target_link_libraries(mnKordTests PRIVATE
+        mnKord
+        mnKordFonts
+        juce::juce_audio_devices
+        juce::juce_audio_utils
+        juce::juce_gui_extra)
+endif()

@@ -1,6 +1,7 @@
 # Build tree (single folder; JUCE 9 is fetched into build/_deps)
 /build/
 /out/
+/build-tests/
 /cmake-build-*/
 
 # IDE / OS

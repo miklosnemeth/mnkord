@@ -1,0 +1,312 @@
+// Console tests for the preset library, project state, chord symbols and velocity layers.
+// Built with -DMNKORD_BUILD_TESTS=ON (target mnKordTests); uses a temporary library folder,
+// never the real Documents\MNAudio\mnKord.
+#include "PluginProcessor.h"
+#include "ChordSymbol.h"
+#include <cstdio>
+
+static int failures = 0, checks = 0;
+static int factoryCount = 0;   // number of built-in presets, read from a fresh library
+
+#define CHECK(cond)                                                                 \
+    do {                                                                            \
+        ++checks;                                                                   \
+        if (! (cond)) { ++failures; std::printf("FAIL line %d: %s\n", __LINE__, #cond); } \
+    } while (0)
+
+static int indexOfName(MnKordAudioProcessor& p, const juce::String& name, bool factory)
+{
+    auto& list = p.getPresets();
+    for (int i = 0; i < (int) list.size(); ++i)
+        if (list[(size_t) i].name == name && list[(size_t) i].isFactory == factory)
+            return i;
+    return -1;
+}
+
+static int countXml(const juce::File& dir)
+{
+    return dir.findChildFiles(juce::File::findFiles, true, "*.xml").size();
+}
+
+static void editActive(MnKordAudioProcessor& p)
+{
+    const juce::ScopedLock lock(p.getStateLock());
+    auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+    preset.mappings.front().outputNotes.push_back(120);
+    preset.mappings.front().outputVelocities[120] = 55;
+}
+
+static juce::MemoryBlock state(MnKordAudioProcessor& p)
+{
+    juce::MemoryBlock block;
+    p.getStateInformation(block);
+    return block;
+}
+
+int main()
+{
+    juce::ScopedJuceInitialiser_GUI init;
+
+    const auto root = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("mnKordLibTest");
+    root.deleteRecursively();
+    MnKordAudioProcessor::overrideLibraryFolder(root);
+
+    // 1. Fresh library: factory presets in memory and mirrored to disk, empty User folder.
+    {
+        MnKordAudioProcessor p;
+        factoryCount = (int) p.getPresets().size();
+        CHECK(factoryCount >= 6);
+        CHECK(p.getActivePresetIndex() == 0);
+        CHECK(p.getPresets()[0].isFactory);
+        CHECK(countXml(MnKordAudioProcessor::getFactoryFolder()) == factoryCount);
+        CHECK(countXml(MnKordAudioProcessor::getUserFolder()) == 0);
+        CHECK(! p.isPresetDirty(0));
+        CHECK(p.canRevertPreset(0));
+    }
+
+    // 2. Dirty detection and revert on a factory preset.
+    {
+        MnKordAudioProcessor p;
+        const auto before = p.getPresets()[0].mappings.front().outputNotes.size();
+        editActive(p);
+        CHECK(p.isPresetDirty(0));
+        CHECK(p.revertPreset(0));
+        CHECK(! p.isPresetDirty(0));
+        CHECK(p.getPresets()[0].mappings.front().outputNotes.size() == before);
+        CHECK(! p.saveUserPreset(0));      // factory presets can't be overwritten
+        CHECK(! p.deletePreset(0));
+    }
+
+    // 3. Save as: new user file, original goes back to its saved state, names are made unique.
+    {
+        MnKordAudioProcessor p;
+        editActive(p);
+        auto copy = p.getPresets()[0];
+        copy.name = "My Copy";
+        copy.group = "Mine";
+        CHECK(p.addPreset(copy));
+        CHECK((int) p.getPresets().size() == factoryCount + 1);
+        CHECK(p.getActivePresetIndex() == factoryCount);
+        CHECK(! p.getPresets()[(size_t) factoryCount].isFactory);
+        CHECK(p.getPresets()[(size_t) factoryCount].file.existsAsFile());
+        CHECK(! p.isPresetDirty(6));
+        CHECK(p.getPresets()[(size_t) factoryCount].mappings.front().outputNotes.back() == 120);   // kept the edit
+        CHECK(! p.isPresetDirty(0));                                           // original reverted
+        CHECK(p.getPresets()[0].mappings.front().outputNotes.back() != 120);
+
+        CHECK(p.addPreset(copy));
+        CHECK(p.getPresets()[(size_t) factoryCount + 1].file.getFileName() == "My Copy 2.xml");
+        CHECK(countXml(MnKordAudioProcessor::getUserFolder()) == 2);
+    }
+
+    // 4. A new instance (a restart) finds the user presets; editing + saving persists.
+    {
+        MnKordAudioProcessor p;
+        CHECK((int) p.getPresets().size() == factoryCount + 2);
+        const int i = indexOfName(p, "My Copy", false);
+        CHECK(i >= 0);
+        p.setActivePresetIndex(i);
+        const auto notes = p.getPresets()[(size_t) i].mappings.front().outputNotes.size();
+        editActive(p);
+        CHECK(p.isPresetDirty(i));
+        CHECK(p.saveUserPreset(i));
+        CHECK(! p.isPresetDirty(i));
+
+        MnKordAudioProcessor again;
+        const int j = indexOfName(again, "My Copy", false);
+        CHECK(again.getPresets()[(size_t) j].mappings.front().outputNotes.size() == notes + 1);
+        CHECK(again.getPresets()[(size_t) j].mappings.front().velocityFor(120) == 55);
+    }
+
+    // 5. Leaving a dirty preset discards its edits.
+    {
+        MnKordAudioProcessor p;
+        const int i = indexOfName(p, "My Copy", false);
+        p.setActivePresetIndex(i);
+        const auto notes = p.getPresets()[(size_t) i].mappings.front().outputNotes.size();
+        editActive(p);
+        p.setActivePresetIndex(0);
+        CHECK(! p.isPresetDirty(i));
+        CHECK(p.getPresets()[(size_t) i].mappings.front().outputNotes.size() == notes);
+    }
+
+    // 6. State round trips: the active preset's working copy, edits and all.
+    {
+        MnKordAudioProcessor a;
+        const int i = indexOfName(a, "My Copy", false);
+        a.setActivePresetIndex(i);
+        editActive(a);
+        const auto saved = state(a);
+
+        MnKordAudioProcessor b;
+        b.setStateInformation(saved.getData(), (int) saved.getSize());
+        CHECK(b.getActivePresetIndex() == indexOfName(b, "My Copy", false));
+        CHECK(b.isPresetDirty(b.getActivePresetIndex()));
+        CHECK(b.getPresets()[(size_t) b.getActivePresetIndex()].mappings.front().outputNotes.back() == 120);
+
+        // ...and a factory preset with edits.
+        MnKordAudioProcessor c;
+        c.setActivePresetIndex(2);
+        editActive(c);
+        const auto savedFactory = state(c);
+        MnKordAudioProcessor d;
+        d.setStateInformation(savedFactory.getData(), (int) savedFactory.getSize());
+        CHECK(d.getActivePresetIndex() == 2);
+        CHECK(d.getPresets()[2].isFactory);
+        CHECK(d.isPresetDirty(2));
+
+        // ...and a preset that isn't in this machine's library comes back as an unsaved one.
+        const auto userFile = a.getPresets()[(size_t) i].file;
+        MnKordAudioProcessor e;
+        const int before = (int) e.getPresets().size();
+        e.setActivePresetIndex(indexOfName(e, "My Copy", false));
+        const auto savedUser = state(e);
+        MnKordAudioProcessor::overrideLibraryFolder(root.getSiblingFile("mnKordLibTestOther"));
+        MnKordAudioProcessor f;
+        f.setStateInformation(savedUser.getData(), (int) savedUser.getSize());
+        CHECK((int) f.getPresets().size() == factoryCount + 1);
+        CHECK(f.getPresets().back().name == "My Copy");
+        CHECK(f.getPresets().back().file == juce::File());
+        CHECK(f.isPresetDirty((int) f.getPresets().size() - 1));
+        CHECK(f.saveUserPreset((int) f.getPresets().size() - 1));
+        CHECK(! f.isPresetDirty((int) f.getPresets().size() - 1));
+        juce::ignoreUnused(before, userFile);
+        MnKordAudioProcessor::getLibraryFolder().deleteRecursively();
+        MnKordAudioProcessor::overrideLibraryFolder(root);
+    }
+
+    // 7. Version 1 state (the whole preset list) is migrated into the User folder, once.
+    {
+        MnKordAudioProcessor src;
+        const int before = countXml(MnKordAudioProcessor::getUserFolder());
+
+        juce::XmlElement legacy("mnKordState");
+        legacy.setAttribute("version", 1);
+        legacy.setAttribute("activePreset", 1);
+        auto* list = legacy.createNewChildElement("Presets");
+        for (const char* name : { "Default", "Old Pad", "Old Lead" })
+        {
+            auto* preset = list->createNewChildElement("Preset");
+            preset->setAttribute("name", name);
+            preset->setAttribute("group", "Old");
+            preset->setAttribute("author", "me");
+            auto* mapping = preset->createNewChildElement("Mapping");
+            mapping->setAttribute("input", 60);
+            mapping->setAttribute("output", "60 64 67");
+        }
+        const auto text = legacy.toString();
+
+        MnKordAudioProcessor p;
+        p.setStateInformation(text.toRawUTF8(), (int) text.getNumBytesAsUTF8());
+        CHECK(countXml(MnKordAudioProcessor::getUserFolder()) == before + 2);   // "Default" is built in
+        CHECK(p.getPresets()[(size_t) p.getActivePresetIndex()].name == "Old Pad");
+
+        MnKordAudioProcessor q;
+        q.setStateInformation(text.toRawUTF8(), (int) text.getNumBytesAsUTF8());
+        CHECK(countXml(MnKordAudioProcessor::getUserFolder()) == before + 2);   // not imported twice
+    }
+
+    // 8. Delete a user preset (to the recycle bin); external additions are picked up.
+    {
+        MnKordAudioProcessor p;
+        const int n = (int) p.getPresets().size();
+        const int i = indexOfName(p, "Old Lead", false);
+        CHECK(i >= 0);
+        const auto file = p.getPresets()[(size_t) i].file;
+        CHECK(p.deletePreset(i));
+        CHECK(! file.exists());
+        CHECK((int) p.getPresets().size() == n - 1);
+
+        auto extra = MnKordAudioProcessor::getUserFolder().getChildFile("Dropped In.xml");
+        extra.replaceWithText("<mnKordPreset version=\"1\"><Preset name=\"Dropped In\" group=\"\" author=\"\"><Mapping input=\"60\" output=\"60 64 67\"/></Preset></mnKordPreset>");
+        p.refreshUserLibrary();
+        CHECK(indexOfName(p, "Dropped In", false) >= 0);
+        extra.deleteFile();
+        p.refreshUserLibrary();
+        CHECK(indexOfName(p, "Dropped In", false) < 0);
+    }
+
+    // 9. Import splits a multi-preset file into one user file per preset.
+    {
+        MnKordAudioProcessor p;
+        const int before = countXml(MnKordAudioProcessor::getUserFolder());
+        auto bank = root.getChildFile("bank.xml");
+        bank.replaceWithText("<mnKordBank version=\"1\"><Preset name=\"B1\" group=\"\" author=\"\"><Mapping input=\"60\" output=\"60 64\"/></Preset><Preset name=\"B2\" group=\"\" author=\"\"><Mapping input=\"61\" output=\"61 65\"/></Preset></mnKordBank>");
+        CHECK(p.importPresetsFromFile(bank) == 2);
+        CHECK(countXml(MnKordAudioProcessor::getUserFolder()) == before + 2);
+        CHECK(p.getPresets()[(size_t) p.getActivePresetIndex()].name == "B2");
+    }
+
+
+    // 10. Chord symbols: parsing, voicing and naming round-trip.
+    {
+        const auto slash = ChordSymbol::parseChord("Dm9/G");
+        CHECK(slash.valid && slash.rootPc == 2 && slash.bassPc == 7);
+        const auto sixNine = ChordSymbol::parseChord("C6/9");
+        CHECK(sixNine.valid && sixNine.bassPc == -1 && sixNine.intervals.size() == 5);
+        CHECK(! ChordSymbol::parseChord("").valid);
+        CHECK(! ChordSymbol::parseChord("H").valid);
+
+        for (const char* symbol : { "C", "Am7", "F#m7b5", "Bbmaj9", "G/B", "Dsus4", "C6/9", "Ebaug", "A7", "Dm9" })
+        {
+            const auto mapping = ChordSymbol::voicedMapping(60, ChordSymbol::parseChord(symbol));
+            CHECK(! mapping.outputNotes.empty());
+            CHECK(ChordSymbol::nameFor(mapping.outputNotes) == juce::String(symbol));
+        }
+    }
+
+    // 11. Velocity layers: the hardest layer the velocity reaches plays; the choice survives project state.
+    {
+        MnKordAudioProcessor p;
+        p.prepareToPlay(44100.0, 512);
+
+        {
+            const juce::ScopedLock lock(p.getStateLock());
+            auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+            preset.mappings.clear();
+
+            NoteMapping soft;
+            soft.inputNote = 60;
+            soft.outputNotes = { 60 };
+            NoteMapping hard;
+            hard.inputNote = 60;
+            hard.minVelocity = 100;
+            hard.outputNotes = { 72 };
+            preset.mappings = { soft, hard };
+        }
+
+        auto firstOutputNote = [&p](int velocity)
+        {
+            juce::AudioBuffer<float> audio(0, 512);
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::noteOn(1, 60, (juce::uint8) velocity), 0);
+            p.processBlock(audio, midi);
+
+            int note = -1;
+            for (const auto metadata : midi)
+                if (metadata.getMessage().isNoteOn())
+                    note = metadata.getMessage().getNoteNumber();
+
+            juce::AudioBuffer<float> audio2(0, 512);
+            juce::MidiBuffer off;
+            off.addEvent(juce::MidiMessage::noteOff(1, 60), 0);
+            p.processBlock(audio2, off);
+            return note;
+        };
+
+        CHECK(firstOutputNote(40) == 60);
+        CHECK(firstOutputNote(99) == 60);
+        CHECK(firstOutputNote(100) == 72);
+        CHECK(firstOutputNote(127) == 72);
+
+        const auto saved = state(p);
+        MnKordAudioProcessor q;
+        q.setStateInformation(saved.getData(), (int) saved.getSize());
+        const auto& restored = q.getPresets()[(size_t) q.getActivePresetIndex()].mappings;
+        CHECK(restored.size() == 2 && restored[0].minVelocity == 1 && restored[1].minVelocity == 100);
+    }
+
+    root.deleteRecursively();
+    std::printf("%d checks, %d failures\n", checks, failures);
+    return failures == 0 ? 0 : 1;
+}

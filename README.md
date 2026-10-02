@@ -9,7 +9,12 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Chord templates: Maj, Min, Sus2, Sus4, 7, Maj7, Min7, Dim, Add9
 - Invert a chord (right-click a CHORD key)
 - Octave strip above the INPUT keyboard: click an octave (it starts on the scale root), then **Copy up** / **Copy down** to duplicate its chords one octave higher or lower
-- Preset library: read-only factory presets (diatonic, pop progression, power chords, jazz 7ths)
+- Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) in the field above the CHORD keyboard to replace the selected chord; the chord's name is shown for the selection
+- **Learn**: play a key on your MIDI controller to select (or create) its mapping
+- **Undo / Redo** (buttons or Ctrl+Z / Ctrl+Y) for mapping edits
+- **Velocity layers**: a key can have a second, hard layer that plays when the input velocity reaches a threshold (pick Soft / Hard from the layer menu above the INPUT keyboard)
+- **Transpose** the whole preset (keys and chords) or only its chords, from the Preset menu
+- Preset library: read-only factory presets (about 30: diatonic, pop, jazz and soul, cinematic, dark, quartal, chromatic utility sets)
   plus your own presets, saved as files shared by every project (see below)
 - Preset browser with GROUP / AUTHOR / STYLE (tag) columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert
 - Preset metadata: name, group, author, style tags
@@ -94,7 +99,7 @@ Bank (accepted by **Import**, which saves each preset in it as its own file):
 </mnKordBank>
 ```
 
-`input` / `output` values are MIDI note numbers `0–127`.
+`input` / `output` values are MIDI note numbers `0–127`. A mapping may also carry `minVelocity` (a hard velocity layer) and `velocities` (per output note velocities).
 
 ## Project layout
 
@@ -104,7 +109,20 @@ Source/
   PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
   PluginEditor.h/.cpp      # UI, keyboards, themes, preset browser/menu
   NoteName.h/.cpp          # MIDI note ↔ name helpers
+  ChordSymbol.h/.cpp       # chord symbols ↔ notes, chord voicing and naming
+Tests/
+  LibraryTests.cpp         # console tests (library, state, chord symbols, velocity layers)
 ```
+
+## Tests
+
+```powershell
+cmake -S . -B build-tests -DMNKORD_BUILD_TESTS=ON
+cmake --build build-tests --config Release --target mnKordTests
+build-tests\Release\mnKordTests.exe
+```
+
+The tests use a temporary library folder and never touch `Documents\MNAudio\mnKord`.
 
 ## License
 
