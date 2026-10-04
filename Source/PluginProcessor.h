@@ -115,7 +115,7 @@ public:
     // Picks up user preset files added or removed since the library was loaded.
     void refreshUserLibrary();
 
-    // Favourites are shared by every project, kept in Documents\MNAudio\mnKordavorites.txt
+    // Favourites are shared by every project, kept in Documents\MNAudio\mnKord\favorites.txt
     // (message thread only). Factory presets are keyed by name, user presets by file.
     bool isFavoritePreset(const Preset& preset) const;
     void setFavoritePreset(const Preset& preset, bool shouldBeFavorite);
@@ -202,6 +202,8 @@ private:
     void handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output);
     void handleNoteOff(int channel, int note, int samplePosition, juce::MidiBuffer& output);
     void handleSustain(bool down, int samplePosition, juce::MidiBuffer& output);
+    // All notes off / all sound off: releases every output note on channel, sustained or not.
+    void handleAllNotesOff(int channel, int samplePosition, juce::MidiBuffer& output);
     // Delivers note-offs for notesToFlush into the output buffer. Caller must hold stateLock.
     void flushPendingNoteOffs(juce::MidiBuffer& output);
     // Clears runtime note state and queues note-offs for any still-sounding output notes.

@@ -82,8 +82,7 @@ namespace ChordSymbol
             }
         }
 
-        jassertfalse;   // unknown chord suffix in a factory preset
-        return result;
+        return result;   // unknown suffix (also reached by whatever is typed in the chord field)
     }
 
     // Closed voicing centred around E4/F4: the inversion (and octave) of the chord whose centre of

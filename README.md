@@ -54,6 +54,15 @@ Artifacts (single `build/` tree, JUCE 9 via FetchContent):
 
 or your DAW’s custom VST3 folder, then rescan plugins.
 
+## Build (Linux)
+
+```bash
+sudo apt install build-essential cmake git libasound2-dev libfreetype-dev libfontconfig1-dev \
+  libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxcomposite-dev libxrender-dev
+cmake -S . -B build
+cmake --build build -j
+```
+
 ## Usage
 
 1. Load **mnKord** as a MIDI effect (or run the Standalone and route MIDI in/out).

@@ -52,6 +52,7 @@ namespace
         for (size_t i = 0; i < slots.size(); ++i)
         {
             const auto chord = parseChord(slots[i]);
+            jassert(chord.valid || slots[i][0] == 0);   // a typo in a factory chord symbol
             if (chord.valid)
                 mappings.push_back(voicedMapping(60 + (int) i, chord));
         }
@@ -238,6 +239,14 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         {
             handleNoteOff(channel, message.getNoteNumber(), samplePosition, outputMessages);
         }
+        else if (message.isAllNotesOff() || message.isAllSoundOff())
+        {
+            // Hosts send these on transport stop instead of individual note-offs; without
+            // releasing the mapped notes here their ref counts would stay up and later chords
+            // sharing those notes would never sound again.
+            handleAllNotesOff(channel, samplePosition, outputMessages);
+            outputMessages.addEvent(message, samplePosition);
+        }
         else if (message.isSustainPedalOn())
         {
             handleSustain(true, samplePosition, outputMessages);
@@ -328,12 +337,17 @@ void MnKordAudioProcessor::handleNoteOn(int channel, int note, int velocity, int
         int& refCount = outputNoteRefCount[outputKey];
         if (refCount == 0)
         {
-            // Remove from pending note-offs if it was sustained
-            pendingNoteOffs.erase(std::remove(pendingNoteOffs.begin(), pendingNoteOffs.end(), outputKey),
-                                  pendingNoteOffs.end());
+            // A note still ringing on the sustain pedal gets its deferred note-off now, so the
+            // retrigger isn't a second note-on for a note that is already on.
+            const auto pending = std::find(pendingNoteOffs.begin(), pendingNoteOffs.end(), outputKey);
+            if (pending != pendingNoteOffs.end())
+            {
+                pendingNoteOffs.erase(pending);
+                output.addEvent(juce::MidiMessage::noteOff(channel, outNote), samplePosition);
+            }
 
-            const auto velocity = juce::jlimit(1, 127, mapping->velocityFor(outNote));
-            output.addEvent(juce::MidiMessage::noteOn(channel, outNote, (juce::uint8) velocity), samplePosition);
+            const auto outVelocity = juce::jlimit(1, 127, mapping->velocityFor(outNote));
+            output.addEvent(juce::MidiMessage::noteOn(channel, outNote, (juce::uint8) outVelocity), samplePosition);
         }
         refCount++;
     }
@@ -370,6 +384,41 @@ void MnKordAudioProcessor::handleNoteOff(int channel, int note, int samplePositi
     }
 
     activeNotes.erase(it);
+}
+
+void MnKordAudioProcessor::handleAllNotesOff(int channel, int samplePosition, juce::MidiBuffer& output)
+{
+    for (auto it = activeNotes.begin(); it != activeNotes.end();)
+    {
+        if (it->first.first == channel)
+            it = activeNotes.erase(it);
+        else
+            ++it;
+    }
+
+    for (auto it = outputNoteRefCount.begin(); it != outputNoteRefCount.end();)
+    {
+        if (it->first.first == channel)
+        {
+            output.addEvent(juce::MidiMessage::noteOff(channel, it->first.second), samplePosition);
+            it = outputNoteRefCount.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    pendingNoteOffs.erase(std::remove_if(pendingNoteOffs.begin(), pendingNoteOffs.end(),
+                                         [channel, samplePosition, &output](const NoteKey& key)
+                                         {
+                                             if (key.first != channel)
+                                                 return false;
+
+                                             output.addEvent(juce::MidiMessage::noteOff(channel, key.second), samplePosition);
+                                             return true;
+                                         }),
+                          pendingNoteOffs.end());
 }
 
 void MnKordAudioProcessor::handleSustain(bool down, int samplePosition, juce::MidiBuffer& output)
@@ -501,7 +550,7 @@ Preset MnKordAudioProcessor::saveAsNewUserPreset(const Preset& preset, bool& wri
 {
     Preset result = preset;
     result.isFactory = false;
-    result.file = {};
+    result.file = juce::File();
     result.savedXml = {};
 
     const auto file = uniqueUserFile(result.name);
@@ -845,11 +894,16 @@ bool MnKordAudioProcessor::deletePreset(int index)
     presets.erase(presets.begin() + index);
 
     if (index < activePresetIndex)
+    {
         --activePresetIndex;
+    }
     else if (index == activePresetIndex)
+    {
+        // Only deleting the preset being played cuts the notes it's sounding.
         activePresetIndex = juce::jmin(index, (int) presets.size() - 1);
+        clearActiveNotes();
+    }
 
-    clearActiveNotes();
     return true;
 }
 
@@ -944,7 +998,7 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
             // Not in this machine's library (or it was deleted): keep it playable as an unsaved
             // user preset, which "Save" will then write to the User folder.
             working.isFactory = false;
-            working.file = {};
+            working.file = juce::File();
             working.savedXml = {};
             library.push_back(std::move(working));
             active = (int) library.size() - 1;

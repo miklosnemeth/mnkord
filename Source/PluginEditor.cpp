@@ -1087,7 +1087,7 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRect(header);
 
     g.setColour(getTextColour());
-    g.setFont(juce::Font(getTitleTypeface()).withHeight(34.0f).boldened());
+    g.setFont(juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened());
 
     const auto titleArea = header.withTrimmedLeft(18.0f);
 
@@ -2707,7 +2707,7 @@ void MnKordAudioProcessorEditor::duplicatePreset(int presetIndex)
         copy.group = copy.isFactory ? "User" : copy.group;
         copy.author = copy.isFactory ? juce::String() : copy.author;
         copy.isFactory = false;
-        copy.file = {};
+        copy.file = juce::File();
         copy.savedXml = {};
 
         const bool written = editor.audioProcessor.addPreset(copy);

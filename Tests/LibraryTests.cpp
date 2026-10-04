@@ -1,4 +1,5 @@
-// Console tests for the preset library, project state, chord symbols and velocity layers.
+// Console tests for the preset library, project state, chord symbols, velocity layers and the
+// MIDI engine.
 // Built with -DMNKORD_BUILD_TESTS=ON (target mnKordTests); uses a temporary library folder,
 // never the real Documents\MNAudio\mnKord.
 #include "PluginProcessor.h"
@@ -304,6 +305,94 @@ int main()
         q.setStateInformation(saved.getData(), (int) saved.getSize());
         const auto& restored = q.getPresets()[(size_t) q.getActivePresetIndex()].mappings;
         CHECK(restored.size() == 2 && restored[0].minVelocity == 1 && restored[1].minVelocity == 100);
+    }
+
+    // 12. Project state with non-ASCII text survives a save/load round trip.
+    {
+        MnKordAudioProcessor p;
+        Preset preset = p.getPresets()[0];
+        preset.name = juce::String::fromUTF8("Akkordok \xc3\xa1rv\xc3\xadzt\xc5\xb1r\xc5\x91");
+        preset.author = juce::String::fromUTF8("Mikl\xc3\xb3s");
+        CHECK(p.addPreset(preset));
+
+        const auto saved = state(p);
+        MnKordAudioProcessor q;
+        q.setStateInformation(saved.getData(), (int) saved.getSize());
+        const auto& active = q.getPresets()[(size_t) q.getActivePresetIndex()];
+        CHECK(active.name == preset.name);
+        CHECK(active.author == preset.author);
+        CHECK(active.file.existsAsFile());   // matched to its file, not restored as a stray copy
+        CHECK(! q.isPresetDirty(q.getActivePresetIndex()));
+    }
+
+    // 13. MIDI engine: sustain retrigger, all notes off, shared notes.
+    {
+        MnKordAudioProcessor p;
+        {
+            const juce::ScopedLock lock(p.getStateLock());
+            auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+            NoteMapping c, a;
+            c.inputNote = 60;
+            c.outputNotes = { 60, 64, 67 };
+            a.inputNote = 62;
+            a.outputNotes = { 57, 60, 64 };
+            preset.mappings = { c, a };
+        }
+
+        auto run = [&p](std::initializer_list<juce::MidiMessage> messages)
+        {
+            juce::AudioBuffer<float> audio(0, 512);
+            juce::MidiBuffer midi;
+            for (const auto& m : messages)
+                midi.addEvent(m, 0);
+            p.processBlock(audio, midi);
+
+            std::vector<juce::MidiMessage> out;
+            for (const auto metadata : midi)
+                out.push_back(metadata.getMessage());
+            return out;
+        };
+
+        auto count = [](const std::vector<juce::MidiMessage>& out, bool on, int note)
+        {
+            return (int) std::count_if(out.begin(), out.end(), [on, note](const juce::MidiMessage& m)
+            {
+                return (on ? m.isNoteOn() : m.isNoteOff()) && m.getNoteNumber() == note;
+            });
+        };
+
+        // Overlapping chords share note 60/64: it starts once and stops with the last key.
+        auto out = run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100), juce::MidiMessage::noteOn(1, 62, (juce::uint8) 100) });
+        CHECK(count(out, true, 60) == 1 && count(out, true, 57) == 1);
+        out = run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(out, false, 60) == 0 && count(out, false, 67) == 1);
+        out = run({ juce::MidiMessage::noteOff(1, 62) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 57) == 1);
+
+        // Replaying a chord still held by the pedal releases the held notes before restarting them.
+        run({ juce::MidiMessage::controllerEvent(1, 64, 127), juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        out = run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(out, false, 60) == 0);
+        out = run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        CHECK(count(out, false, 60) == 1 && count(out, true, 60) == 1);
+        out = run({ juce::MidiMessage::noteOff(1, 60), juce::MidiMessage::controllerEvent(1, 64, 0) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 64) == 1 && count(out, false, 67) == 1);
+
+        // All notes off (transport stop) releases everything, so the chord plays again afterwards.
+        run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        out = run({ juce::MidiMessage::allNotesOff(1) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 64) == 1 && count(out, false, 67) == 1);
+        CHECK(p.getActiveInputNotes() == MnKordAudioProcessor::NoteBits {});
+        out = run({ juce::MidiMessage::noteOn(1, 62, (juce::uint8) 100) });
+        CHECK(count(out, true, 60) == 1 && count(out, true, 64) == 1);
+        run({ juce::MidiMessage::noteOff(1, 62) });
+    }
+
+    // 14. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    {
+        CHECK(! ChordSymbol::parseChord("Cxyz").valid);
+        CHECK(! ChordSymbol::parseChord("H7").valid);
+        CHECK(ChordSymbol::parseChord("F#m7b5/C").valid);
     }
 
     root.deleteRecursively();
