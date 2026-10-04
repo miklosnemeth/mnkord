@@ -126,5 +126,11 @@ The tests use a temporary library folder and never touch `Documents\MNAudio\mnKo
 
 ## License
 
-Plugin code: your project license (add one if distributing).  
-JUCE is subject to the [JUCE license](https://github.com/juce-framework/JUCE/blob/master/LICENSE.md).
+Copyright (C) 2026 Miklós Németh.
+
+mnKord is free software under the **GNU Affero General Public License v3.0** (see [LICENSE](LICENSE)):
+you may use, study, change and share it, but every modified version you distribute (or offer to
+users over a network) must be released under the same license, with its source code.
+
+It is built with [JUCE](https://juce.com) under JUCE's AGPLv3 option, which is what makes this license
+a good fit. The bundled fonts (Montserrat, Roboto Condensed) are licensed under the SIL Open Font License.
