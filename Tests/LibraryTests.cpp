@@ -1,9 +1,32 @@
-// Console tests for the preset library, project state, chord symbols and velocity layers.
+// Console tests for the preset library, project state, chord symbols, velocity layers and the
+// MIDI engine.
 // Built with -DMNKORD_BUILD_TESTS=ON (target mnKordTests); uses a temporary library folder,
 // never the real Documents\MNAudio\mnKord.
 #include "PluginProcessor.h"
 #include "ChordSymbol.h"
 #include <cstdio>
+#include <cstdlib>
+#include <atomic>
+#include <new>
+#include <thread>
+
+// Counts heap allocations while countAllocations is set, to check that processBlock doesn't allocate.
+static std::atomic<bool> countAllocations { false };
+static std::atomic<int> allocations { 0 };
+
+void* operator new(std::size_t size)
+{
+    if (countAllocations.load())
+        ++allocations;
+
+    if (auto* p = std::malloc(size == 0 ? 1 : size))
+        return p;
+
+    throw std::bad_alloc();
+}
+
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 
 static int failures = 0, checks = 0;
 static int factoryCount = 0;   // number of built-in presets, read from a fresh library
@@ -304,6 +327,232 @@ int main()
         q.setStateInformation(saved.getData(), (int) saved.getSize());
         const auto& restored = q.getPresets()[(size_t) q.getActivePresetIndex()].mappings;
         CHECK(restored.size() == 2 && restored[0].minVelocity == 1 && restored[1].minVelocity == 100);
+    }
+
+    // 12. Project state with non-ASCII text survives a save/load round trip.
+    {
+        MnKordAudioProcessor p;
+        Preset preset = p.getPresets()[0];
+        preset.name = juce::String::fromUTF8("Akkordok \xc3\xa1rv\xc3\xadzt\xc5\xb1r\xc5\x91");
+        preset.author = juce::String::fromUTF8("Mikl\xc3\xb3s");
+        CHECK(p.addPreset(preset));
+
+        const auto saved = state(p);
+        MnKordAudioProcessor q;
+        q.setStateInformation(saved.getData(), (int) saved.getSize());
+        const auto& active = q.getPresets()[(size_t) q.getActivePresetIndex()];
+        CHECK(active.name == preset.name);
+        CHECK(active.author == preset.author);
+        CHECK(active.file.existsAsFile());   // matched to its file, not restored as a stray copy
+        CHECK(! q.isPresetDirty(q.getActivePresetIndex()));
+    }
+
+    // 13. MIDI engine: shared notes, the sustain pedal passes through, all notes off.
+    {
+        MnKordAudioProcessor p;
+        {
+            const juce::ScopedLock lock(p.getStateLock());
+            auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+            NoteMapping c, a;
+            c.inputNote = 60;
+            c.outputNotes = { 60, 64, 67 };
+            a.inputNote = 62;
+            a.outputNotes = { 57, 60, 64 };
+            preset.mappings = { c, a };
+        }
+
+        auto run = [&p](std::initializer_list<juce::MidiMessage> messages)
+        {
+            juce::AudioBuffer<float> audio(0, 512);
+            juce::MidiBuffer midi;
+            for (const auto& m : messages)
+                midi.addEvent(m, 0);
+            p.processBlock(audio, midi);
+
+            std::vector<juce::MidiMessage> out;
+            for (const auto metadata : midi)
+                out.push_back(metadata.getMessage());
+            return out;
+        };
+
+        auto count = [](const std::vector<juce::MidiMessage>& out, bool on, int note)
+        {
+            return (int) std::count_if(out.begin(), out.end(), [on, note](const juce::MidiMessage& m)
+            {
+                return (on ? m.isNoteOn() : m.isNoteOff()) && m.getNoteNumber() == note;
+            });
+        };
+
+        // Overlapping chords share note 60/64: it starts once and stops with the last key.
+        auto out = run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100), juce::MidiMessage::noteOn(1, 62, (juce::uint8) 100) });
+        CHECK(count(out, true, 60) == 1 && count(out, true, 57) == 1);
+        out = run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(out, false, 60) == 0 && count(out, false, 67) == 1);
+        out = run({ juce::MidiMessage::noteOff(1, 62) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 57) == 1);
+
+        // The sustain pedal is left to the synth: it passes through, and note-offs aren't held back.
+        out = run({ juce::MidiMessage::controllerEvent(1, 64, 127), juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        CHECK(std::any_of(out.begin(), out.end(), [](const juce::MidiMessage& m) { return m.isSustainPedalOn(); }));
+        out = run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 64) == 1 && count(out, false, 67) == 1);
+        out = run({ juce::MidiMessage::controllerEvent(1, 64, 0) });
+        CHECK(out.size() == 1 && out[0].isSustainPedalOff());
+
+        // All notes off (transport stop) releases everything, so the chord plays again afterwards.
+        run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        out = run({ juce::MidiMessage::allNotesOff(1) });
+        CHECK(count(out, false, 60) == 1 && count(out, false, 64) == 1 && count(out, false, 67) == 1);
+        CHECK(p.getActiveInputNotes() == MnKordAudioProcessor::NoteBits {});
+        out = run({ juce::MidiMessage::noteOn(1, 62, (juce::uint8) 100) });
+        CHECK(count(out, true, 60) == 1 && count(out, true, 64) == 1);
+        run({ juce::MidiMessage::noteOff(1, 62) });
+    }
+
+    // 14. MIDI engine: channels are independent, duplicate chord notes count once, a preset
+    //     switch releases what's sounding, and processBlock doesn't allocate.
+    {
+        MnKordAudioProcessor p;
+        p.prepareToPlay(48000.0, 512);
+        {
+            const juce::ScopedLock lock(p.getStateLock());
+            auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+            NoteMapping c;
+            c.inputNote = 60;
+            c.outputNotes = { 60, 64, 64, 67 };
+            preset.mappings = { c };
+        }
+
+        juce::AudioBuffer<float> audio(0, 512);
+        juce::MidiBuffer midi;
+        auto run = [&](std::initializer_list<juce::MidiMessage> messages)
+        {
+            midi.clear();
+            for (const auto& m : messages)
+                midi.addEvent(m, 0);
+            p.processBlock(audio, midi);
+        };
+
+        auto count = [&midi](bool on, int channel, int note)
+        {
+            int n = 0;
+            for (const auto metadata : midi)
+            {
+                const auto m = metadata.getMessage();
+                if ((on ? m.isNoteOn() : m.isNoteOff()) && m.getChannel() == channel && m.getNoteNumber() == note)
+                    ++n;
+            }
+            return n;
+        };
+
+        run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100), juce::MidiMessage::noteOn(2, 60, (juce::uint8) 100) });
+        CHECK(count(true, 1, 64) == 1 && count(true, 2, 64) == 1);
+        run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(false, 1, 64) == 1 && count(false, 2, 64) == 0);
+
+        // Channel 2 is still sounding: switching presets releases it on the next block.
+        p.setActivePresetIndex(1);
+        run({});
+        CHECK(count(false, 2, 60) == 1 && count(false, 2, 64) == 1 && count(false, 2, 67) == 1);
+        CHECK(p.getActiveOutputNotes() == MnKordAudioProcessor::NoteBits {});
+
+        // Warm-up, then a block full of chord traffic must not touch the heap.
+        p.setActivePresetIndex(indexOfName(p, "Chromatic Sevenths", true));
+        run({});
+        juce::MidiBuffer busy;
+        for (int i = 0; i < 64; ++i)
+        {
+            busy.addEvent(juce::MidiMessage::noteOn(1 + i % 16, 60 + i % 12, (juce::uint8) 100), i);
+            busy.addEvent(juce::MidiMessage::controllerEvent(1 + i % 16, 64, i % 2 == 0 ? 127 : 0), i);
+            busy.addEvent(juce::MidiMessage::noteOff(1 + i % 16, 60 + i % 12), i);
+        }
+        busy.addEvent(juce::MidiMessage::allNotesOff(1), 100);
+        midi = busy;
+
+        allocations = 0;
+        countAllocations = true;
+        p.processBlock(audio, midi);
+        countAllocations = false;
+        CHECK(allocations.load() == 0);
+        CHECK(! midi.isEmpty());
+    }
+
+    // 15. A program change from another thread (VST3 hosts send it on the audio thread) waits
+    //     for the message thread; the host sees the requested program meanwhile.
+    {
+        MnKordAudioProcessor p;
+        CHECK(p.getActivePresetIndex() == 0);
+
+        std::thread audioThread([&p] { p.setCurrentProgram(2); });
+        audioThread.join();
+
+        CHECK(p.getActivePresetIndex() == 0);
+        CHECK(p.getCurrentProgram() == 2);
+
+        p.applyPendingProgramChange();
+        CHECK(p.getActivePresetIndex() == 2);
+        CHECK(p.getCurrentProgram() == 2);
+
+        // On the message thread it switches at once.
+        p.setCurrentProgram(3);
+        CHECK(p.getActivePresetIndex() == 3);
+        p.applyPendingProgramChange();
+        CHECK(p.getActivePresetIndex() == 3);
+    }
+
+    // 16. Host program list: a fixed count (VST3 hosts read it once), empty slots past the presets,
+    //     and the host is told whenever the list or the current program changes.
+    {
+        struct HostListener : juce::AudioProcessorListener
+        {
+            int programChanges = 0;
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails& details) override
+            {
+                if (details.programChanged)
+                    ++programChanges;
+            }
+        };
+
+        MnKordAudioProcessor p;
+        HostListener host;
+        p.addListener(&host);
+
+        const int count = p.getNumPrograms();
+        const int presetCount = (int) p.getPresets().size();
+        CHECK(count == juce::jmax(MnKordAudioProcessor::minHostPrograms, presetCount));
+        CHECK(p.getProgramName(0) == p.getPresets()[0].name);
+        CHECK(p.getProgramName(presetCount) == "-");
+
+        p.setCurrentProgram(1);
+        CHECK(host.programChanges == 1 && p.getCurrentProgram() == 1);
+
+        Preset added = p.getPresets()[0];
+        added.name = "Host List Test";
+        CHECK(p.addPreset(added));
+        CHECK(host.programChanges == 2);
+        CHECK(p.getNumPrograms() == count);
+        CHECK(p.getProgramName(presetCount) == "Host List Test");
+        CHECK(p.getCurrentProgram() == presetCount);
+
+        // An empty slot keeps the current preset and points the host back at it.
+        p.setCurrentProgram(count - 1);
+        CHECK(p.getActivePresetIndex() == presetCount);
+        CHECK(host.programChanges == 3);
+
+        CHECK(p.deletePreset(presetCount));
+        CHECK(host.programChanges == 4);
+        CHECK(p.getProgramName(presetCount) == "-");
+        CHECK(p.getNumPrograms() == count);
+
+        p.removeListener(&host);
+    }
+
+    // 17. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    {
+        CHECK(! ChordSymbol::parseChord("Cxyz").valid);
+        CHECK(! ChordSymbol::parseChord("H7").valid);
+        CHECK(ChordSymbol::parseChord("F#m7b5/C").valid);
     }
 
     root.deleteRecursively();

@@ -20,8 +20,8 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Preset metadata: name, group, author, style tags
 - Previous / next preset arrows next to the preset name; right-click a preset in the browser for Load, Duplicate, Rename, Show in folder and Delete
 - XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
-- Host program list mirrors the preset list
-- Sustain pedal handling with note ref-counting (no stuck notes)
+- Host program list mirrors the preset list (a fixed 128 programs, so VST3 hosts keep their indices; unused slots show "-")
+- Overlapping chords share notes with ref-counting (no stuck or cut-off notes); the sustain pedal passes through to the synth
 - Non-note MIDI (CC, pitch bend, aftertouch, …) passes through
 - Dark / light theme switch
 
@@ -53,6 +53,15 @@ Artifacts (single `build/` tree, JUCE 9 via FetchContent):
 ```
 
 or your DAW’s custom VST3 folder, then rescan plugins.
+
+## Build (Linux)
+
+```bash
+sudo apt install build-essential cmake git libasound2-dev libfreetype-dev libfontconfig1-dev \
+  libx11-dev libxext-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxcomposite-dev libxrender-dev
+cmake -S . -B build
+cmake --build build -j
+```
 
 ## Usage
 

@@ -50,6 +50,9 @@ target_compile_definitions(mnKord
     PUBLIC
         JucePlugin_Name="mnKord"
         JUCE_VST3_CAN_REPLACE_VST2=0
+        # Not used by the plugin; on Linux they would also need WebKitGTK and libcurl to build.
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
 )
 
 # Source files are UTF-8 without a BOM. Without this, MSVC interprets narrow string literals

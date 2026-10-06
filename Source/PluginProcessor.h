@@ -42,7 +42,8 @@ struct Preset
 };
 
 //==============================================================================
-class MnKordAudioProcessor : public juce::AudioProcessor
+class MnKordAudioProcessor : public juce::AudioProcessor,
+                             private juce::AsyncUpdater
 {
 public:
     //==============================================================================
@@ -69,12 +70,27 @@ public:
     double getTailLengthSeconds() const override;
 
     //==============================================================================
-    // Host program list mirrors the preset list (factory presets first).
+    // Host program list mirrors the preset list (factory presets first), padded with empty slots
+    // to a count that never changes (see minHostPrograms). Some hosts change the
+    // program from the audio thread (VST3 program parameter); the switch can read a preset file,
+    // so it is then handed to the message thread, and getCurrentProgram() reports the requested
+    // program until it has happened.
     int getNumPrograms() override;
     int getCurrentProgram() override;
     void setCurrentProgram(int index) override;
     const juce::String getProgramName(int index) override;
     void changeProgramName(int index, const juce::String& newName) override;
+    // Applies a program change requested off the message thread, if one is waiting. Called on
+    // the message thread (automatically, via the async update).
+    void applyPendingProgramChange();
+    // Tells the host the program list or the current program changed (on the message thread;
+    // from any other thread it is passed on asynchronously). The processor calls it after its
+    // own list changes; the editor after renaming a preset in place.
+    void notifyHostProgramsChanged();
+
+    // The host always sees this many programs (at least minHostPrograms): presets first, then
+    // empty slots named "-".
+    static constexpr int minHostPrograms = 128;
 
     //==============================================================================
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -115,7 +131,7 @@ public:
     // Picks up user preset files added or removed since the library was loaded.
     void refreshUserLibrary();
 
-    // Favourites are shared by every project, kept in Documents\MNAudio\mnKordavorites.txt
+    // Favourites are shared by every project, kept in Documents\MNAudio\mnKord\favorites.txt
     // (message thread only). Factory presets are keyed by name, user presets by file.
     bool isFavoritePreset(const Preset& preset) const;
     void setFavoritePreset(const Preset& preset, bool shouldBeFavorite);
@@ -145,12 +161,27 @@ public:
             return note >= 0 && note < 128 && ((words[(size_t) (note >> 6)] >> (note & 63)) & 1u) != 0;
         }
 
+        void remove(int note)
+        {
+            if (note >= 0 && note < 128)
+                words[(size_t) (note >> 6)] &= ~(std::uint64_t(1) << (note & 63));
+        }
+
+        bool isEmpty() const { return (words[0] | words[1]) == 0; }
+
+        NoteBits operator|(const NoteBits& other) const
+        {
+            NoteBits result;
+            result.words = { words[0] | other.words[0], words[1] | other.words[1] };
+            return result;
+        }
+
         bool operator==(const NoteBits& other) const { return words == other.words; }
         bool operator!=(const NoteBits& other) const { return words != other.words; }
     };
 
-    // INPUT notes currently held and OUTPUT notes currently sounding (any channel; notes held
-    // by the sustain pedal count as sounding), for the editor's live display. Published by the
+    // INPUT notes currently held and OUTPUT notes currently sounding (any channel), for the
+    // editor's live display. Published by the
     // audio thread at the end of every block, so reading them never touches stateLock.
     NoteBits getActiveInputNotes() const  { return loadNoteBits(activeInputWords); }
     NoteBits getActiveOutputNotes() const { return loadNoteBits(activeOutputWords); }
@@ -161,6 +192,11 @@ public:
 
 private:
     //==============================================================================
+    void handleAsyncUpdate() override;
+    std::atomic<int> pendingProgram { -1 };
+    std::atomic<bool> hostNotificationPending { false };
+    int hostProgramCount = minHostPrograms;
+
     juce::String favoriteKeyFor(const Preset& preset) const;
     void loadFavorites();
     juce::StringArray favoriteKeys;
@@ -168,14 +204,21 @@ private:
     std::vector<Preset> presets;
     int activePresetIndex = -1;
 
-    // Runtime state
-    using NoteKey = std::pair<int, int>;              // MIDI channel, note number
+    // Runtime note state, per MIDI channel (index channel - 1). Fixed-size so the audio thread
+    // never allocates.
+    static constexpr int numChannels = 16;
 
-    std::map<NoteKey, std::vector<int>> activeNotes;  // input note -> output notes currently sounding
-    std::map<NoteKey, int> outputNoteRefCount;        // output note -> number of input notes using it
-    bool sustainPedalDown = false;
-    std::vector<NoteKey> pendingNoteOffs;             // output notes waiting for sustain release
-    std::vector<NoteKey> notesToFlush;                // output notes to emit note-off for on next processBlock
+    struct ChannelState
+    {
+        NoteBits heldInputs;                       // input notes currently held
+        std::array<NoteBits, 128> chordOf {};      // output notes each held input note started
+        std::array<std::uint16_t, 128> refCount {}; // held input notes using each output note
+        NoteBits sounding;                         // output notes with refCount > 0
+    };
+
+    std::array<ChannelState, numChannels> channels {};
+    std::vector<std::pair<int, int>> notesToFlush;   // (channel, note) to release on the next processBlock
+    juce::MidiBuffer outputMessages;                  // reused every block
 
     // Guards all runtime state + preset structural edits across the audio and GUI threads.
     juce::CriticalSection stateLock;
@@ -201,7 +244,8 @@ private:
 
     void handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output);
     void handleNoteOff(int channel, int note, int samplePosition, juce::MidiBuffer& output);
-    void handleSustain(bool down, int samplePosition, juce::MidiBuffer& output);
+    // All notes off / all sound off: releases every output note on channel.
+    void handleAllNotesOff(int channel, int samplePosition, juce::MidiBuffer& output);
     // Delivers note-offs for notesToFlush into the output buffer. Caller must hold stateLock.
     void flushPendingNoteOffs(juce::MidiBuffer& output);
     // Clears runtime note state and queues note-offs for any still-sounding output notes.
