@@ -180,8 +180,8 @@ public:
         bool operator!=(const NoteBits& other) const { return words != other.words; }
     };
 
-    // INPUT notes currently held and OUTPUT notes currently sounding (any channel; notes held
-    // by the sustain pedal count as sounding), for the editor's live display. Published by the
+    // INPUT notes currently held and OUTPUT notes currently sounding (any channel), for the
+    // editor's live display. Published by the
     // audio thread at the end of every block, so reading them never touches stateLock.
     NoteBits getActiveInputNotes() const  { return loadNoteBits(activeInputWords); }
     NoteBits getActiveOutputNotes() const { return loadNoteBits(activeOutputWords); }
@@ -214,11 +214,9 @@ private:
         std::array<NoteBits, 128> chordOf {};      // output notes each held input note started
         std::array<std::uint16_t, 128> refCount {}; // held input notes using each output note
         NoteBits sounding;                         // output notes with refCount > 0
-        NoteBits pendingOffs;                      // output notes waiting for sustain release
     };
 
     std::array<ChannelState, numChannels> channels {};
-    bool sustainPedalDown = false;
     std::vector<std::pair<int, int>> notesToFlush;   // (channel, note) to release on the next processBlock
     juce::MidiBuffer outputMessages;                  // reused every block
 
@@ -246,8 +244,7 @@ private:
 
     void handleNoteOn(int channel, int note, int velocity, int samplePosition, juce::MidiBuffer& output);
     void handleNoteOff(int channel, int note, int samplePosition, juce::MidiBuffer& output);
-    void handleSustain(bool down, int samplePosition, juce::MidiBuffer& output);
-    // All notes off / all sound off: releases every output note on channel, sustained or not.
+    // All notes off / all sound off: releases every output note on channel.
     void handleAllNotesOff(int channel, int samplePosition, juce::MidiBuffer& output);
     // Delivers note-offs for notesToFlush into the output buffer. Caller must hold stateLock.
     void flushPendingNoteOffs(juce::MidiBuffer& output);

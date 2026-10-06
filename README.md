@@ -21,7 +21,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Previous / next preset arrows next to the preset name; right-click a preset in the browser for Load, Duplicate, Rename, Show in folder and Delete
 - XML preset **Export**; **Import** accepts a single preset or a multi-preset bank file
 - Host program list mirrors the preset list (a fixed 128 programs, so VST3 hosts keep their indices; unused slots show "-")
-- Sustain pedal handling with note ref-counting (no stuck notes)
+- Overlapping chords share notes with ref-counting (no stuck or cut-off notes); the sustain pedal passes through to the synth
 - Non-note MIDI (CC, pitch bend, aftertouch, …) passes through
 - Dark / light theme switch
 

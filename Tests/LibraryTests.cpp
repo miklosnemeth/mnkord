@@ -347,7 +347,7 @@ int main()
         CHECK(! q.isPresetDirty(q.getActivePresetIndex()));
     }
 
-    // 13. MIDI engine: sustain retrigger, all notes off, shared notes.
+    // 13. MIDI engine: shared notes, the sustain pedal passes through, all notes off.
     {
         MnKordAudioProcessor p;
         {
@@ -391,14 +391,13 @@ int main()
         out = run({ juce::MidiMessage::noteOff(1, 62) });
         CHECK(count(out, false, 60) == 1 && count(out, false, 57) == 1);
 
-        // Replaying a chord still held by the pedal releases the held notes before restarting them.
-        run({ juce::MidiMessage::controllerEvent(1, 64, 127), juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        // The sustain pedal is left to the synth: it passes through, and note-offs aren't held back.
+        out = run({ juce::MidiMessage::controllerEvent(1, 64, 127), juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
+        CHECK(std::any_of(out.begin(), out.end(), [](const juce::MidiMessage& m) { return m.isSustainPedalOn(); }));
         out = run({ juce::MidiMessage::noteOff(1, 60) });
-        CHECK(count(out, false, 60) == 0);
-        out = run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });
-        CHECK(count(out, false, 60) == 1 && count(out, true, 60) == 1);
-        out = run({ juce::MidiMessage::noteOff(1, 60), juce::MidiMessage::controllerEvent(1, 64, 0) });
         CHECK(count(out, false, 60) == 1 && count(out, false, 64) == 1 && count(out, false, 67) == 1);
+        out = run({ juce::MidiMessage::controllerEvent(1, 64, 0) });
+        CHECK(out.size() == 1 && out[0].isSustainPedalOff());
 
         // All notes off (transport stop) releases everything, so the chord plays again afterwards.
         run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100) });

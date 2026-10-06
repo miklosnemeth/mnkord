@@ -318,19 +318,10 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             handleAllNotesOff(channel, samplePosition, outputMessages);
             outputMessages.addEvent(message, samplePosition);
         }
-        else if (message.isSustainPedalOn())
-        {
-            handleSustain(true, samplePosition, outputMessages);
-            outputMessages.addEvent(message, samplePosition);
-        }
-        else if (message.isSustainPedalOff())
-        {
-            handleSustain(false, samplePosition, outputMessages);
-            outputMessages.addEvent(message, samplePosition);
-        }
         else
         {
-            // CC, pitch bend, aftertouch, clock, etc. pass through unchanged.
+            // CC (sustain pedal included: the synth sustains the chord notes itself), pitch bend,
+            // aftertouch, clock, etc. pass through unchanged.
             outputMessages.addEvent(message, samplePosition);
         }
     }
@@ -346,7 +337,7 @@ void MnKordAudioProcessor::publishActiveNotes()
     for (const auto& state : channels)
     {
         input = input | state.heldInputs;
-        output = output | state.sounding | state.pendingOffs;
+        output = output | state.sounding;
     }
 
     for (size_t i = 0; i < input.words.size(); ++i)
@@ -410,14 +401,6 @@ void MnKordAudioProcessor::handleNoteOn(int channel, int note, int velocity, int
         {
             state.sounding.add(outNote);
 
-            // A note still ringing on the sustain pedal gets its deferred note-off now, so the
-            // retrigger isn't a second note-on for a note that is already on.
-            if (state.pendingOffs.contains(outNote))
-            {
-                state.pendingOffs.remove(outNote);
-                output.addEvent(juce::MidiMessage::noteOff(channel, outNote), samplePosition);
-            }
-
             const auto outVelocity = juce::jlimit(1, 127, mapping->velocityFor(outNote));
             output.addEvent(juce::MidiMessage::noteOn(channel, outNote, (juce::uint8) outVelocity), samplePosition);
         }
@@ -445,11 +428,7 @@ void MnKordAudioProcessor::handleNoteOff(int channel, int note, int samplePositi
             continue;
 
         state.sounding.remove(outNote);
-
-        if (sustainPedalDown)
-            state.pendingOffs.add(outNote);
-        else
-            output.addEvent(juce::MidiMessage::noteOff(channel, outNote), samplePosition);
+        output.addEvent(juce::MidiMessage::noteOff(channel, outNote), samplePosition);
     }
 
     chord = {};
@@ -461,35 +440,12 @@ void MnKordAudioProcessor::handleAllNotesOff(int channel, int samplePosition, ju
         return;
 
     auto& state = channels[(size_t) (channel - 1)];
-    const auto toRelease = state.sounding | state.pendingOffs;
 
     for (int outNote = 0; outNote < 128; ++outNote)
-        if (toRelease.contains(outNote))
+        if (state.sounding.contains(outNote))
             output.addEvent(juce::MidiMessage::noteOff(channel, outNote), samplePosition);
 
     state = {};
-}
-
-void MnKordAudioProcessor::handleSustain(bool down, int samplePosition, juce::MidiBuffer& output)
-{
-    sustainPedalDown = down;
-
-    if (down)
-        return;
-
-    // Release all pending note-offs
-    for (int ch = 0; ch < numChannels; ++ch)
-    {
-        auto& pending = channels[(size_t) ch].pendingOffs;
-        if (pending.isEmpty())
-            continue;
-
-        for (int outNote = 0; outNote < 128; ++outNote)
-            if (pending.contains(outNote))
-                output.addEvent(juce::MidiMessage::noteOff(ch + 1, outNote), samplePosition);
-
-        pending = {};
-    }
 }
 
 void MnKordAudioProcessor::flushPendingNoteOffs(juce::MidiBuffer& output)
@@ -511,17 +467,15 @@ void MnKordAudioProcessor::clearActiveNotes()
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            const auto& state = channels[(size_t) ch];
-            const auto toRelease = state.sounding | state.pendingOffs;
+            const auto& sounding = channels[(size_t) ch].sounding;
 
-            for (int outNote = 0; outNote < 128 && ! toRelease.isEmpty(); ++outNote)
-                if (toRelease.contains(outNote))
+            for (int outNote = 0; outNote < 128 && ! sounding.isEmpty(); ++outNote)
+                if (sounding.contains(outNote))
                     notesToFlush.emplace_back(ch + 1, outNote);
         }
     }
 
     channels = {};
-    sustainPedalDown = false;
     publishActiveNotes();
 }
 
