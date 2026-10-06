@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <atomic>
 #include <new>
+#include <thread>
 
 // Counts heap allocations while countAllocations is set, to check that processBlock doesn't allocate.
 static std::atomic<bool> countAllocations { false };
@@ -477,7 +478,30 @@ int main()
         CHECK(! midi.isEmpty());
     }
 
-    // 15. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    // 15. A program change from another thread (VST3 hosts send it on the audio thread) waits
+    //     for the message thread; the host sees the requested program meanwhile.
+    {
+        MnKordAudioProcessor p;
+        CHECK(p.getActivePresetIndex() == 0);
+
+        std::thread audioThread([&p] { p.setCurrentProgram(2); });
+        audioThread.join();
+
+        CHECK(p.getActivePresetIndex() == 0);
+        CHECK(p.getCurrentProgram() == 2);
+
+        p.applyPendingProgramChange();
+        CHECK(p.getActivePresetIndex() == 2);
+        CHECK(p.getCurrentProgram() == 2);
+
+        // On the message thread it switches at once.
+        p.setCurrentProgram(3);
+        CHECK(p.getActivePresetIndex() == 3);
+        p.applyPendingProgramChange();
+        CHECK(p.getActivePresetIndex() == 3);
+    }
+
+    // 16. Chord symbols: unknown ones are rejected (the chord field passes user text here).
     {
         CHECK(! ChordSymbol::parseChord("Cxyz").valid);
         CHECK(! ChordSymbol::parseChord("H7").valid);

@@ -139,6 +139,7 @@ MnKordAudioProcessor::MnKordAudioProcessor()
 
 MnKordAudioProcessor::~MnKordAudioProcessor()
 {
+    cancelPendingUpdate();
 }
 
 //==============================================================================
@@ -176,13 +177,39 @@ int MnKordAudioProcessor::getNumPrograms()
 
 int MnKordAudioProcessor::getCurrentProgram()
 {
+    const int pending = pendingProgram.load();
+    if (pending >= 0)
+        return pending;
+
     const juce::ScopedLock lock(stateLock);
     return juce::jmax(0, activePresetIndex);
 }
 
 void MnKordAudioProcessor::setCurrentProgram(int index)
 {
-    setActivePresetIndex(index);
+    if (index < 0)
+        return;
+
+    if (juce::MessageManager::existsAndIsCurrentThread())
+    {
+        // Supersedes any change still waiting from another thread.
+        pendingProgram.store(-1);
+        cancelPendingUpdate();
+        setActivePresetIndex(index);
+        return;
+    }
+
+    // Leaving the current preset may revert it from its file, and the audio thread must not
+    // wait on the disk; the old preset keeps playing until the message thread switches.
+    pendingProgram.store(index);
+    triggerAsyncUpdate();
+}
+
+void MnKordAudioProcessor::applyPendingProgramChange()
+{
+    const int index = pendingProgram.exchange(-1);
+    if (index >= 0)
+        setActivePresetIndex(index);
 }
 
 const juce::String MnKordAudioProcessor::getProgramName(int index)

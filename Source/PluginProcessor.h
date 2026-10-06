@@ -42,7 +42,8 @@ struct Preset
 };
 
 //==============================================================================
-class MnKordAudioProcessor : public juce::AudioProcessor
+class MnKordAudioProcessor : public juce::AudioProcessor,
+                             private juce::AsyncUpdater
 {
 public:
     //==============================================================================
@@ -69,12 +70,18 @@ public:
     double getTailLengthSeconds() const override;
 
     //==============================================================================
-    // Host program list mirrors the preset list (factory presets first).
+    // Host program list mirrors the preset list (factory presets first). Some hosts change the
+    // program from the audio thread (VST3 program parameter); the switch can read a preset file,
+    // so it is then handed to the message thread, and getCurrentProgram() reports the requested
+    // program until it has happened.
     int getNumPrograms() override;
     int getCurrentProgram() override;
     void setCurrentProgram(int index) override;
     const juce::String getProgramName(int index) override;
     void changeProgramName(int index, const juce::String& newName) override;
+    // Applies a program change requested off the message thread, if one is waiting. Called on
+    // the message thread (automatically, via the async update).
+    void applyPendingProgramChange();
 
     //==============================================================================
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -176,6 +183,9 @@ public:
 
 private:
     //==============================================================================
+    void handleAsyncUpdate() override { applyPendingProgramChange(); }
+    std::atomic<int> pendingProgram { -1 };
+
     juce::String favoriteKeyFor(const Preset& preset) const;
     void loadFavorites();
     juce::StringArray favoriteKeys;
