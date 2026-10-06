@@ -70,7 +70,8 @@ public:
     double getTailLengthSeconds() const override;
 
     //==============================================================================
-    // Host program list mirrors the preset list (factory presets first). Some hosts change the
+    // Host program list mirrors the preset list (factory presets first), padded with empty slots
+    // to a count that never changes (see minHostPrograms). Some hosts change the
     // program from the audio thread (VST3 program parameter); the switch can read a preset file,
     // so it is then handed to the message thread, and getCurrentProgram() reports the requested
     // program until it has happened.
@@ -82,6 +83,14 @@ public:
     // Applies a program change requested off the message thread, if one is waiting. Called on
     // the message thread (automatically, via the async update).
     void applyPendingProgramChange();
+    // Tells the host the program list or the current program changed (on the message thread;
+    // from any other thread it is passed on asynchronously). The processor calls it after its
+    // own list changes; the editor after renaming a preset in place.
+    void notifyHostProgramsChanged();
+
+    // The host always sees this many programs (at least minHostPrograms): presets first, then
+    // empty slots named "-".
+    static constexpr int minHostPrograms = 128;
 
     //==============================================================================
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -183,8 +192,10 @@ public:
 
 private:
     //==============================================================================
-    void handleAsyncUpdate() override { applyPendingProgramChange(); }
+    void handleAsyncUpdate() override;
     std::atomic<int> pendingProgram { -1 };
+    std::atomic<bool> hostNotificationPending { false };
+    int hostProgramCount = minHostPrograms;
 
     juce::String favoriteKeyFor(const Preset& preset) const;
     void loadFavorites();

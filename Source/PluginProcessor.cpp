@@ -135,6 +135,11 @@ MnKordAudioProcessor::MnKordAudioProcessor()
     presets = buildLibrary();
     loadFavorites();
     activePresetIndex = presets.empty() ? -1 : 0;
+
+    // Fixed for the plugin's lifetime: VST3 hosts learn the program count once, when the plugin
+    // is loaded, so a count that grew or shrank with the library would shift their program
+    // indices. The slots past the end of the preset list are empty.
+    hostProgramCount = juce::jmax(minHostPrograms, (int) presets.size());
 }
 
 MnKordAudioProcessor::~MnKordAudioProcessor()
@@ -171,8 +176,7 @@ double MnKordAudioProcessor::getTailLengthSeconds() const
 //==============================================================================
 int MnKordAudioProcessor::getNumPrograms()
 {
-    const juce::ScopedLock lock(stateLock);
-    return juce::jmax(1, (int) presets.size());
+    return hostProgramCount;
 }
 
 int MnKordAudioProcessor::getCurrentProgram()
@@ -187,8 +191,18 @@ int MnKordAudioProcessor::getCurrentProgram()
 
 void MnKordAudioProcessor::setCurrentProgram(int index)
 {
-    if (index < 0)
+    bool isPreset = false;
+    {
+        const juce::ScopedLock lock(stateLock);
+        isPreset = index >= 0 && index < (int) presets.size();
+    }
+
+    // An empty slot: stay on the current preset, and point the host back at it.
+    if (! isPreset)
+    {
+        notifyHostProgramsChanged();
         return;
+    }
 
     if (juce::MessageManager::existsAndIsCurrentThread())
     {
@@ -212,13 +226,35 @@ void MnKordAudioProcessor::applyPendingProgramChange()
         setActivePresetIndex(index);
 }
 
+void MnKordAudioProcessor::notifyHostProgramsChanged()
+{
+    // The VST3 wrapper talks to the host's component handler, which belongs to the message thread.
+    if (! juce::MessageManager::existsAndIsCurrentThread())
+    {
+        hostNotificationPending.store(true);
+        triggerAsyncUpdate();
+        return;
+    }
+
+    hostNotificationPending.store(false);
+    updateHostDisplay(ChangeDetails().withProgramChanged(true));
+}
+
+void MnKordAudioProcessor::handleAsyncUpdate()
+{
+    applyPendingProgramChange();
+
+    if (hostNotificationPending.load())
+        notifyHostProgramsChanged();
+}
+
 const juce::String MnKordAudioProcessor::getProgramName(int index)
 {
     const juce::ScopedLock lock(stateLock);
     if (index >= 0 && index < (int) presets.size())
         return presets[(size_t) index].name;
 
-    return {};
+    return "-";   // an empty slot
 }
 
 void MnKordAudioProcessor::changeProgramName(int index, const juce::String& newName)
@@ -737,20 +773,28 @@ bool MnKordAudioProcessor::revertPreset(int index)
         return false;
     }
 
-    const juce::ScopedLock lock(stateLock);
-    if (index >= (int) presets.size() || presets[(size_t) index].isFactory != isFactory || presets[(size_t) index].file != file)
-        return false;
+    bool renamed = false;
+    {
+        const juce::ScopedLock lock(stateLock);
+        if (index >= (int) presets.size() || presets[(size_t) index].isFactory != isFactory || presets[(size_t) index].file != file)
+            return false;
 
-    auto& preset = presets[(size_t) index];
-    preset.name = fresh.name;
-    preset.group = fresh.group;
-    preset.author = fresh.author;
-    preset.tags = fresh.tags;
-    preset.mappings = std::move(fresh.mappings);
-    preset.savedXml = fingerprint(preset);
+        auto& preset = presets[(size_t) index];
+        renamed = preset.name != fresh.name;
+        preset.name = fresh.name;
+        preset.group = fresh.group;
+        preset.author = fresh.author;
+        preset.tags = fresh.tags;
+        preset.mappings = std::move(fresh.mappings);
+        preset.savedXml = fingerprint(preset);
 
-    if (index == activePresetIndex)
-        clearActiveNotes();
+        if (index == activePresetIndex)
+            clearActiveNotes();
+    }
+
+    // An unsaved rename is undone: the host's program name changes back.
+    if (renamed)
+        notifyHostProgramsChanged();
 
     return true;
 }
@@ -825,31 +869,56 @@ void MnKordAudioProcessor::refreshUserLibrary()
     loadFavorites();
     auto onDisk = loadUserPresets();
 
-    const juce::ScopedLock lock(stateLock);
-
-    for (auto& candidate : onDisk)
+    // Which listed user preset files are gone, checked before taking the lock so the audio
+    // thread never waits on the disk.
+    std::vector<juce::File> listedFiles, missingFiles;
     {
-        const bool known = std::any_of(presets.begin(), presets.end(),
-                                       [&candidate](const Preset& p) { return ! p.isFactory && p.file == candidate.file; });
-        if (! known)
-            presets.push_back(std::move(candidate));
+        const juce::ScopedLock lock(stateLock);
+        for (const auto& preset : presets)
+            if (! preset.isFactory && preset.file != juce::File())
+                listedFiles.push_back(preset.file);
     }
 
-    // Drop user presets whose file was removed, unless they're the active one or have unsaved
-    // changes -- those stay as the working copy.
-    for (int i = (int) presets.size() - 1; i >= 0; --i)
+    for (const auto& file : listedFiles)
+        if (! file.existsAsFile())
+            missingFiles.push_back(file);
+
+    bool changed = false;
     {
-        const auto& preset = presets[(size_t) i];
-        if (preset.isFactory || preset.file == juce::File() || preset.file.existsAsFile() || i == activePresetIndex)
-            continue;
+        const juce::ScopedLock lock(stateLock);
 
-        if (fingerprint(preset) != preset.savedXml)
-            continue;
+        for (auto& candidate : onDisk)
+        {
+            const bool known = std::any_of(presets.begin(), presets.end(),
+                                           [&candidate](const Preset& p) { return ! p.isFactory && p.file == candidate.file; });
+            if (! known)
+            {
+                presets.push_back(std::move(candidate));
+                changed = true;
+            }
+        }
 
-        presets.erase(presets.begin() + i);
-        if (i < activePresetIndex)
-            --activePresetIndex;
+        // Drop user presets whose file was removed, unless they're the active one or have unsaved
+        // changes -- those stay as the working copy.
+        for (int i = (int) presets.size() - 1; i >= 0; --i)
+        {
+            const auto& preset = presets[(size_t) i];
+            if (preset.isFactory || i == activePresetIndex
+                || std::find(missingFiles.begin(), missingFiles.end(), preset.file) == missingFiles.end())
+                continue;
+
+            if (fingerprint(preset) != preset.savedXml)
+                continue;
+
+            presets.erase(presets.begin() + i);
+            if (i < activePresetIndex)
+                --activePresetIndex;
+            changed = true;
+        }
     }
+
+    if (changed)
+        notifyHostProgramsChanged();
 }
 
 //==============================================================================
@@ -866,14 +935,18 @@ void MnKordAudioProcessor::setActivePresetIndex(int index)
     if (previous != index && isPresetDirty(previous) && canRevertPreset(previous))
         revertPreset(previous);
 
-    const juce::ScopedLock lock(stateLock);
+    {
+        const juce::ScopedLock lock(stateLock);
 
-    if (index >= 0 && index < (int) presets.size())
-        activePresetIndex = index;
-    else
-        activePresetIndex = -1;
+        if (index >= 0 && index < (int) presets.size())
+            activePresetIndex = index;
+        else
+            activePresetIndex = -1;
 
-    clearActiveNotes();
+        clearActiveNotes();
+    }
+
+    notifyHostProgramsChanged();
 }
 
 bool MnKordAudioProcessor::addPreset(const Preset& preset)
@@ -892,10 +965,14 @@ bool MnKordAudioProcessor::addPreset(const Preset& preset)
     bool written = false;
     auto saved = saveAsNewUserPreset(preset, written);
 
-    const juce::ScopedLock lock(stateLock);
-    presets.push_back(std::move(saved));
-    activePresetIndex = (int) presets.size() - 1;
-    clearActiveNotes();
+    {
+        const juce::ScopedLock lock(stateLock);
+        presets.push_back(std::move(saved));
+        activePresetIndex = (int) presets.size() - 1;
+        clearActiveNotes();
+    }
+
+    notifyHostProgramsChanged();
     return written;
 }
 
@@ -915,23 +992,26 @@ bool MnKordAudioProcessor::deletePreset(int index)
     if (file != juce::File() && file.exists() && ! file.moveToTrash())
         return false;
 
-    const juce::ScopedLock lock(stateLock);
-    if (index >= (int) presets.size() || presets[(size_t) index].isFactory || presets[(size_t) index].file != file)
-        return false;
-
-    presets.erase(presets.begin() + index);
-
-    if (index < activePresetIndex)
     {
-        --activePresetIndex;
-    }
-    else if (index == activePresetIndex)
-    {
-        // Only deleting the preset being played cuts the notes it's sounding.
-        activePresetIndex = juce::jmin(index, (int) presets.size() - 1);
-        clearActiveNotes();
+        const juce::ScopedLock lock(stateLock);
+        if (index >= (int) presets.size() || presets[(size_t) index].isFactory || presets[(size_t) index].file != file)
+            return false;
+
+        presets.erase(presets.begin() + index);
+
+        if (index < activePresetIndex)
+        {
+            --activePresetIndex;
+        }
+        else if (index == activePresetIndex)
+        {
+            // Only deleting the preset being played cuts the notes it's sounding.
+            activePresetIndex = juce::jmin(index, (int) presets.size() - 1);
+            clearActiveNotes();
+        }
     }
 
+    notifyHostProgramsChanged();
     return true;
 }
 
@@ -1065,10 +1145,14 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
         }
     }
 
-    const juce::ScopedLock lock(stateLock);
-    presets = std::move(library);
-    activePresetIndex = active;
-    clearActiveNotes();
+    {
+        const juce::ScopedLock lock(stateLock);
+        presets = std::move(library);
+        activePresetIndex = active;
+        clearActiveNotes();
+    }
+
+    notifyHostProgramsChanged();
 }
 
 //==============================================================================
@@ -1210,12 +1294,16 @@ int MnKordAudioProcessor::importPresetsFromFile(const juce::File& file)
 
     const int added = (int) imported.size();
 
-    const juce::ScopedLock lock(stateLock);
-    for (auto& preset : imported)
-        presets.push_back(std::move(preset));
+    {
+        const juce::ScopedLock lock(stateLock);
+        for (auto& preset : imported)
+            presets.push_back(std::move(preset));
 
-    activePresetIndex = (int) presets.size() - 1;
-    clearActiveNotes();
+        activePresetIndex = (int) presets.size() - 1;
+        clearActiveNotes();
+    }
+
+    notifyHostProgramsChanged();
     return added;
 }
 

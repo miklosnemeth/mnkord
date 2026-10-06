@@ -501,7 +501,55 @@ int main()
         CHECK(p.getActivePresetIndex() == 3);
     }
 
-    // 16. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    // 16. Host program list: a fixed count (VST3 hosts read it once), empty slots past the presets,
+    //     and the host is told whenever the list or the current program changes.
+    {
+        struct HostListener : juce::AudioProcessorListener
+        {
+            int programChanges = 0;
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails& details) override
+            {
+                if (details.programChanged)
+                    ++programChanges;
+            }
+        };
+
+        MnKordAudioProcessor p;
+        HostListener host;
+        p.addListener(&host);
+
+        const int count = p.getNumPrograms();
+        const int presetCount = (int) p.getPresets().size();
+        CHECK(count == juce::jmax(MnKordAudioProcessor::minHostPrograms, presetCount));
+        CHECK(p.getProgramName(0) == p.getPresets()[0].name);
+        CHECK(p.getProgramName(presetCount) == "-");
+
+        p.setCurrentProgram(1);
+        CHECK(host.programChanges == 1 && p.getCurrentProgram() == 1);
+
+        Preset added = p.getPresets()[0];
+        added.name = "Host List Test";
+        CHECK(p.addPreset(added));
+        CHECK(host.programChanges == 2);
+        CHECK(p.getNumPrograms() == count);
+        CHECK(p.getProgramName(presetCount) == "Host List Test");
+        CHECK(p.getCurrentProgram() == presetCount);
+
+        // An empty slot keeps the current preset and points the host back at it.
+        p.setCurrentProgram(count - 1);
+        CHECK(p.getActivePresetIndex() == presetCount);
+        CHECK(host.programChanges == 3);
+
+        CHECK(p.deletePreset(presetCount));
+        CHECK(host.programChanges == 4);
+        CHECK(p.getProgramName(presetCount) == "-");
+        CHECK(p.getNumPrograms() == count);
+
+        p.removeListener(&host);
+    }
+
+    // 17. Chord symbols: unknown ones are rejected (the chord field passes user text here).
     {
         CHECK(! ChordSymbol::parseChord("Cxyz").valid);
         CHECK(! ChordSymbol::parseChord("H7").valid);

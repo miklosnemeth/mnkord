@@ -3145,6 +3145,9 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
             mutablePresets[(size_t) index].tags = p.tags;
         }
 
+        // The host's program list shows the new name.
+        audioProcessor.notifyHostProgramsChanged();
+
         // refreshPresetBox() already calls updatePresetMetaLabel() internally.
         refreshPresetBox();
     });
