@@ -8,30 +8,6 @@
 
 namespace
 {
-    // File-backed debug log, always active (independent of Debug/Release), so UI issues can
-    // be diagnosed from the actual log file instead of a debugger. Logged to
-    // <user app data>/mnKord/Logs/mnKord.log (path printed to the log itself on startup).
-    void installFileLogger()
-    {
-        static std::unique_ptr<juce::FileLogger> fileLogger(
-            juce::FileLogger::createDefaultAppLogger("mnKord", "mnKord.log", "mnKord debug log"));
-        juce::Logger::setCurrentLogger(fileLogger.get());
-    }
-
-    void logUi(const juce::String& message)
-    {
-        // Several call sites invoke this while holding MnKordAudioProcessor::getStateLock(),
-        // which processBlock() also holds (for the whole MIDI block) on the real-time audio
-        // thread. FileLogger::logMessage() opens/writes/closes the log file synchronously on
-        // every call, so writing here directly could stall the GUI thread mid-lock on slow
-        // disk I/O and block the audio thread behind it. Defer the actual write to the next
-        // message-loop iteration, by which point any such lock has already been released.
-        juce::MessageManager::callAsync([message]
-        {
-            juce::Logger::writeToLog(message);
-        });
-    }
-
     juce::String displayNoteName(int midiNote)
     {
         // Delegate to the shared NoteName utility so octave numbering is consistent
@@ -673,32 +649,21 @@ MnKordAudioProcessorEditor::MappingKeyboard::MappingKeyboard(MnKordAudioProcesso
 
 bool MnKordAudioProcessorEditor::MappingKeyboard::mouseDownOnKey(int midiNoteNumber, const juce::MouseEvent& event)
 {
-    logUi("mouseDownOnKey: role=" + juce::String(role == KeyboardRole::input ? "input" : "output")
-        + " note=" + juce::String(midiNoteNumber)
-        + " rightClick=" + juce::String((int) event.mods.isPopupMenu())
-        + " leftClick=" + juce::String((int) event.mods.isLeftButtonDown()));
-
     if (role == KeyboardRole::input && ! owner.isInSelectedScale(midiNoteNumber))
-    {
-        logUi("  -> ignored: note not in selected scale");
         return false;
-    }
 
     if (role == KeyboardRole::input && event.mods.isPopupMenu())
     {
-        logUi("  -> showChordTemplateMenu");
         owner.showChordTemplateMenu(midiNoteNumber);
         return false;
     }
 
     if (role == KeyboardRole::output && event.mods.isPopupMenu())
     {
-        logUi("  -> showInvertMenu");
         owner.showInvertMenu();
         return false;
     }
 
-    logUi("  -> keyboardNoteClicked");
     owner.keyboardNoteClicked(role, midiNoteNumber);
     return false;
 }
@@ -945,10 +910,6 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
       inputKeyboard(*this, KeyboardRole::input, inputKeyboardState),
       outputKeyboard(*this, KeyboardRole::output, outputKeyboardState)
 {
-    installFileLogger();
-    logUi("mnKord editor starting up. Log file: "
-        + juce::FileLogger::getSystemLogFileFolder().getChildFile("mnKord").getChildFile("mnKord.log").getFullPathName());
-
     setLookAndFeel(&flatLookAndFeel);
 
 
@@ -1386,13 +1347,10 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     }
     else if (button == &presetSummaryButton)
     {
-        logUi("buttonClicked: preset chip");
         showPresetBrowser();
     }
     else if (button == &newPresetButton)
     {
-        logUi("buttonClicked: New");
-
         juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
         confirmLeavePreset([safeThis]
         {
@@ -1432,22 +1390,15 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
     }
     else if (button == &savePresetButton)
     {
-        logUi("buttonClicked: Save");
         saveActivePreset();
     }
     else if (button == &presetMenuButton)
     {
-        logUi("buttonClicked: preset menu");
         showPresetMenu();
     }
     else if (button == &scaleSummaryButton)
     {
-        logUi("buttonClicked: scale chip");
         showScalePopup();
-    }
-    else
-    {
-        logUi("buttonClicked: UNRECOGNISED button pointer " + juce::String::toHexString((juce::pointer_sized_int) button));
     }
 }
 
@@ -1813,8 +1764,6 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
 
     owner->scaleRoot = juce::jmax(0, rootBox.getSelectedItemIndex());
     owner->scaleType = scaleTypeForIndex(typeBox.getSelectedItemIndex());
-    logUi("ScalePopupContent::comboBoxChanged -> root=" + juce::String(owner->scaleRoot)
-        + " type=" + scaleTypeName(owner->scaleType));
     owner->updateScaleSummaryText();
     owner->inputKeyboard.repaint();
     updateStepperCaptions();
@@ -1823,17 +1772,12 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
 
 void MnKordAudioProcessorEditor::showScalePopup()
 {
-    logUi("showScalePopup: current=" + scaleSummaryButton.getButtonText()
-        + " buttonBounds=" + scaleSummaryButton.getBounds().toString());
-
     // Parented to the editor so the box stays inside the plugin window.
     auto content = std::make_unique<ScalePopupContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
     auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), scaleSummaryButton.getBounds(), this);
     box.setLookAndFeel(&flatLookAndFeel);
     activeScalePopup = &box;
-
-    logUi("showScalePopup: CallOutBox launched");
 }
 
 namespace
@@ -3381,16 +3325,8 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
         auto& presets = audioProcessor.getPresets();
         const int presetIndex = audioProcessor.getActivePresetIndex();
 
-        logUi("keyboardNoteClicked: role=" + juce::String(role == KeyboardRole::input ? "input" : "output")
-            + " note=" + juce::String(midiNoteNumber)
-            + " presetIndex=" + juce::String(presetIndex)
-            + " presetCount=" + juce::String((int) presets.size()));
-
         if (presetIndex < 0 || presetIndex >= (int) presets.size())
-        {
-            logUi("  -> EARLY RETURN: no valid active preset");
             return;
-        }
 
         auto& preset = presets[(size_t) presetIndex];
 
@@ -3419,7 +3355,6 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
                 }
                 preset.mappings.push_back(mapping);
                 selection = (int) preset.mappings.size() - 1;
-                logUi("  -> created new mapping index=" + juce::String(selection));
             }
         }
         else if (auto* mapping = getSelectedMapping())
@@ -3443,7 +3378,6 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
     if (role == KeyboardRole::input)
     {
         setSelectedMappingIndex(selection);
-        logUi("  -> selectedMappingIndex now=" + juce::String(selectedMappingIndex));
         return;
     }
 
@@ -3526,9 +3460,6 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
 
 void MnKordAudioProcessorEditor::showInvertMenu()
 {
-    logUi("showInvertMenu: selectedMappingIndex=" + juce::String(selectedMappingIndex)
-        + " hasSelection=" + juce::String((int) (getSelectedMapping() != nullptr)));
-
     if (getSelectedMapping() == nullptr)
         return;
 
@@ -3540,8 +3471,6 @@ void MnKordAudioProcessorEditor::showInvertMenu()
 
     menu.showMenuAsync(juce::PopupMenu::Options().withParentComponent(this), [safeThis](int result)
     {
-        logUi("showInvertMenu: result=" + juce::String(result));
-
         if (safeThis == nullptr || result == 0)
             return;
 
@@ -3580,13 +3509,7 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
 
         auto* mapping = getSelectedMapping();
         if (mapping == nullptr)
-        {
-            logUi("invertSelectedChord(" + juce::String((int) upwards) + "): no selected mapping");
             return;
-        }
-
-        logUi("invertSelectedChord(" + juce::String(upwards ? "up" : "down") + "): before="
-            + noteListToString(mapping->outputNotes));
 
         if (mapping->outputNotes.size() < 2)
             return;
@@ -3615,7 +3538,6 @@ void MnKordAudioProcessorEditor::invertSelectedChord(bool upwards)
         }
 
         std::sort(mapping->outputNotes.begin(), mapping->outputNotes.end());
-        logUi("invertSelectedChord: after=" + noteListToString(mapping->outputNotes));
     }
 
     refreshKeyboardHighlights();
