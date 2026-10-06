@@ -145,6 +145,21 @@ public:
             return note >= 0 && note < 128 && ((words[(size_t) (note >> 6)] >> (note & 63)) & 1u) != 0;
         }
 
+        void remove(int note)
+        {
+            if (note >= 0 && note < 128)
+                words[(size_t) (note >> 6)] &= ~(std::uint64_t(1) << (note & 63));
+        }
+
+        bool isEmpty() const { return (words[0] | words[1]) == 0; }
+
+        NoteBits operator|(const NoteBits& other) const
+        {
+            NoteBits result;
+            result.words = { words[0] | other.words[0], words[1] | other.words[1] };
+            return result;
+        }
+
         bool operator==(const NoteBits& other) const { return words == other.words; }
         bool operator!=(const NoteBits& other) const { return words != other.words; }
     };
@@ -168,14 +183,23 @@ private:
     std::vector<Preset> presets;
     int activePresetIndex = -1;
 
-    // Runtime state
-    using NoteKey = std::pair<int, int>;              // MIDI channel, note number
+    // Runtime note state, per MIDI channel (index channel - 1). Fixed-size so the audio thread
+    // never allocates.
+    static constexpr int numChannels = 16;
 
-    std::map<NoteKey, std::vector<int>> activeNotes;  // input note -> output notes currently sounding
-    std::map<NoteKey, int> outputNoteRefCount;        // output note -> number of input notes using it
+    struct ChannelState
+    {
+        NoteBits heldInputs;                       // input notes currently held
+        std::array<NoteBits, 128> chordOf {};      // output notes each held input note started
+        std::array<std::uint16_t, 128> refCount {}; // held input notes using each output note
+        NoteBits sounding;                         // output notes with refCount > 0
+        NoteBits pendingOffs;                      // output notes waiting for sustain release
+    };
+
+    std::array<ChannelState, numChannels> channels {};
     bool sustainPedalDown = false;
-    std::vector<NoteKey> pendingNoteOffs;             // output notes waiting for sustain release
-    std::vector<NoteKey> notesToFlush;                // output notes to emit note-off for on next processBlock
+    std::vector<std::pair<int, int>> notesToFlush;   // (channel, note) to release on the next processBlock
+    juce::MidiBuffer outputMessages;                  // reused every block
 
     // Guards all runtime state + preset structural edits across the audio and GUI threads.
     juce::CriticalSection stateLock;

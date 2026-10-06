@@ -3168,7 +3168,14 @@ void MnKordAudioProcessorEditor::timerCallback()
         updateDirtyState();
     }
 
-    octaveStrip.repaint();   // follows the keyboard when it scrolls or the scale root changes
+    // The strip follows the keyboard when it scrolls or the scale root changes; repaint it
+    // only then, not on every tick.
+    const auto stripKey = std::make_pair(inputKeyboard.getLowestVisibleKey(), scaleRoot);
+    if (stripKey != lastOctaveStripKey)
+    {
+        lastOctaveStripKey = stripKey;
+        octaveStrip.repaint();
+    }
     trackHistory();
 
     const auto noteStamp = audioProcessor.getInputNoteOnStamp();
@@ -3361,6 +3368,10 @@ void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
 
 void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midiNoteNumber)
 {
+    // The mapping to select (INPUT), found or created under the lock; the UI is refreshed after
+    // releasing it, so the audio thread isn't kept waiting on repaints and label updates.
+    int selection = -1;
+
     {
         const juce::ScopedLock lock(audioProcessor.getStateLock());
 
@@ -3382,40 +3393,33 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
 
         if (role == KeyboardRole::input)
         {
-            for (int i = 0; i < (int) preset.mappings.size(); ++i)
-            {
+            for (int i = 0; i < (int) preset.mappings.size() && selection < 0; ++i)
                 if (preset.mappings[(size_t) i].inputNote == midiNoteNumber
                     && (preset.mappings[(size_t) i].minVelocity > 1) == hardLayerEditing)
-                {
-                    logUi("  -> selecting existing mapping index=" + juce::String(i));
-                    setSelectedMappingIndex(i);
-                    logUi("  -> selectedMappingIndex now=" + juce::String(selectedMappingIndex));
-                    return;
-                }
-            }
+                    selection = i;
 
-            NoteMapping mapping;
-            mapping.inputNote = midiNoteNumber;
-            if (hardLayerEditing)
+            if (selection < 0)
             {
-                // A new hard layer starts as a copy of the key's soft layer.
-                mapping.minVelocity = hardLayerThreshold;
-                for (const auto& other : preset.mappings)
-                    if (other.inputNote == midiNoteNumber && other.minVelocity <= 1)
-                    {
-                        mapping.outputNotes = other.outputNotes;
-                        mapping.outputVelocities = other.outputVelocities;
-                        break;
-                    }
+                NoteMapping mapping;
+                mapping.inputNote = midiNoteNumber;
+                if (hardLayerEditing)
+                {
+                    // A new hard layer starts as a copy of the key's soft layer.
+                    mapping.minVelocity = hardLayerThreshold;
+                    for (const auto& other : preset.mappings)
+                        if (other.inputNote == midiNoteNumber && other.minVelocity <= 1)
+                        {
+                            mapping.outputNotes = other.outputNotes;
+                            mapping.outputVelocities = other.outputVelocities;
+                            break;
+                        }
+                }
+                preset.mappings.push_back(mapping);
+                selection = (int) preset.mappings.size() - 1;
+                logUi("  -> created new mapping index=" + juce::String(selection));
             }
-            preset.mappings.push_back(mapping);
-            logUi("  -> created new mapping, selecting index=" + juce::String((int) preset.mappings.size() - 1));
-            setSelectedMappingIndex((int) preset.mappings.size() - 1);
-            logUi("  -> selectedMappingIndex now=" + juce::String(selectedMappingIndex));
-            return;
         }
-
-        if (auto* mapping = getSelectedMapping())
+        else if (auto* mapping = getSelectedMapping())
         {
             auto& notes = mapping->outputNotes;
             const auto it = std::find(notes.begin(), notes.end(), midiNoteNumber);
@@ -3431,6 +3435,13 @@ void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midi
             std::sort(notes.begin(), notes.end());
             notes.erase(std::unique(notes.begin(), notes.end()), notes.end());
         }
+    }
+
+    if (role == KeyboardRole::input)
+    {
+        setSelectedMappingIndex(selection);
+        logUi("  -> selectedMappingIndex now=" + juce::String(selectedMappingIndex));
+        return;
     }
 
     refreshKeyboardHighlights();

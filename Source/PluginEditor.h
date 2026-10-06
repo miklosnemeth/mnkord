@@ -444,6 +444,8 @@ private:
     juce::String historyKey;
     juce::uint32 lastEditTimeMs = 0;
     int timerTick = 0;
+    // Keyboard scroll position and scale root the octave strip was last painted for.
+    std::pair<int, int> lastOctaveStripKey { -1, -1 };
 
     // Notes currently being played (INPUT) and the chord notes sounding for them (CHORD), as
     // last polled from the processor by timerCallback(); drawn as a live overlay on the keys.

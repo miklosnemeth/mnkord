@@ -5,6 +5,27 @@
 #include "PluginProcessor.h"
 #include "ChordSymbol.h"
 #include <cstdio>
+#include <cstdlib>
+#include <atomic>
+#include <new>
+
+// Counts heap allocations while countAllocations is set, to check that processBlock doesn't allocate.
+static std::atomic<bool> countAllocations { false };
+static std::atomic<int> allocations { 0 };
+
+void* operator new(std::size_t size)
+{
+    if (countAllocations.load())
+        ++allocations;
+
+    if (auto* p = std::malloc(size == 0 ? 1 : size))
+        return p;
+
+    throw std::bad_alloc();
+}
+
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 
 static int failures = 0, checks = 0;
 static int factoryCount = 0;   // number of built-in presets, read from a fresh library
@@ -388,7 +409,75 @@ int main()
         run({ juce::MidiMessage::noteOff(1, 62) });
     }
 
-    // 14. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    // 14. MIDI engine: channels are independent, duplicate chord notes count once, a preset
+    //     switch releases what's sounding, and processBlock doesn't allocate.
+    {
+        MnKordAudioProcessor p;
+        p.prepareToPlay(48000.0, 512);
+        {
+            const juce::ScopedLock lock(p.getStateLock());
+            auto& preset = p.getPresets()[(size_t) p.getActivePresetIndex()];
+            NoteMapping c;
+            c.inputNote = 60;
+            c.outputNotes = { 60, 64, 64, 67 };
+            preset.mappings = { c };
+        }
+
+        juce::AudioBuffer<float> audio(0, 512);
+        juce::MidiBuffer midi;
+        auto run = [&](std::initializer_list<juce::MidiMessage> messages)
+        {
+            midi.clear();
+            for (const auto& m : messages)
+                midi.addEvent(m, 0);
+            p.processBlock(audio, midi);
+        };
+
+        auto count = [&midi](bool on, int channel, int note)
+        {
+            int n = 0;
+            for (const auto metadata : midi)
+            {
+                const auto m = metadata.getMessage();
+                if ((on ? m.isNoteOn() : m.isNoteOff()) && m.getChannel() == channel && m.getNoteNumber() == note)
+                    ++n;
+            }
+            return n;
+        };
+
+        run({ juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100), juce::MidiMessage::noteOn(2, 60, (juce::uint8) 100) });
+        CHECK(count(true, 1, 64) == 1 && count(true, 2, 64) == 1);
+        run({ juce::MidiMessage::noteOff(1, 60) });
+        CHECK(count(false, 1, 64) == 1 && count(false, 2, 64) == 0);
+
+        // Channel 2 is still sounding: switching presets releases it on the next block.
+        p.setActivePresetIndex(1);
+        run({});
+        CHECK(count(false, 2, 60) == 1 && count(false, 2, 64) == 1 && count(false, 2, 67) == 1);
+        CHECK(p.getActiveOutputNotes() == MnKordAudioProcessor::NoteBits {});
+
+        // Warm-up, then a block full of chord traffic must not touch the heap.
+        p.setActivePresetIndex(indexOfName(p, "Chromatic Sevenths", true));
+        run({});
+        juce::MidiBuffer busy;
+        for (int i = 0; i < 64; ++i)
+        {
+            busy.addEvent(juce::MidiMessage::noteOn(1 + i % 16, 60 + i % 12, (juce::uint8) 100), i);
+            busy.addEvent(juce::MidiMessage::controllerEvent(1 + i % 16, 64, i % 2 == 0 ? 127 : 0), i);
+            busy.addEvent(juce::MidiMessage::noteOff(1 + i % 16, 60 + i % 12), i);
+        }
+        busy.addEvent(juce::MidiMessage::allNotesOff(1), 100);
+        midi = busy;
+
+        allocations = 0;
+        countAllocations = true;
+        p.processBlock(audio, midi);
+        countAllocations = false;
+        CHECK(allocations.load() == 0);
+        CHECK(! midi.isEmpty());
+    }
+
+    // 15. Chord symbols: unknown ones are rejected (the chord field passes user text here).
     {
         CHECK(! ChordSymbol::parseChord("Cxyz").valid);
         CHECK(! ChordSymbol::parseChord("H7").valid);
