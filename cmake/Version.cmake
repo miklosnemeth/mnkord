@@ -39,6 +39,17 @@ if(GIT_FOUND AND IS_DIRECTORY "${_git_dir}")
     endif()
 endif()
 
+# The changelog's "## [Unreleased] - x.y.z" heading must name the same version (see AGENTS.md).
+set(_changelog "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md")
+if(EXISTS "${_changelog}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_changelog}")
+    file(STRINGS "${_changelog}" _unreleased REGEX "^## \\[Unreleased\\]")
+    if(_unreleased AND NOT _unreleased MATCHES "- ${PROJECT_VERSION}$")
+        message(WARNING "CHANGELOG.md says '${_unreleased}', but CMakeLists.txt has version ${PROJECT_VERSION}. "
+                        "Set both to the same version (see AGENTS.md).")
+    endif()
+endif()
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MnKordVersion.h.in"
                "${CMAKE_CURRENT_BINARY_DIR}/generated/MnKordVersion.h" @ONLY)
 message(STATUS "mnKord version: ${MNKORD_VERSION_STRING}")

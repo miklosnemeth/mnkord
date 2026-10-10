@@ -13,6 +13,7 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
   loads): the presets, then empty slots named "-". VST3 hosts read the program count only once, so
   program numbers no longer shift when presets are added or deleted.
 - The version is shown in the bottom-right corner of the plugin window.
+- The plugin no longer writes a debug log (`mnKord.log`) of every click.
 
 ### Fixed
 - Notes stuck after transport stop: All notes off / All sound off now release the mapped notes.
@@ -24,9 +25,6 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
   lock for less time, so the audio thread waits less.
 - Typing an unknown chord symbol no longer triggers an assertion in Debug builds.
 - Builds with GCC on Linux.
-
-### Removed
-- The always-on UI debug log (`mnKord.log`).
 
 ## [1.0.0]
 
