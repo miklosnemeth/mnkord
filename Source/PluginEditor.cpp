@@ -3,6 +3,7 @@
 #include "NoteName.h"
 #include "ChordSymbol.h"
 #include "BinaryData.h"
+#include "MnKordVersion.h"
 
 #include <functional>
 
@@ -1067,6 +1068,13 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.setColour(getPanelColour());
         g.fillRoundedRectangle(rect, 8.0f);
     }
+
+    // The build's version ("1.1.0", or "1.1.0-dev+<commit>" between releases) in the strip
+    // below the panels, so a bug report can say which build it came from.
+    g.setColour(getMutedTextColour().withAlpha(0.7f));
+    g.setFont(juce::FontOptions(11.0f));
+    g.drawText("v" MNKORD_VERSION_STRING, getLocalBounds().reduced(18, 0).withTop((int) bottomPanel.getBottom()),
+               juce::Justification::centredRight, false);
 }
 
 void MnKordAudioProcessorEditor::resized()

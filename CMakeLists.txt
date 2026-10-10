@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
-project(mnKord VERSION 1.0.0)
+
+# The one place the version is set (Semantic Versioning, see README "Versioning"). JUCE takes
+# the plugin's version from here; cmake/Version.cmake adds the dev suffix for display.
+project(mnKord VERSION 1.1.0)
+include(cmake/Version.cmake)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,6 +50,8 @@ target_sources(mnKord PRIVATE
     Source/ChordSymbol.cpp
 )
 
+target_include_directories(mnKord PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
 target_compile_definitions(mnKord
     PUBLIC
         JucePlugin_Name="mnKord"
@@ -79,6 +85,7 @@ if(MNKORD_BUILD_TESTS)
     add_executable(mnKordTests Tests/LibraryTests.cpp)
     target_include_directories(mnKordTests PRIVATE
         Source
+        "${CMAKE_CURRENT_BINARY_DIR}/generated"
         "${CMAKE_CURRENT_BINARY_DIR}/mnKord_artefacts/JuceLibraryCode"
         "${CMAKE_CURRENT_BINARY_DIR}/juce_binarydata_mnKordFonts/JuceLibraryCode")
     if(MSVC)

@@ -4,6 +4,7 @@
 // never the real Documents\MNAudio\mnKord.
 #include "PluginProcessor.h"
 #include "ChordSymbol.h"
+#include "MnKordVersion.h"
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
@@ -548,7 +549,15 @@ int main()
         p.removeListener(&host);
     }
 
-    // 17. Chord symbols: unknown ones are rejected (the chord field passes user text here).
+    // 17. Version: the plugin reports the CMake project version, the display string extends it.
+    {
+        const juce::String version(MNKORD_VERSION), display(MNKORD_VERSION_STRING);
+        CHECK(juce::String(JucePlugin_VersionString) == version);
+        CHECK(juce::StringArray::fromTokens(version, ".", "").size() == 3);
+        CHECK(display == version || display.startsWith(version + "-dev"));
+    }
+
+    // 18. Chord symbols: unknown ones are rejected (the chord field passes user text here).
     {
         CHECK(! ChordSymbol::parseChord("Cxyz").valid);
         CHECK(! ChordSymbol::parseChord("H7").valid);
