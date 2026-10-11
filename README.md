@@ -114,6 +114,11 @@ Bank (accepted by **Import**, which saves each preset in it as its own file):
 
 ```text
 CMakeLists.txt
+CHANGELOG.md
+AGENTS.md                  # rules for AI agents (build, tests, versioning); CLAUDE.md points to it
+cmake/
+  Version.cmake            # dev suffix (commit) for the displayed version
+  MnKordVersion.h.in       # template of the generated MnKordVersion.h
 Source/
   PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
   PluginEditor.h/.cpp      # UI, keyboards, themes, preset browser/menu
@@ -132,6 +137,41 @@ build-tests\Release\mnKordTests.exe
 ```
 
 The tests use a temporary library folder and never touch `Documents\MNAudio\mnKord`.
+
+## Versioning
+
+mnKord follows [Semantic Versioning](https://semver.org/): **MAJOR.MINOR.PATCH**.
+
+| Part | Goes up when | Example |
+|------|--------------|---------|
+| MAJOR | A change is incompatible: projects or preset files from earlier versions don't load or play the same, or a feature is removed | `1.4.2` → `2.0.0` |
+| MINOR | A feature is added or changed, and older projects and presets still work | `1.4.2` → `1.5.0` |
+| PATCH | Only bugs are fixed | `1.4.2` → `1.4.3` |
+
+The version is set in one place, `project(mnKord VERSION x.y.z)` in `CMakeLists.txt`; JUCE builds it into the
+plugin (VST3 metadata, `JucePlugin_VersionString`) and the window shows it in its bottom-right corner.
+
+Keeping the version and the changelog up to date is done by the AI agents working on the project, as part of
+every change, following [AGENTS.md](AGENTS.md); the rules are summarised here.
+
+**During development** the version in `CMakeLists.txt` is the *next* release. Raise it with the first change
+after a release, by the largest kind of change since then (a fix after `1.1.0` makes it `1.1.1`; a feature
+added later makes that `1.2.0`). Every change also goes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
+Builds between releases show which commit they came from, e.g. `v1.1.0-dev+037de27`; the suffix updates by
+itself when the commit changes.
+
+**To release** a version (ask the agent to do it, or by hand):
+
+1. Check that the version in `CMakeLists.txt` is right for the changes in the changelog.
+2. In `CHANGELOG.md`, turn `## [Unreleased] - x.y.z` into `## [x.y.z] - YYYY-MM-DD`.
+3. Merge to `master`, then tag that commit and push the tag:
+
+   ```bash
+   git tag -a vx.y.z -m "mnKord x.y.z"
+   git push origin vx.y.z
+   ```
+
+A build of the tagged commit shows the plain version (`v1.1.0`).
 
 ## License
 
