@@ -2025,6 +2025,18 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
 
             presetColumn.rows.push_back(i);
         }
+
+        // The list itself keeps user presets in the order they were added (the host's program
+        // numbers); the browser shows them by name, after the factory presets.
+        std::stable_sort(presetColumn.rows.begin(), presetColumn.rows.end(), [&presets](int a, int b)
+        {
+            const auto& pa = presets[(size_t) a];
+            const auto& pb = presets[(size_t) b];
+            if (pa.isFactory || pb.isFactory)
+                return pa.isFactory && ! pb.isFactory;
+
+            return pa.name.compareIgnoreCase(pb.name) < 0;
+        });
     }
 
     presetColumn.box.updateContent();
@@ -2345,6 +2357,9 @@ void MnKordAudioProcessorEditor::undoEdit()
     if (undoStack.empty())
         return;
 
+    // The restored mappings may be in another order: follow the key, not the index.
+    const auto selectedKey = selectedMappingKey();
+
     const int index = audioProcessor.getActivePresetIndex();
     {
         const juce::ScopedLock lock(audioProcessor.getStateLock());
@@ -2360,7 +2375,7 @@ void MnKordAudioProcessorEditor::undoEdit()
     undoStack.pop_back();
     lastEditTimeMs = 0;
     updateHistoryButtons();
-    setSelectedMappingIndex(selectedMappingIndex);
+    reselectMapping(selectedKey);
     refreshSummaryLabels();
 }
 
@@ -2369,6 +2384,9 @@ void MnKordAudioProcessorEditor::redoEdit()
     trackHistory();
     if (redoStack.empty())
         return;
+
+    // The restored mappings may be in another order: follow the key, not the index.
+    const auto selectedKey = selectedMappingKey();
 
     const int index = audioProcessor.getActivePresetIndex();
     {
@@ -2385,7 +2403,7 @@ void MnKordAudioProcessorEditor::redoEdit()
     redoStack.pop_back();
     lastEditTimeMs = 0;
     updateHistoryButtons();
-    setSelectedMappingIndex(selectedMappingIndex);
+    reselectMapping(selectedKey);
     refreshSummaryLabels();
 }
 
@@ -3276,6 +3294,33 @@ void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
     refreshKeyboardHighlights();
     refreshSummaryLabels();
     updatePresetMetaLabel();
+}
+
+std::pair<int, int> MnKordAudioProcessorEditor::selectedMappingKey() const
+{
+    if (const auto* mapping = getSelectedMapping())
+        return { mapping->inputNote, mapping->minVelocity };
+
+    return { -1, 0 };
+}
+
+void MnKordAudioProcessorEditor::reselectMapping(std::pair<int, int> key)
+{
+    const auto& presets = audioProcessor.getPresets();
+    const int presetIndex = audioProcessor.getActivePresetIndex();
+    int found = -1;
+
+    if (key.first >= 0 && presetIndex >= 0 && presetIndex < (int) presets.size())
+    {
+        // The same key in the same layer (the hard layer's threshold may have changed).
+        const auto& mappings = presets[(size_t) presetIndex].mappings;
+        for (int i = 0; i < (int) mappings.size() && found < 0; ++i)
+            if (mappings[(size_t) i].inputNote == key.first
+                && (mappings[(size_t) i].minVelocity > 1) == (key.second > 1))
+                found = i;
+    }
+
+    setSelectedMappingIndex(found);
 }
 
 void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midiNoteNumber)

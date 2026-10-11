@@ -2,6 +2,8 @@
 #include "PluginEditor.h"
 #include "ChordSymbol.h"
 
+#include <limits>
+
 namespace
 {
     NoteMapping makeMapping(int inputNote, std::initializer_list<int> outputNotes)
@@ -645,7 +647,45 @@ std::vector<Preset> MnKordAudioProcessor::loadUserPresets()
         return a.name.compareIgnoreCase(b.name) < 0;
     });
 
+    // Then the saved order; presets it doesn't list keep their alphabetical order after it.
+    juce::StringArray order;
+    order.addLines(getUserOrderFile().loadFileAsString());
+    order.removeEmptyStrings();
+
+    auto rankOf = [&order, &folder](const Preset& preset)
+    {
+        const int rank = order.indexOf(preset.file.getRelativePathFrom(folder));
+        return rank >= 0 ? rank : std::numeric_limits<int>::max();
+    };
+
+    std::stable_sort(user.begin(), user.end(), [&rankOf](const Preset& a, const Preset& b)
+    {
+        return rankOf(a) < rankOf(b);
+    });
+
     return user;
+}
+
+juce::File MnKordAudioProcessor::getUserOrderFile()
+{
+    return getLibraryFolder().getChildFile("user-order.txt");
+}
+
+void MnKordAudioProcessor::saveUserOrder()
+{
+    juce::StringArray order;
+    {
+        const juce::ScopedLock lock(stateLock);
+        for (const auto& preset : presets)
+            if (! preset.isFactory && preset.file != juce::File())
+                order.add(preset.file.getRelativePathFrom(getUserFolder()));
+    }
+
+    // Written outside the lock, and only when it changed.
+    const auto file = getUserOrderFile();
+    const auto text = order.joinIntoString("\n");
+    if (file.loadFileAsString() != text && file.getParentDirectory().createDirectory().wasOk())
+        file.replaceWithText(text);
 }
 
 std::vector<Preset> MnKordAudioProcessor::buildLibrary()
@@ -769,13 +809,19 @@ bool MnKordAudioProcessor::saveUserPreset(int index)
     if (! writePresetFile(copy, file, false))
         return false;
 
-    const juce::ScopedLock lock(stateLock);
-    if (index < (int) presets.size() && ! presets[(size_t) index].isFactory && presets[(size_t) index].name == copy.name)
     {
-        presets[(size_t) index].file = file;
-        // The content that was written, so edits made while saving still show as unsaved.
-        presets[(size_t) index].savedXml = fingerprint(copy);
+        const juce::ScopedLock lock(stateLock);
+        if (index < (int) presets.size() && ! presets[(size_t) index].isFactory && presets[(size_t) index].name == copy.name)
+        {
+            presets[(size_t) index].file = file;
+            // The content that was written, so edits made while saving still show as unsaved.
+            presets[(size_t) index].savedXml = fingerprint(copy);
+        }
     }
+
+    // A preset saved to a file for the first time takes its place in the saved order.
+    if (copy.file == juce::File())
+        saveUserOrder();
 
     return true;
 }
@@ -872,7 +918,10 @@ void MnKordAudioProcessor::refreshUserLibrary()
     }
 
     if (changed)
+    {
+        saveUserOrder();
         notifyHostProgramsChanged();
+    }
 }
 
 //==============================================================================
@@ -926,6 +975,7 @@ bool MnKordAudioProcessor::addPreset(const Preset& preset)
         clearActiveNotes();
     }
 
+    saveUserOrder();
     notifyHostProgramsChanged();
     return written;
 }
@@ -965,6 +1015,7 @@ bool MnKordAudioProcessor::deletePreset(int index)
         }
     }
 
+    saveUserOrder();
     notifyHostProgramsChanged();
     return true;
 }
@@ -1106,6 +1157,8 @@ void MnKordAudioProcessor::setStateInformation(const void* data, int sizeInBytes
         clearActiveNotes();
     }
 
+    // Presets migrated from an old project got new files.
+    saveUserOrder();
     notifyHostProgramsChanged();
 }
 
@@ -1257,6 +1310,7 @@ int MnKordAudioProcessor::importPresetsFromFile(const juce::File& file)
         clearActiveNotes();
     }
 
+    saveUserOrder();
     notifyHostProgramsChanged();
     return added;
 }

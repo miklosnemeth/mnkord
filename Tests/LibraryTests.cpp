@@ -611,6 +611,46 @@ int main()
         CHECK(mismatches == 0);
     }
 
+    // 20. User presets keep their place in the list (= the host's program numbers) across a reload:
+    //     new ones stay at the end instead of moving to their alphabetical place, and a file
+    //     dropped into the User folder joins at the end.
+    {
+        int zeta = -1, alpha = -1;
+        {
+            MnKordAudioProcessor p;
+            Preset preset = p.getPresets()[0];
+            preset.name = "Zeta Order";
+            CHECK(p.addPreset(preset));
+            preset.name = "Alpha Order";
+            CHECK(p.addPreset(preset));
+            zeta = indexOfName(p, "Zeta Order", false);
+            alpha = indexOfName(p, "Alpha Order", false);
+            CHECK(zeta >= 0 && alpha == zeta + 1);
+        }
+
+        {
+            MnKordAudioProcessor p;
+            CHECK(indexOfName(p, "Zeta Order", false) == zeta);
+            CHECK(indexOfName(p, "Alpha Order", false) == alpha);
+
+            // Dropped in from outside: after every preset already in the list.
+            juce::XmlElement rootXml("mnKordPreset");
+            rootXml.addChildElement(new juce::XmlElement("Preset"));
+            rootXml.getChildElement(0)->setAttribute("name", "Beta Dropped");
+            CHECK(rootXml.writeTo(MnKordAudioProcessor::getUserFolder().getChildFile("Beta Dropped.xml")));
+            p.refreshUserLibrary();
+            CHECK(indexOfName(p, "Beta Dropped", false) == (int) p.getPresets().size() - 1);
+
+            // Deleting one closes the gap the same way now and after a reload.
+            CHECK(p.deletePreset(zeta));
+            CHECK(indexOfName(p, "Alpha Order", false) == zeta);
+        }
+
+        MnKordAudioProcessor p;
+        CHECK(indexOfName(p, "Alpha Order", false) == zeta);
+        CHECK(indexOfName(p, "Beta Dropped", false) == (int) p.getPresets().size() - 1);
+    }
+
     root.deleteRecursively();
     std::printf("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

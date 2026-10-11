@@ -39,3 +39,8 @@ the preset browser, and the dark and light themes.
   the other layer, whose chord the CHORD keys would then have edited.
 - A preset change from the host clears the mapping selection instead of selecting an arbitrary mapping
   of the new preset.
+- User presets keep their program numbers when a project is reopened: they stay in the order they were
+  added (kept in `user-order.txt` in the library folder) instead of being re-sorted by name, so host
+  program-change automation still picks the same presets. The preset browser still lists them by name.
+- Undo and redo keep the selected key and velocity layer selected, instead of whatever mapping ends up
+  at the same position.

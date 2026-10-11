@@ -82,6 +82,8 @@ Presets live in `Documents\MNAudio\mnKord`:
 | `Factory` | The built-in presets, written by the plugin and rewritten when they change. Read only: edit and **Save as** to keep a variant. |
 | `User` | One `.xml` file per preset you saved, shared by every project and plugin instance. Drop a file in and it shows up the next time the browser opens. |
 
+The User presets keep the order they were added in (it's kept in `user-order.txt`), which is also the order of the host's program list; files dropped in from outside go to the end. The preset browser lists them by name.
+
 A DAW project stores the **active preset's current state**, not a reference, so it plays back the same even if the files change or the project is opened on another machine; in that case the preset comes back as an unsaved one that **Save** writes into that machine's `User` folder. Leaving a preset with unsaved changes asks whether to save them, and **Delete** moves the file to the recycle bin.
 
 Projects saved by earlier versions (which stored the whole preset list) are migrated: their own presets are written to `User` the first time they open.
