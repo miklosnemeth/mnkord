@@ -530,6 +530,10 @@ private:
     // a menu falls back to stock JUCE grey (see commit that fixed that for the first time).
     juce::PopupMenu makeStyledMenu();
     void setSelectedMappingIndex(int index);
+    // The selected mapping as (input note, minVelocity), or (-1, 0); and selecting the mapping of
+    // that key and layer again after the list changed (or the layer's first mapping if it's gone).
+    std::pair<int, int> selectedMappingKey() const;
+    void reselectMapping(std::pair<int, int> key);
     void keyboardNoteClicked(KeyboardRole role, int midiNoteNumber);
     // Copies the mappings of the octave selected in octaveStrip by +/-12 semitones (INPUT notes
     // and chord notes), replacing mappings already there, and selects the copy.

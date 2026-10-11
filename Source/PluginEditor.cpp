@@ -16,11 +16,6 @@ namespace
         return NoteName::toString(midiNote);
     }
 
-    juce::String displayPitchClassName(int midiNote)
-    {
-        return NoteName::pitchClassName(midiNote);
-    }
-
     juce::String noteListToString(const std::vector<int>& notes)
     {
         if (notes.empty())
@@ -36,59 +31,6 @@ namespace
         }
 
         return result;
-    }
-
-    bool pitchClassesMatch(const std::vector<int>& notes, int root, std::initializer_list<int> intervals)
-    {
-        if (notes.size() != intervals.size())
-            return false;
-
-        std::vector<int> actual;
-        actual.reserve(notes.size());
-
-        for (const auto note : notes)
-            actual.push_back((note - root + 1200) % 12);
-
-        std::sort(actual.begin(), actual.end());
-        actual.erase(std::unique(actual.begin(), actual.end()), actual.end());
-
-        std::vector<int> expected(intervals);
-        std::sort(expected.begin(), expected.end());
-
-        return actual == expected;
-    }
-
-    juce::String describeChord(const NoteMapping& mapping)
-    {
-        const auto notes = noteListToString(mapping.outputNotes);
-
-        if (mapping.outputNotes.empty())
-            return displayNoteName(mapping.inputNote) + " (-)";
-
-        const auto root = mapping.inputNote;
-        const auto rootName = displayPitchClassName(root);
-        juce::String quality = " chord";
-
-        if (pitchClassesMatch(mapping.outputNotes, root, { 0, 4, 7 }))
-            quality = "maj";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 3, 7 }))
-            quality = "min";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 2, 7 }))
-            quality = "sus2";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 5, 7 }))
-            quality = "sus4";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 4, 7, 10 }))
-            quality = "7";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 4, 7, 11 }))
-            quality = "maj7";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 3, 7, 10 }))
-            quality = "min7";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 3, 6 }))
-            quality = "dim";
-        else if (pitchClassesMatch(mapping.outputNotes, root, { 0, 2, 4, 7 }))
-            quality = "add9";
-
-        return rootName + quality + " (" + notes + ")";
     }
 
     // Backs the right-click chord-template menu (showChordTemplateMenu()): both the menu-item
@@ -1069,7 +1011,7 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(rect, 8.0f);
     }
 
-    // The build's version ("1.1.0", or "1.1.0-dev+<commit>" between releases) right after the
+    // The build's version ("0.1.0", or "0.1.0-dev+<commit>" between releases) right after the
     // title, so a bug report can say which build it came from.
     const auto titleFont = juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened();
     const float titleWidth = (float) juce::GlyphArrangement::getStringWidthInt(titleFont, "mnKord");
@@ -2083,6 +2025,18 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::rebuildRows()
 
             presetColumn.rows.push_back(i);
         }
+
+        // The list itself keeps user presets in the order they were added (the host's program
+        // numbers); the browser shows them by name, after the factory presets.
+        std::stable_sort(presetColumn.rows.begin(), presetColumn.rows.end(), [&presets](int a, int b)
+        {
+            const auto& pa = presets[(size_t) a];
+            const auto& pb = presets[(size_t) b];
+            if (pa.isFactory || pb.isFactory)
+                return pa.isFactory && ! pb.isFactory;
+
+            return pa.name.compareIgnoreCase(pb.name) < 0;
+        });
     }
 
     presetColumn.box.updateContent();
@@ -2403,6 +2357,9 @@ void MnKordAudioProcessorEditor::undoEdit()
     if (undoStack.empty())
         return;
 
+    // The restored mappings may be in another order: follow the key, not the index.
+    const auto selectedKey = selectedMappingKey();
+
     const int index = audioProcessor.getActivePresetIndex();
     {
         const juce::ScopedLock lock(audioProcessor.getStateLock());
@@ -2418,7 +2375,7 @@ void MnKordAudioProcessorEditor::undoEdit()
     undoStack.pop_back();
     lastEditTimeMs = 0;
     updateHistoryButtons();
-    setSelectedMappingIndex(selectedMappingIndex);
+    reselectMapping(selectedKey);
     refreshSummaryLabels();
 }
 
@@ -2427,6 +2384,9 @@ void MnKordAudioProcessorEditor::redoEdit()
     trackHistory();
     if (redoStack.empty())
         return;
+
+    // The restored mappings may be in another order: follow the key, not the index.
+    const auto selectedKey = selectedMappingKey();
 
     const int index = audioProcessor.getActivePresetIndex();
     {
@@ -2443,7 +2403,7 @@ void MnKordAudioProcessorEditor::redoEdit()
     redoStack.pop_back();
     lastEditTimeMs = 0;
     updateHistoryButtons();
-    setSelectedMappingIndex(selectedMappingIndex);
+    reselectMapping(selectedKey);
     refreshSummaryLabels();
 }
 
@@ -3116,8 +3076,10 @@ void MnKordAudioProcessorEditor::timerCallback()
 
     if (active != lastSyncedActivePresetIndex || count != lastSyncedPresetCount)
     {
+        // Another preset (a host program change): the selection belonged to the old one.
+        const bool switched = active != lastSyncedActivePresetIndex;
         refreshPresetBox();
-        setSelectedMappingIndex(selectedMappingIndex);
+        setSelectedMappingIndex(switched ? -1 : selectedMappingIndex);
     }
     else if ((++timerTick & 3) == 0)
     {
@@ -3312,15 +3274,53 @@ void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
     const int presetIndex = audioProcessor.getActivePresetIndex();
 
     if (presetIndex < 0 || presetIndex >= (int) presets.size() || presets[(size_t) presetIndex].mappings.empty())
+    {
         selectedMappingIndex = -1;
+    }
     else if (index < 0)
-        selectedMappingIndex = 0;
+    {
+        // The first mapping of the layer being edited, or none: selecting another layer's mapping
+        // would let the CHORD keys edit it unnoticed.
+        const auto& mappings = presets[(size_t) presetIndex].mappings;
+        const auto first = std::find_if(mappings.begin(), mappings.end(), [this](const NoteMapping& m)
+                                        { return (m.minVelocity > 1) == hardLayerEditing; });
+        selectedMappingIndex = first != mappings.end() ? (int) std::distance(mappings.begin(), first) : -1;
+    }
     else
+    {
         selectedMappingIndex = juce::jlimit(0, (int) presets[(size_t) presetIndex].mappings.size() - 1, index);
+    }
 
     refreshKeyboardHighlights();
     refreshSummaryLabels();
     updatePresetMetaLabel();
+}
+
+std::pair<int, int> MnKordAudioProcessorEditor::selectedMappingKey() const
+{
+    if (const auto* mapping = getSelectedMapping())
+        return { mapping->inputNote, mapping->minVelocity };
+
+    return { -1, 0 };
+}
+
+void MnKordAudioProcessorEditor::reselectMapping(std::pair<int, int> key)
+{
+    const auto& presets = audioProcessor.getPresets();
+    const int presetIndex = audioProcessor.getActivePresetIndex();
+    int found = -1;
+
+    if (key.first >= 0 && presetIndex >= 0 && presetIndex < (int) presets.size())
+    {
+        // The same key in the same layer (the hard layer's threshold may have changed).
+        const auto& mappings = presets[(size_t) presetIndex].mappings;
+        for (int i = 0; i < (int) mappings.size() && found < 0; ++i)
+            if (mappings[(size_t) i].inputNote == key.first
+                && (mappings[(size_t) i].minVelocity > 1) == (key.second > 1))
+                found = i;
+    }
+
+    setSelectedMappingIndex(found);
 }
 
 void MnKordAudioProcessorEditor::keyboardNoteClicked(KeyboardRole role, int midiNoteNumber)
@@ -3615,12 +3615,10 @@ void MnKordAudioProcessorEditor::deleteSelectedMapping()
             return;
 
         mappings.erase(mappings.begin() + selectedMappingIndex);
-
-        if (selectedMappingIndex >= (int) mappings.size())
-            selectedMappingIndex = (int) mappings.size() - 1;
     }
 
-    setSelectedMappingIndex(selectedMappingIndex);
+    // The neighbouring index may belong to the other velocity layer; go to the first of this one.
+    setSelectedMappingIndex(-1);
 }
 
 void MnKordAudioProcessorEditor::fitSelectedChordToScale()
@@ -3696,9 +3694,10 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
                                        + (mapping->minVelocity > 1 ? "   hard layer, velocity " + juce::String(mapping->minVelocity) + "+"
                                                                    : juce::String()),
                                    juce::dontSendNotification);
+        // The chord's name (with its bass: "Cm/G", "C/D") and its notes, lowest first.
         const auto symbol = ChordSymbol::nameFor(mapping->outputNotes);
-        chordNotesLabel.setText(symbol.isNotEmpty() ? symbol + "   " + describeChord(*mapping)
-                                                    : describeChord(*mapping),
+        const auto notes = noteListToString(mapping->outputNotes);
+        chordNotesLabel.setText(symbol.isNotEmpty() ? symbol + "   (" + notes + ")" : notes,
                                 juce::dontSendNotification);
     }
     else

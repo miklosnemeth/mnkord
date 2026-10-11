@@ -564,6 +564,93 @@ int main()
         CHECK(ChordSymbol::parseChord("F#m7b5/C").valid);
     }
 
+    // 19. Chord names: slash chords over a bass outside the chord, the bass the editor's chord
+    //     label shows (C2 under Cm), no doubled notes in power chords, and every typed symbol
+    //     reads back as the same chord.
+    {
+        auto nameOf = [](const char* symbol)
+        {
+            return ChordSymbol::nameFor(ChordSymbol::voicedMapping(60, ChordSymbol::parseChord(symbol)).outputNotes);
+        };
+
+        CHECK(nameOf("C/D") == "C/D");
+        CHECK(nameOf("Am/G") == "Am/G");
+        CHECK(nameOf("Gm7/E") == "Gm7/E");
+        CHECK(nameOf("C/E") == "C/E");
+        CHECK(ChordSymbol::nameFor({ 36, 60, 63, 67 }) == "Cm");
+        CHECK(ChordSymbol::nameFor({ 59, 60, 64, 67 }) == "C/B");          // a bass line under C, as typed
+        CHECK(ChordSymbol::nameFor({ 47, 60, 64, 67, 71 }) == "Cmaj7/B"); // B in the chord too
+
+        for (const auto* symbol : { "C5", "G5", "E5" })
+        {
+            auto notes = ChordSymbol::voicedMapping(60, ChordSymbol::parseChord(symbol)).outputNotes;
+            std::sort(notes.begin(), notes.end());
+            CHECK(std::adjacent_find(notes.begin(), notes.end()) == notes.end());
+        }
+
+        auto pitchClasses = [](const std::vector<int>& notes)
+        {
+            unsigned mask = 0;
+            for (const int note : notes)
+                mask |= 1u << (note % 12);
+            return mask;
+        };
+
+        int mismatches = 0;
+        for (const auto* root : { "C", "C#", "Db", "D", "Eb", "E", "F", "F#", "Gb", "G", "Ab", "A", "Bb", "B" })
+            for (const auto* suffix : { "", "m", "dim", "aug", "sus2", "sus4", "5", "6", "m6", "maj7", "m7", "7", "m7b5",
+                                        "dim7", "add9", "madd9", "maj9", "m9", "9", "7sus4", "mmaj7", "7#9", "7b9", "6/9", "4th" })
+                for (const auto* bass : { "", "/E", "/G" })
+                {
+                    const auto typed = ChordSymbol::voicedMapping(60, ChordSymbol::parseChord(juce::String(root) + suffix + bass)).outputNotes;
+                    const auto named = ChordSymbol::parseChord(ChordSymbol::nameFor(typed));
+                    const auto back = ChordSymbol::voicedMapping(60, named).outputNotes;
+                    if (! named.valid || pitchClasses(typed) != pitchClasses(back) || typed.front() % 12 != back.front() % 12)
+                        ++mismatches;
+                }
+        CHECK(mismatches == 0);
+    }
+
+    // 20. User presets keep their place in the list (= the host's program numbers) across a reload:
+    //     new ones stay at the end instead of moving to their alphabetical place, and a file
+    //     dropped into the User folder joins at the end.
+    {
+        int zeta = -1, alpha = -1;
+        {
+            MnKordAudioProcessor p;
+            Preset preset = p.getPresets()[0];
+            preset.name = "Zeta Order";
+            CHECK(p.addPreset(preset));
+            preset.name = "Alpha Order";
+            CHECK(p.addPreset(preset));
+            zeta = indexOfName(p, "Zeta Order", false);
+            alpha = indexOfName(p, "Alpha Order", false);
+            CHECK(zeta >= 0 && alpha == zeta + 1);
+        }
+
+        {
+            MnKordAudioProcessor p;
+            CHECK(indexOfName(p, "Zeta Order", false) == zeta);
+            CHECK(indexOfName(p, "Alpha Order", false) == alpha);
+
+            // Dropped in from outside: after every preset already in the list.
+            juce::XmlElement rootXml("mnKordPreset");
+            rootXml.addChildElement(new juce::XmlElement("Preset"));
+            rootXml.getChildElement(0)->setAttribute("name", "Beta Dropped");
+            CHECK(rootXml.writeTo(MnKordAudioProcessor::getUserFolder().getChildFile("Beta Dropped.xml")));
+            p.refreshUserLibrary();
+            CHECK(indexOfName(p, "Beta Dropped", false) == (int) p.getPresets().size() - 1);
+
+            // Deleting one closes the gap the same way now and after a reload.
+            CHECK(p.deletePreset(zeta));
+            CHECK(indexOfName(p, "Alpha Order", false) == zeta);
+        }
+
+        MnKordAudioProcessor p;
+        CHECK(indexOfName(p, "Alpha Order", false) == zeta);
+        CHECK(indexOfName(p, "Beta Dropped", false) == (int) p.getPresets().size() - 1);
+    }
+
     root.deleteRecursively();
     std::printf("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

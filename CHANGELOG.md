@@ -4,7 +4,14 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 1.1.0
+## [Unreleased] - 0.1.0
+
+The first version, still in initial development (0.x): chord mapping with templates and chord symbols,
+velocity layers, octave copy, MIDI learn, undo/redo, transpose, the factory and user preset library with
+the preset browser, and the dark and light themes.
+
+### Added
+- The version is shown next to the title in the plugin window header.
 
 ### Changed
 - The sustain pedal is left to the synth: CC 64 passes through and note-offs are no longer held back
@@ -12,7 +19,6 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
 - The host sees a fixed program list of 128 entries (more if the library is larger when the plugin
   loads): the presets, then empty slots named "-". VST3 hosts read the program count only once, so
   program numbers no longer shift when presets are added or deleted.
-- The version is shown next to the title in the plugin window header.
 - The plugin no longer writes a debug log (`mnKord.log`) of every click.
 
 ### Fixed
@@ -25,9 +31,16 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
   lock for less time, so the audio thread waits less.
 - Typing an unknown chord symbol no longer triggers an assertion in Debug builds.
 - Builds with GCC on Linux.
-
-## [1.0.0]
-
-The first version: chord mapping with templates, chord symbols, velocity layers, octave copy, MIDI learn,
-undo/redo, transpose, the factory and user preset library with the preset browser, and the dark and light
-themes.
+- The chord name above the CHORD keyboard reads right with a bass note: "Cm" instead of "C chord" when
+  the chord has its root added below, and slash chords over a bass outside the chord get their name
+  ("C/D", "Am/G", "Gm7/E") instead of none or a misleading one ("Cadd9/D", "C6/G").
+- Power chords typed as symbols (`C5`) no longer get the same note twice.
+- Switching to the hard (or soft) velocity layer, or deleting a mapping, no longer selects a mapping of
+  the other layer, whose chord the CHORD keys would then have edited.
+- A preset change from the host clears the mapping selection instead of selecting an arbitrary mapping
+  of the new preset.
+- User presets keep their program numbers when a project is reopened: they stay in the order they were
+  added (kept in `user-order.txt` in the library folder) instead of being re-sorted by name, so host
+  program-change automation still picks the same presets. The preset browser still lists them by name.
+- Undo and redo keep the selected key and velocity layer selected, instead of whatever mapping ends up
+  at the same position.

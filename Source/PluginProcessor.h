@@ -262,7 +262,13 @@ private:
     // under the lock.
     static juce::String fingerprint(const Preset& preset);
     static std::vector<Preset> buildFactoryPresets();      // built in, flagged, with fingerprints
-    static std::vector<Preset> loadUserPresets();          // one preset per file in User/
+    // One preset per file in User/, in the order of user-order.txt: the order they were added in,
+    // so the host's program numbers stay the same across a reload. Files not listed there
+    // (dropped in from outside) come after the listed ones, by name.
+    static std::vector<Preset> loadUserPresets();
+    static juce::File getUserOrderFile();
+    // Writes the user presets' current order to user-order.txt. Call after the list changes.
+    void saveUserOrder();
     static std::vector<Preset> buildLibrary();             // factory (synced to disk) + user
     static void syncFactoryFolder(const std::vector<Preset>& factory);
     static juce::File uniqueUserFile(const juce::String& presetName);
