@@ -34,9 +34,11 @@ if(GIT_FOUND AND IS_DIRECTORY "${_git_dir}")
             set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_file}")
         endif()
     endforeach()
-    if(IS_DIRECTORY "${_git_dir}/refs/tags")
-        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_git_dir}/refs/tags")
-    endif()
+    # Loose tag files (a directory isn't a valid dependency for Visual Studio, so list the files).
+    file(GLOB_RECURSE _tag_files "${_git_dir}/refs/tags/*")
+    foreach(_file IN LISTS _tag_files)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_file}")
+    endforeach()
 endif()
 
 # The changelog's "## [Unreleased] - x.y.z" heading must name the same version (see AGENTS.md).
