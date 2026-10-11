@@ -31,3 +31,11 @@ the preset browser, and the dark and light themes.
   lock for less time, so the audio thread waits less.
 - Typing an unknown chord symbol no longer triggers an assertion in Debug builds.
 - Builds with GCC on Linux.
+- The chord name above the CHORD keyboard reads right with a bass note: "Cm" instead of "C chord" when
+  the chord has its root added below, and slash chords over a bass outside the chord get their name
+  ("C/D", "Am/G", "Gm7/E") instead of none or a misleading one ("Cadd9/D", "C6/G").
+- Power chords typed as symbols (`C5`) no longer get the same note twice.
+- Switching to the hard (or soft) velocity layer, or deleting a mapping, no longer selects a mapping of
+  the other layer, whose chord the CHORD keys would then have edited.
+- A preset change from the host clears the mapping selection instead of selecting an arbitrary mapping
+  of the new preset.

@@ -103,6 +103,10 @@ namespace ChordSymbol
                 notes[i] += 12;
             std::sort(notes.begin(), notes.end());
 
+            // A chord with an octave in it (C5: C G C) would land a note on top of another.
+            if (std::adjacent_find(notes.begin(), notes.end()) != notes.end())
+                continue;
+
             for (const int shift : { -12, 0, 12 })
             {
                 const int lowest = notes.front() + shift;
@@ -144,20 +148,21 @@ namespace ChordSymbol
         if (notes.empty())
             return {};
 
+        // Simplest first: when a set of notes fits several shapes, the one listed earlier wins.
         static const struct { const char* suffix; std::vector<int> intervals; } shapes[] = {
             { "",      { 0, 4, 7 } },         { "m",     { 0, 3, 7 } },
             { "dim",   { 0, 3, 6 } },         { "aug",   { 0, 4, 8 } },
-            { "sus2",  { 0, 2, 7 } },         { "sus4",  { 0, 5, 7 } },
-            { "5",     { 0, 7 } },            { "maj7",  { 0, 4, 7, 11 } },
-            { "m7",    { 0, 3, 7, 10 } },     { "7",     { 0, 4, 7, 10 } },
-            { "m7b5",  { 0, 3, 6, 10 } },     { "dim7",  { 0, 3, 6, 9 } },
-            { "6",     { 0, 4, 7, 9 } },      { "m6",    { 0, 3, 7, 9 } },
-            { "add9",  { 0, 2, 4, 7 } },      { "madd9", { 0, 2, 3, 7 } },
-            { "maj9",  { 0, 2, 4, 7, 11 } },  { "m9",    { 0, 2, 3, 7, 10 } },
-            { "9",     { 0, 2, 4, 7, 10 } },  { "7sus4", { 0, 5, 7, 10 } },
-            { "mmaj7", { 0, 3, 7, 11 } },     { "7#9",   { 0, 3, 4, 7, 10 } },
-            { "7b9",   { 0, 1, 4, 7, 10 } }, { "6/9",   { 0, 2, 4, 7, 9 } },
-            { "4th",   { 0, 5, 10, 3 } },
+            { "sus4",  { 0, 5, 7 } },         { "sus2",  { 0, 2, 7 } },
+            { "7",     { 0, 4, 7, 10 } },     { "m7",    { 0, 3, 7, 10 } },
+            { "maj7",  { 0, 4, 7, 11 } },     { "m7b5",  { 0, 3, 6, 10 } },
+            { "dim7",  { 0, 3, 6, 9 } },      { "mmaj7", { 0, 3, 7, 11 } },
+            { "7sus4", { 0, 5, 7, 10 } },     { "6",     { 0, 4, 7, 9 } },
+            { "m6",    { 0, 3, 7, 9 } },      { "add9",  { 0, 2, 4, 7 } },
+            { "madd9", { 0, 2, 3, 7 } },      { "9",     { 0, 2, 4, 7, 10 } },
+            { "m9",    { 0, 2, 3, 7, 10 } },  { "maj9",  { 0, 2, 4, 7, 11 } },
+            { "6/9",   { 0, 2, 4, 7, 9 } },   { "7b9",   { 0, 1, 4, 7, 10 } },
+            { "7#9",   { 0, 3, 4, 7, 10 } },  { "4th",   { 0, 5, 10, 3 } },
+            { "5",     { 0, 7 } },
         };
 
         static const char* const pitchNames[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B" };
@@ -170,39 +175,59 @@ namespace ChordSymbol
             return mask;
         };
 
-        const int lowest = *std::min_element(notes.begin(), notes.end());
-        unsigned pcMask = 0;
-        for (const int note : notes)
-            pcMask |= 1u << (((note % 12) + 12) % 12);
-
-        // The lowest note is tried as the root first (so a slash chord reads as its bass), then
-        // the other pitch classes (inversions).
-        std::vector<int> roots;
-        roots.push_back(((lowest % 12) + 12) % 12);
-        for (int pc = 0; pc < 12; ++pc)
-            if ((pcMask >> pc & 1u) != 0 && pc != roots.front())
-                roots.push_back(pc);
-
-        const int bassPc = roots.front();
-        for (const int root : roots)
+        // Index into shapes of the chord rooted on root whose pitch classes are exactly pcMask, or -1.
+        auto shapeFor = [&maskOf](unsigned pcMask, int root)
         {
             unsigned relative = 0;
             for (int pc = 0; pc < 12; ++pc)
                 if ((pcMask >> pc & 1u) != 0)
                     relative |= 1u << ((pc - root + 12) % 12);
 
-            for (const auto& shape : shapes)
-            {
-                if (maskOf(shape.intervals) != relative)
-                    continue;
+            for (int i = 0; i < (int) (sizeof(shapes) / sizeof(shapes[0])); ++i)
+                if (maskOf(shapes[i].intervals) == relative)
+                    return i;
 
-                auto name = juce::String(pitchNames[root]) + shape.suffix;
-                if (bassPc != root)
-                    name << "/" << pitchNames[bassPc];
-                return name;
-            }
+            return -1;
+        };
+
+        const int lowest = *std::min_element(notes.begin(), notes.end());
+        const int bassPc = ((lowest % 12) + 12) % 12;
+
+        unsigned pcMask = 0, upperMask = 0;
+        for (const int note : notes)
+        {
+            pcMask |= 1u << (((note % 12) + 12) % 12);
+            if (note != lowest)
+                upperMask |= 1u << (((note % 12) + 12) % 12);
         }
 
-        return {};
+        // 1. Root position: the bass note is the root.
+        if (const int shape = shapeFor(pcMask, bassPc); shape >= 0)
+            return juce::String(pitchNames[bassPc]) + shapes[shape].suffix;
+
+        // 2. A slash chord: an inversion (the bass is a chord tone), or a chord over a bass note that
+        //    isn't in it (C/D, Am/G) -- only when the bass pitch class sounds nowhere above it.
+        //    The simplest shape wins; on a tie, the inversion.
+        const bool bassOnlyInBass = (upperMask >> bassPc & 1u) == 0;
+        int bestRoot = -1, bestShape = -1;
+
+        for (int root = 0; root < 12; ++root)
+        {
+            if (root == bassPc)
+                continue;
+
+            if ((pcMask >> root & 1u) != 0)
+                if (const int shape = shapeFor(pcMask, root); shape >= 0 && (bestShape < 0 || shape < bestShape))
+                    bestRoot = root, bestShape = shape;
+
+            if (bassOnlyInBass && (upperMask >> root & 1u) != 0)
+                if (const int shape = shapeFor(upperMask, root); shape >= 0 && (bestShape < 0 || shape < bestShape))
+                    bestRoot = root, bestShape = shape;
+        }
+
+        if (bestShape < 0)
+            return {};
+
+        return juce::String(pitchNames[bestRoot]) + shapes[bestShape].suffix + "/" + pitchNames[bassPc];
     }
 }
