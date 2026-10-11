@@ -140,7 +140,9 @@ The tests use a temporary library folder and never touch `Documents\MNAudio\mnKo
 
 ## Versioning
 
-mnKord follows [Semantic Versioning](https://semver.org/): **MAJOR.MINOR.PATCH**.
+mnKord follows [Semantic Versioning](https://semver.org/): **MAJOR.MINOR.PATCH**. It is in initial development
+(`0.x`): until `1.0.0`, the first stable version, an incompatible change or a new feature raises MINOR
+(`0.1.3` → `0.2.0`) and a fix raises PATCH (`0.1.3` → `0.1.4`). From `1.0.0` on:
 
 | Part | Goes up when | Example |
 |------|--------------|---------|
@@ -149,15 +151,15 @@ mnKord follows [Semantic Versioning](https://semver.org/): **MAJOR.MINOR.PATCH**
 | PATCH | Only bugs are fixed | `1.4.2` → `1.4.3` |
 
 The version is set in one place, `project(mnKord VERSION x.y.z)` in `CMakeLists.txt`; JUCE builds it into the
-plugin (VST3 metadata, `JucePlugin_VersionString`) and the window shows it in its bottom-right corner.
+plugin (VST3 metadata, `JucePlugin_VersionString`) and the window shows it next to the title.
 
 Keeping the version and the changelog up to date is done by the AI agents working on the project, as part of
 every change, following [AGENTS.md](AGENTS.md); the rules are summarised here.
 
 **During development** the version in `CMakeLists.txt` is the *next* release. Raise it with the first change
-after a release, by the largest kind of change since then (a fix after `1.1.0` makes it `1.1.1`; a feature
-added later makes that `1.2.0`). Every change also goes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
-Builds between releases show which commit they came from, e.g. `v1.1.0-dev+037de27`; the suffix updates by
+after a release, by the largest kind of change since then (a fix after `0.1.0` makes it `0.1.1`; a feature
+added later makes that `0.2.0`). Every change also goes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md).
+Builds between releases show which commit they came from, e.g. `v0.1.0-dev+037de27`; the suffix updates by
 itself when the commit changes.
 
 **To release** a version (ask the agent to do it, or by hand):
@@ -171,7 +173,7 @@ itself when the commit changes.
    git push origin vx.y.z
    ```
 
-A build of the tagged commit shows the plain version (`v1.1.0`).
+A build of the tagged commit shows the plain version (`v0.1.0`).
 
 ## License
 

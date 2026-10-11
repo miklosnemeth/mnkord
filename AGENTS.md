@@ -29,7 +29,15 @@ Build and run the tests before every commit; they must end with `0 failures`. Th
 1. Add a line for it under `## [Unreleased] - x.y.z` in `CHANGELOG.md`, in the right group: **Added**,
    **Changed**, **Fixed** or **Removed**. Write it for a user of the plugin (what they will notice), not
    about the code. Purely internal work (refactoring, tests, build scripts) gets no line unless users notice it.
-2. Set the version to **the last release + the largest kind of change in the Unreleased section**:
+2. Set the version to **the last release + the largest kind of change in the Unreleased section**.
+
+   **While the version starts with 0 (initial development, now):** the major number stays 0.
+   - An incompatible change or a new/changed feature raises **MINOR** (`0.1.3` -> `0.2.0`).
+     Say in your reply when a change is incompatible.
+   - Only bug fixes raise **PATCH** (`0.1.3` -> `0.1.4`).
+   - Going to `1.0.0` (the first stable version) is the owner's decision: never do it on your own.
+
+   **From 1.0.0 on:**
    - **MAJOR** (`1.4.2` -> `2.0.0`): projects or preset files saved by an earlier version don't load or
      don't play the same, or a feature users rely on is removed.
      **Ask the owner before making a MAJOR bump**, and say what breaks.
@@ -37,8 +45,9 @@ Build and run the tests before every commit; they must end with `0 failures`. Th
      projects and presets still work.
    - **PATCH** (`1.4.2` -> `1.4.3`): only bug fixes.
 
-   The version moves at most once per kind of change in a release cycle: three fixes after `1.1.0` are
-   still `1.1.1`; a feature after them makes it `1.2.0` (not `1.2.1`).
+   The version moves at most once per kind of change in a release cycle: three fixes after `0.1.0` are
+   still `0.1.1`; a feature after them makes it `0.2.0` (not `0.2.1`).
+   Nothing has been released yet, so until the first release the version stays `0.1.0`.
 3. Update the number in **both** `CMakeLists.txt` and the `## [Unreleased] - x.y.z` heading.
 4. Say in your reply to the owner which version the change led to, and why.
 
@@ -53,6 +62,6 @@ Never create, move or delete tags, or push them, unless the owner asks.
 
 ## Where the version shows
 
-- The plugin window, bottom-right corner: `v1.1.0` for a release build, `v1.1.0-dev+<commit>` for any
+- The plugin window, next to the title: `v0.1.0` for a release build, `v0.1.0-dev+<commit>` for any
   other build (the suffix follows the commit by itself; see `cmake/Version.cmake`).
 - The plugin's metadata (VST3 version, `JucePlugin_VersionString`), from the same CMake number.

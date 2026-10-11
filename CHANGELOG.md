@@ -4,7 +4,14 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 1.1.0
+## [Unreleased] - 0.1.0
+
+The first version, still in initial development (0.x): chord mapping with templates and chord symbols,
+velocity layers, octave copy, MIDI learn, undo/redo, transpose, the factory and user preset library with
+the preset browser, and the dark and light themes.
+
+### Added
+- The version is shown next to the title in the plugin window header.
 
 ### Changed
 - The sustain pedal is left to the synth: CC 64 passes through and note-offs are no longer held back
@@ -12,7 +19,6 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
 - The host sees a fixed program list of 128 entries (more if the library is larger when the plugin
   loads): the presets, then empty slots named "-". VST3 hosts read the program count only once, so
   program numbers no longer shift when presets are added or deleted.
-- The version is shown next to the title in the plugin window header.
 - The plugin no longer writes a debug log (`mnKord.log`) of every click.
 
 ### Fixed
@@ -25,9 +31,3 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
   lock for less time, so the audio thread waits less.
 - Typing an unknown chord symbol no longer triggers an assertion in Debug builds.
 - Builds with GCC on Linux.
-
-## [1.0.0]
-
-The first version: chord mapping with templates, chord symbols, velocity layers, octave copy, MIDI learn,
-undo/redo, transpose, the factory and user preset library with the preset browser, and the dark and light
-themes.
