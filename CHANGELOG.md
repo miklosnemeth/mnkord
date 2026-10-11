@@ -12,7 +12,7 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
 - The host sees a fixed program list of 128 entries (more if the library is larger when the plugin
   loads): the presets, then empty slots named "-". VST3 hosts read the program count only once, so
   program numbers no longer shift when presets are added or deleted.
-- The version is shown in the bottom-right corner of the plugin window.
+- The version is shown next to the title in the plugin window header.
 - The plugin no longer writes a debug log (`mnKord.log`) of every click.
 
 ### Fixed

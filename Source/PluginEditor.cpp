@@ -1069,12 +1069,14 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(rect, 8.0f);
     }
 
-    // The build's version ("1.1.0", or "1.1.0-dev+<commit>" between releases) in the strip
-    // below the panels, so a bug report can say which build it came from.
-    g.setColour(getMutedTextColour().withAlpha(0.7f));
-    g.setFont(juce::FontOptions(11.0f));
-    g.drawText("v" MNKORD_VERSION_STRING, getLocalBounds().reduced(18, 0).withTop((int) bottomPanel.getBottom()),
-               juce::Justification::centredRight, false);
+    // The build's version ("1.1.0", or "1.1.0-dev+<commit>" between releases) right after the
+    // title, so a bug report can say which build it came from.
+    const auto titleFont = juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened();
+    const float titleWidth = (float) juce::GlyphArrangement::getStringWidthInt(titleFont, "mnKord");
+    g.setColour(getMutedTextColour());
+    g.setFont(juce::FontOptions(13.0f));
+    g.drawText("v" MNKORD_VERSION_STRING, juce::Rectangle<float>(titleArea.getX() + titleWidth + 8.0f, titleArea.getY(), 200.0f, 44.0f),
+               juce::Justification::bottomLeft, false);
 }
 
 void MnKordAudioProcessorEditor::resized()
