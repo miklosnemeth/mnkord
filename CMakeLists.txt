@@ -90,6 +90,8 @@ if(MNKORD_BUILD_TESTS)
         "${CMAKE_CURRENT_BINARY_DIR}/juce_binarydata_mnKordFonts/JuceLibraryCode")
     if(MSVC)
         target_compile_options(mnKordTests PRIVATE /utf-8)
+        # The tests keep several processors on the stack; the default 1 MB overflows in Release.
+        target_link_options(mnKordTests PRIVATE /STACK:8388608)
     endif()
     target_link_libraries(mnKordTests PRIVATE
         mnKord
