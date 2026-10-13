@@ -177,6 +177,20 @@ itself when the commit changes.
 
 A build of the tagged commit shows the plain version (`v0.1.0`).
 
+## Installer (Windows)
+
+The installer puts the VST3 into `%CommonProgramFiles%\VST3` (the Standalone is not included) and the
+licenses into `Program Files\MNAudio\mnKord`. It is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+from a Release build of the tagged commit:
+
+```powershell
+cmake -S . -B build
+cmake --build build --config Release --target mnKord_VST3
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=0.1.0 installer\mnKord.iss
+```
+
+The result is `build\installer\mnKord-0.1.0-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+
 ## License
 
 Copyright (C) 2026 Miklós Németh.
