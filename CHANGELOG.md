@@ -4,7 +4,7 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 0.1.0
+## [0.1.0] - 2026-10-13
 
 The first version, still in initial development (0.x): chord mapping with templates and chord symbols,
 velocity layers, octave copy, MIDI learn, undo/redo, transpose, the factory and user preset library with
