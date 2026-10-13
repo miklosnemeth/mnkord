@@ -186,4 +186,10 @@ you may use, study, change and share it, but every modified version you distribu
 users over a network) must be released under the same license, with its source code.
 
 It is built with [JUCE](https://juce.com) under JUCE's AGPLv3 option, which is what makes this license
-a good fit. The bundled fonts (Montserrat, Roboto Condensed) are licensed under the SIL Open Font License.
+a good fit.
+
+The bundled fonts keep their own licenses, whose texts are in [Resources/Fonts](Resources/Fonts) and must
+travel with any binary release:
+
+- Montserrat: SIL Open Font License 1.1 ([Montserrat-OFL.txt](Resources/Fonts/Montserrat-OFL.txt))
+- Roboto Condensed: Apache License 2.0 ([RobotoCondensed-LICENSE.txt](Resources/Fonts/RobotoCondensed-LICENSE.txt))
