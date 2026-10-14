@@ -189,7 +189,7 @@ cmake --build build --config Release --target mnKord_VST3
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=0.1.0 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-0.1.0-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-0.1.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 

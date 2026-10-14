@@ -1,7 +1,7 @@
 ; Windows installer for the mnKord VST3 (the Standalone is not included).
 ; Build it with Inno Setup 6 from a Release build, giving the version on the command line:
 ;   ISCC.exe /DMyAppVersion=0.1.0 installer\mnKord.iss
-; The result is build\installer\mnKord-<version>-setup.exe (see README "Installer").
+; The result is build\installer\mnKord-<version>-win-x64-setup.exe (see README "Installer").
 
 #ifndef MyAppVersion
   #error Pass the version: ISCC.exe /DMyAppVersion=x.y.z installer\mnKord.iss
@@ -21,7 +21,7 @@ DefaultGroupName=MNAudio
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 OutputDir=..\build\installer
-OutputBaseFilename=mnKord-{#MyAppVersion}-setup
+OutputBaseFilename=mnKord-{#MyAppVersion}-win-x64-setup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
