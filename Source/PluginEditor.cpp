@@ -1011,7 +1011,7 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(rect, 8.0f);
     }
 
-    // The build's version ("0.1.0", or "0.1.0-dev+<commit>" between releases) right after the
+    // The build's version ("1.0.0", or "1.0.0-dev+<commit>" between releases) right after the
     // title, so a bug report can say which build it came from.
     const auto titleFont = juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened();
     const float titleWidth = (float) juce::GlyphArrangement::getStringWidthInt(titleFont, "mnKord");
