@@ -3,6 +3,8 @@
 **mnKord** is a MIDI chord-mapping effect: one input key triggers a chord of output notes.  
 Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 
+**User guide:** [English](docs/USER_GUIDE.md) · [Magyar](docs/USER_GUIDE.hu.md)
+
 ## Features
 
 - Map any MIDI note to an arbitrary chord (click INPUT key, then CHORD keys)
@@ -118,6 +120,7 @@ Bank (accepted by **Import**, which saves each preset in it as its own file):
 CMakeLists.txt
 CHANGELOG.md
 AGENTS.md                  # rules for AI agents (build, tests, versioning); CLAUDE.md points to it
+docs/                      # user guide (English: USER_GUIDE.md, Hungarian: USER_GUIDE.hu.md)
 cmake/
   Version.cmake            # dev suffix (commit) for the displayed version
   MnKordVersion.h.in       # template of the generated MnKordVersion.h
