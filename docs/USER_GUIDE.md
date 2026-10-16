@@ -1,6 +1,6 @@
 # mnKord user guide
 
-**English** · [Magyar](USER_GUIDE.hu.md)
+**English** · [Magyar](USER_GUIDE.hu.md) · [Documentation home](README.md)
 
 mnKord is a MIDI effect: you play one key, and it sends a whole chord. It does not make sound by
 itself. Put it in front of a synth, and the synth plays the chords.

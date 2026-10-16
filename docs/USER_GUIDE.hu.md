@@ -1,6 +1,6 @@
 # mnKord felhasználói útmutató
 
-[English](USER_GUIDE.md) · **Magyar**
+[English](USER_GUIDE.md) · **Magyar** · [Dokumentáció kezdőlap](README.hu.md)
 
 A mnKord egy MIDI-effekt: megnyomsz egy billentyűt, és egy egész akkordot küld. Hangot nem ad ki
 magától. Tedd egy szintetizátor elé, és a szintetizátor játssza le az akkordokat.
