@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mnkord – MIDI chord plugin</title>
+<title>mnKord – MIDI chord plugin</title>
 <meta name="description" content="mnKord: play one key, get a whole chord. A free MIDI chord-mapping VST3 plugin with chord templates, chord symbols, velocity layers and about 30 presets. Vibecoded by Miklós Németh.">
 <meta name="color-scheme" content="dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101315'/%3E%3Crect x='6' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='1.5' fill='%23fbfcfb'/%3E%3Crect x='21' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3C/svg%3E">
@@ -136,7 +136,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
   <header class="top">
     <a class="brand display" href="#top" aria-label="mnKord">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>
-      mnkord
+      mnKord
     </a>
     <nav class="nav">
       <a class="hide-sm" href="#features"><span data-l="en">Features</span><span data-l="hu">Funkciók</span></a>
@@ -155,7 +155,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
         <span data-l="en">Free MIDI chord plugin · VST3</span>
         <span data-l="hu">Ingyenes MIDI akkord-plugin · VST3</span>
       </span>
-      <h1 class="display">mn<span>kord</span></h1>
+      <h1 class="display">mn<span>Kord</span></h1>
       <p class="tagline">
         <span data-l="en">One key. A whole chord.</span>
         <span data-l="hu">Egy billentyű. Egy egész akkord.</span>
@@ -198,7 +198,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
           <p><span data-l="en">Your MIDI keyboard sends a single note.</span><span data-l="hu">A MIDI-billentyűzeted egyetlen hangot küld.</span></p>
         </div>
         <div class="step">
-          <h3><span data-l="en">mnkord expands it</span><span data-l="hu">A mnkord kibővíti</span></h3>
+          <h3><span data-l="en">mnKord expands it</span><span data-l="hu">A mnKord kibővíti</span></h3>
           <p><span data-l="en">The key is looked up in the current preset and becomes a chord.</span><span data-l="hu">A billentyű az aktuális preset alapján akkorddá bővül.</span></p>
         </div>
         <div class="step">
@@ -265,7 +265,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
     </section>
 
     <section id="get" aria-labelledby="getit">
-      <h2 id="getit" class="display"><span data-l="en">Get mnkord</span><span data-l="hu">Szerezd meg a mnkordot</span></h2>
+      <h2 id="getit" class="display"><span data-l="en">Get mnKord</span><span data-l="hu">Szerezd meg a mnKordot</span></h2>
       <p class="sub"><span data-l="en">Free, with the source code open. The Windows installer is the quick way in.</span><span data-l="hu">Ingyenes, nyílt forráskóddal. A leggyorsabb út a Windows-telepítő.</span></p>
       <div class="get">
         <div class="box">
@@ -325,7 +325,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
 
   function setLang(lang) {
     root.lang = lang;
-    document.title = lang === 'hu' ? 'mnkord – MIDI akkord-plugin' : 'mnkord – MIDI chord plugin';
+    document.title = lang === 'hu' ? 'mnKord – MIDI akkord-plugin' : 'mnKord – MIDI chord plugin';
     buttons.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.set === lang ? 'true' : 'false'); });
     var pdf = document.querySelector('[data-pdf]');
     if (pdf) pdf.href = lang === 'hu' ? 'mnKord-Felhasznaloi-utmutato.pdf' : 'mnKord-User-Guide.pdf';
