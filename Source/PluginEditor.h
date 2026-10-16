@@ -97,22 +97,6 @@ private:
         output
     };
 
-    enum class VisualTheme
-    {
-        Dark,
-        Light
-    };
-
-    // Dark/light switch for the header: draws the icon of the theme a click switches to (a
-    // sun while dark, a moon while light).
-    struct ThemeToggleButton : public juce::Button
-    {
-        ThemeToggleButton() : juce::Button({}) {}
-        void paintButton(juce::Graphics&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-        bool showSun = true;
-    };
-
     struct FlatLookAndFeel : public juce::LookAndFeel_V4
     {
         juce::Typeface::Ptr getTypefaceForFont(const juce::Font&) override;
@@ -369,7 +353,6 @@ private:
 
     // Preset controls
     FlatLookAndFeel flatLookAndFeel;
-    ThemeToggleButton themeToggleButton;
     // Read-only summary ("C Major"); clicking it opens a small popup to change root/scale.
     // The scale is set-once-per-preset in practice, so it doesn't need permanent dropdowns.
     // The CallOutBox launched by showScalePopup() (owned by the modal machinery, not the
@@ -419,7 +402,6 @@ private:
     juce::Label outputKeyboardLabel;
 
     int selectedMappingIndex = -1;
-    VisualTheme visualTheme = VisualTheme::Dark;
     int scaleRoot = 0;
     Scale scaleType = Scale::Chromatic;
     // Octaves below / above the middle octave (the scale root in octave 4 up to the note
@@ -503,7 +485,7 @@ private:
     // away must be dismissed first; they're tracked here for that.
     void trackDialog(juce::Component* dialog);
     juce::Array<juce::Component::SafePointer<juce::Component>> openDialogs;
-    void applyVisualTheme();
+    void applyColours();
     bool isInSelectedScale(int midiNoteNumber) const;
     static const std::vector<int>& scaleIntervals(Scale scale);
     // The "mnKord" header title uses Montserrat; every other piece of text in the UI goes

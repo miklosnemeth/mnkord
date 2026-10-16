@@ -4,6 +4,11 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.2.0] - 2026-10-16
+
+### Removed
+- The dark / light theme switch in the header: the plugin is always dark. The theme was never saved in projects or presets, so nothing else changes.
+
 ## [1.1.0] - 2026-10-16
 
 ### Changed

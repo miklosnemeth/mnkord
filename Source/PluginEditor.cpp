@@ -906,8 +906,6 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     addAndMakeVisible(prevPresetButton);
     addAndMakeVisible(nextPresetButton);
 
-    themeToggleButton.addListener(this);
-    addAndMakeVisible(themeToggleButton);
 
     scaleSummaryButton.addListener(this);
     addAndMakeVisible(scaleSummaryButton);
@@ -986,7 +984,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     setSize(980, 456);
 
     updateScaleSummaryText();
-    applyVisualTheme();
+    applyColours();
     refreshPresetBox();
     setSelectedMappingIndex(selectedMappingIndex);
 }
@@ -1071,10 +1069,9 @@ void MnKordAudioProcessorEditor::resized()
     controls.removeFromLeft(8);
     presetMenuButton.setBounds(controls.removeFromLeft(76));
 
-    const auto themeBounds = juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() });
-    themeToggleButton.setBounds(themeBounds);
-    redoButton.setBounds(themeBounds.translated(-34, 0));
-    undoButton.setBounds(themeBounds.translated(-62, 0));
+    const auto redoBounds = juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() });
+    redoButton.setBounds(redoBounds);
+    undoButton.setBounds(redoBounds.translated(-34, 0));
 
     // Left/right/bottom margins of 14, top starting exactly where the header ends.
     auto area = getLocalBounds().reduced(14).withTrimmedTop(60);
@@ -1259,56 +1256,6 @@ void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
 }
 
 //==============================================================================
-void MnKordAudioProcessorEditor::ThemeToggleButton::paintButton(juce::Graphics& g,
-                                                                  bool shouldDrawButtonAsHighlighted,
-                                                                  bool shouldDrawButtonAsDown)
-{
-    auto bounds = getLocalBounds().toFloat();
-
-    auto fill = findColour(juce::TextButton::buttonColourId);
-    if (shouldDrawButtonAsDown)
-        fill = fill.brighter(0.16f);
-    else if (shouldDrawButtonAsHighlighted)
-        fill = fill.brighter(0.08f);
-
-    g.setColour(fill);
-    g.fillRoundedRectangle(bounds, 7.0f);
-
-    const auto centre = bounds.getCentre();
-    const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.2f;
-    g.setColour(findColour(juce::TextButton::textColourOffId));
-
-    if (showSun)
-    {
-        g.fillEllipse(juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre));
-
-        juce::Path rays;
-        for (int i = 0; i < 8; ++i)
-        {
-            const float angle = juce::MathConstants<float>::twoPi * (float) i / 8.0f;
-            const auto direction = juce::Point<float>(std::cos(angle), std::sin(angle));
-            rays.startNewSubPath(centre + direction * (radius * 1.55f));
-            rays.lineTo(centre + direction * (radius * 2.05f));
-        }
-        g.strokePath(rays, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    }
-    else
-    {
-        // A crescent: a disc with an offset disc cut out of it.
-        const float moonRadius = radius * 1.5f;
-        juce::Path moon;
-        moon.addEllipse(juce::Rectangle<float>(moonRadius * 2.0f, moonRadius * 2.0f).withCentre(centre));
-
-        juce::Path bite;
-        bite.addEllipse(juce::Rectangle<float>(moonRadius * 1.8f, moonRadius * 1.8f)
-                            .withCentre(centre + juce::Point<float>(moonRadius * 0.7f, -moonRadius * 0.55f)));
-
-        moon.setUsingNonZeroWinding(false);
-        moon.addPath(bite);
-        g.fillPath(moon);
-    }
-}
-
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
     if (button == &layerButton)
@@ -1317,12 +1264,6 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
         copySelectedOctave(12);
     else if (button == &copyOctaveDownButton)
         copySelectedOctave(-12);
-    else if (button == &themeToggleButton)
-    {
-        visualTheme = visualTheme == VisualTheme::Dark ? VisualTheme::Light : VisualTheme::Dark;
-        applyVisualTheme();
-        repaint();
-    }
     else if (button == &presetSummaryButton)
     {
         showPresetBrowser();
@@ -2944,7 +2885,7 @@ void MnKordAudioProcessorEditor::fillActivePresetFromScale(int chordSize)
     setSelectedMappingIndex(selectedMappingIndex);
 }
 
-void MnKordAudioProcessorEditor::applyVisualTheme()
+void MnKordAudioProcessorEditor::applyColours()
 {
     chordSymbolEditor.setColour(juce::TextEditor::backgroundColourId, getControlColour());
     chordSymbolEditor.setColour(juce::TextEditor::textColourId, getTextColour());
@@ -2956,13 +2897,6 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
 
     const auto control = getControlColour();
     const auto textColour = getTextColour();
-
-    themeToggleButton.showSun = visualTheme == VisualTheme::Dark;
-    themeToggleButton.setTooltip(visualTheme == VisualTheme::Dark ? "Switch to the light theme"
-                                                                  : "Switch to the dark theme");
-    themeToggleButton.setColour(juce::TextButton::buttonColourId, control);
-    themeToggleButton.setColour(juce::TextButton::textColourOffId, textColour);
-    themeToggleButton.repaint();
 
     // A small chip, quieter than a full dropdown but still visibly clickable.
     scaleSummaryButton.setColour(juce::TextButton::buttonColourId, control);
@@ -3816,101 +3750,57 @@ juce::String MnKordAudioProcessorEditor::getOutputDegreeLabel(int midiNoteNumber
 
 juce::Colour MnKordAudioProcessorEditor::getBackgroundColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffeef2f0);
-        default: return juce::Colour(0xff101315);
-    }
+    return juce::Colour(0xff101315);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getPanelColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffffffff);
-        default: return juce::Colour(0xff191e21);
-    }
+    return juce::Colour(0xff191e21);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getPanelLineColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffd8dfdc);
-        default: return juce::Colour(0xff2a3237);
-    }
+    return juce::Colour(0xff2a3237);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getTextColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xff17201b);
-        default: return juce::Colour(0xffeef3ef);
-    }
+    return juce::Colour(0xffeef3ef);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getMutedTextColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xff66736d);
-        default: return juce::Colour(0xff95a09a);
-    }
+    return juce::Colour(0xff95a09a);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getAccentColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xff11b85f);
-        default: return juce::Colour(0xff2ee66b);
-    }
+    return juce::Colour(0xff2ee66b);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getControlColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffdde5e1);
-        default: return juce::Colour(0xff242b2f);
-    }
+    return juce::Colour(0xff242b2f);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getWhiteKeyTopColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffffffff);
-        default: return juce::Colour(0xfffbfcfb);
-    }
+    return juce::Colour(0xfffbfcfb);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getWhiteKeyBottomColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xffdce3df);
-        default: return juce::Colour(0xffd7ddd8);
-    }
+    return juce::Colour(0xffd7ddd8);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getBlackKeyTopColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xff26302d);
-        default: return juce::Colour(0xff252b2e);
-    }
+    return juce::Colour(0xff252b2e);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getBlackKeyBottomColour() const
 {
-    switch (visualTheme)
-    {
-        case VisualTheme::Light: return juce::Colour(0xff0e1211);
-        default: return juce::Colour(0xff111416);
-    }
+    return juce::Colour(0xff111416);
 }
 
 NoteMapping* MnKordAudioProcessorEditor::getSelectedMapping()

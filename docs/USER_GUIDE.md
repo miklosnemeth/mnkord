@@ -32,7 +32,7 @@ To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (se
 
 | Area | What it is |
 |------|------------|
-| Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Preset** menu, **Undo / Redo** and the dark / light theme switch. A dot after the name means the preset has unsaved changes. |
+| Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Preset** menu, and **Undo / Redo**. A dot after the name means the preset has unsaved changes. |
 | **INPUT** keyboard | The keys you play. Keys that have a chord are coloured. The strip above the keys shows octaves. |
 | **CHORD** keyboard | The notes of the chord of the selected INPUT key. |
 | Chord name field | Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) to replace the selected chord. Above it you see the chord's name and its notes. |

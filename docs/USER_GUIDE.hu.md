@@ -36,7 +36,7 @@ Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*
 
 | Terület | Mi ez |
 |---------|-------|
-| Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Preset** menü, **Undo / Redo** és a sötét / világos téma kapcsoló. A név utáni pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
+| Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Preset** menü és **Undo / Redo**. A név utáni pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
 | **INPUT** billentyűzet | A billentyűk, amelyeket játszol. Az akkorddal rendelkező billentyűk színesek. A billentyűk feletti sáv az oktávokat mutatja. |
 | **CHORD** billentyűzet | A kiválasztott INPUT billentyű akkordjának hangjai. |
 | Akkordnév-mező | Írj be egy akkordszimbólumot (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), és az a kiválasztott akkord helyére kerül. Felette látod az akkord nevét és hangjait. |

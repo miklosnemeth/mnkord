@@ -26,7 +26,6 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Host program list mirrors the preset list (a fixed 128 programs, so VST3 hosts keep their indices; unused slots show "-")
 - Overlapping chords share notes with ref-counting (no stuck or cut-off notes); the sustain pedal passes through to the synth
 - Non-note MIDI (CC, pitch bend, aftertouch, …) passes through
-- Dark / light theme switch
 
 ## Requirements
 
@@ -128,7 +127,7 @@ cmake/
   MnKordVersion.h.in       # template of the generated MnKordVersion.h
 Source/
   PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
-  PluginEditor.h/.cpp      # UI, keyboards, themes, preset browser/menu
+  PluginEditor.h/.cpp      # UI, keyboards, colours, preset browser/menu
   NoteName.h/.cpp          # MIDI note ↔ name helpers
   ChordSymbol.h/.cpp       # chord symbols ↔ notes, chord voicing and naming
 Tests/
