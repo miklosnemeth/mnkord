@@ -1,4 +1,4 @@
-# mnKord documentation
+# mnkord documentation
 
 **English** · [Magyar](README.hu.md)
 

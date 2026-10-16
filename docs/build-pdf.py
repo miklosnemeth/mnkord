@@ -51,7 +51,7 @@ def cover(lang):
     return """
 <section class="cover">
   <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>
-  <div class="brand">mn<span>Kord</span></div>
+  <div class="brand">mn<span>kord</span></div>
   <div class="doc">%(title)s</div>
   <div class="tagline">%(tagline)s</div>
   <img class="shot" src="images/main.png" alt="">

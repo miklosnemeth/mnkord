@@ -1,4 +1,4 @@
-# mnKord
+# mnkord
 
 **mnKord** is a MIDI chord-mapping effect: one input key triggers a chord of output notes.  
 **Home page and download:** https://miklosnemeth.github.io/mnKord/ · [Latest release](https://github.com/miklosnemeth/mnKord/releases/latest)  

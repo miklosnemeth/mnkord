@@ -1,4 +1,4 @@
-# mnKord dokumentáció
+# mnkord dokumentáció
 
 [English](README.md) · **Magyar**
 
