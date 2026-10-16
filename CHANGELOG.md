@@ -4,6 +4,13 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [Unreleased] - 1.0.1
+
+### Fixed
+- The installer's folder page no longer suggests that the plugin goes into Program Files: it now says that the
+  plugin (VST3) is installed into the shared VST3 folder, and that the page only chooses where the user guide and
+  the licenses go.
+
 ## [1.0.0] - 2026-10-16
 
 The first release: chord mapping with templates and chord symbols,

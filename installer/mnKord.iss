@@ -30,6 +30,12 @@ PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
 WizardStyle=modern
 
+[Messages]
+; The plugin goes to the shared VST3 folder (fixed, below); this page only chooses where the
+; guide and the licenses go, so the page says so.
+SelectDirDesc=Where should the documentation and licenses be installed?
+SelectDirLabel3=The %1 plugin (VST3) is installed into the shared VST3 folder (Common Files\VST3), where your DAW looks for it. Setup will put the user guide and the licenses into the following folder.
+
 [Files]
 ; The plugin goes to the standard VST3 folder every host scans.
 Source: "..\build\mnKord_artefacts\Release\VST3\mnKord.vst3\*"; DestDir: "{commoncf64}\VST3\mnKord.vst3"; \
