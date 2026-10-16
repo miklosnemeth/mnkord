@@ -34,10 +34,10 @@ Mi van benne:
 
 ## Továbbiak
 
-- [Letöltés](https://github.com/miklosnemeth/mnKord/releases/latest): a legfrissebb kiadás
+- [Letöltés](https://github.com/miklosnemeth/mnkord/releases/latest): a legfrissebb kiadás
 - [Változásnapló](../CHANGELOG.md) (angolul): mi változott az egyes verziókban
 - [Forráskód és fordítási útmutató](../README.md) (angolul, Windows, Linux)
-- [Hibabejelentés, ötletek](https://github.com/miklosnemeth/mnKord/issues)
-- [Főoldal](https://miklosnemeth.github.io/mnKord/) (weboldal képernyőképekkel)
+- [Hibabejelentés, ötletek](https://github.com/miklosnemeth/mnkord/issues)
+- [Főoldal](https://miklosnemeth.github.io/mnkord/) (weboldal képernyőképekkel)
 
 A mnKord szabad szoftver az [AGPL-3.0](../LICENSE) alatt. Vibecoder: Németh Miklós.

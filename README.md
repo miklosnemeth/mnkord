@@ -1,7 +1,7 @@
 # mnKord
 
 **mnKord** is a MIDI chord-mapping effect: one input key triggers a chord of output notes.  
-**Home page and download:** https://miklosnemeth.github.io/mnKord/ · [Latest release](https://github.com/miklosnemeth/mnKord/releases/latest)  
+**Home page and download:** https://miklosnemeth.github.io/mnkord/ · [Latest release](https://github.com/miklosnemeth/mnkord/releases/latest)  
 Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 
 **Documentation:** [English](docs/README.md) · [Magyar](docs/README.hu.md). **User guide:** [English](docs/USER_GUIDE.md) ([PDF](docs/mnKord-User-Guide.pdf)) · [Magyar](docs/USER_GUIDE.hu.md) ([PDF](docs/mnKord-Felhasznaloi-utmutato.pdf))

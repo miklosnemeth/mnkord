@@ -34,10 +34,10 @@ What is in it:
 
 ## More
 
-- [Download](https://github.com/miklosnemeth/mnKord/releases/latest) the latest release
+- [Download](https://github.com/miklosnemeth/mnkord/releases/latest) the latest release
 - [Changelog](../CHANGELOG.md): what changed in each version
 - [Source code and build instructions](../README.md) (Windows, Linux)
-- [Report a bug or ask for a feature](https://github.com/miklosnemeth/mnKord/issues)
-- [Home page](https://miklosnemeth.github.io/mnKord/) (a web page with screenshots)
+- [Report a bug or ask for a feature](https://github.com/miklosnemeth/mnkord/issues)
+- [Home page](https://miklosnemeth.github.io/mnkord/) (a web page with screenshots)
 
 mnKord is free software under the [AGPL-3.0](../LICENSE). Vibecoded by Miklós Németh.

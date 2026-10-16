@@ -58,7 +58,7 @@ def cover(lang):
   <div class="meta">
     <div>%(version)s %(ver)s</div>
     <div class="by">%(by)s <b>%(author)s</b></div>
-    <div class="small">github.com/miklosnemeth/mnKord · %(license)s</div>
+    <div class="small">github.com/miklosnemeth/mnkord · %(license)s</div>
   </div>
 </section>""" % dict(c, ver=project_version())
 
