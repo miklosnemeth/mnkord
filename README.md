@@ -189,10 +189,10 @@ from a Release build of the tagged commit:
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release --target mnKord_VST3
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.0.0 installer\mnKord.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.1.0 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-1.0.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-1.1.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 
