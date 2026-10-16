@@ -182,16 +182,18 @@ A build of the tagged commit shows the plain version (`v1.0.0`).
 ## Installer (Windows)
 
 The installer puts the VST3 into `%CommonProgramFiles%\VST3` (the Standalone is not included) and the
-licenses into `Program Files\MNAudio\mnKord`. It is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php)
-from a Release build of the tagged commit:
+licenses into `Common Files\MNAudio\mnKord`; an older install in `Program Files\MNAudio\mnKord` is removed.
+It shows the installed version on the "Ready to install" page, warns before going back to an older version
+and asks to close the DAW when the plugin is in use. It is built with
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) from a Release build of the tagged commit:
 
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release --target mnKord_VST3
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.0 installer\mnKord.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.3.0 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-1.2.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-1.3.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 

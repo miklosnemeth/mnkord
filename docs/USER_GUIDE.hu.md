@@ -18,6 +18,10 @@ A program felületén angol feliratok vannak, ezért ez az útmutató is angolul
 `C:\Program Files\Common Files\VST3\` mappába teszi, ahol minden DAW keresi a VST3 pluginokat. Ha a DAW nem
 mutatja, indíts egy új pluginkeresést (rescan). A Standalone program nem része a telepítőnek.
 
+Az útmutató (PDF) és a licencek a `C:\Program Files\Common Files\MNAudio\mnKord` mappába kerülnek, Start menü
+parancsikonokkal. Új verziót a régi fölé is telepíthetsz: a telepítő kiírja a talált verziót ("Upgrade: v1.2.0 ->
+v1.3.0"), visszalépés előtt rákérdez, és kéri a DAW bezárását, ha a mnKord be van töltve.
+
 Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*. A presetjeid (lásd lent) megmaradnak.
 
 ## Használat DAW-ban

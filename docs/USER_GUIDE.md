@@ -16,6 +16,11 @@ MIDI keyboard  ->  mnKord  ->  synth / instrument
 `C:\Program Files\Common Files\VST3\`, where every DAW looks for VST3 plugins. Rescan the plugins in your
 DAW if it does not show up. The Standalone program is not part of the installer.
 
+The user guide (PDF) and the licenses are installed into `C:\Program Files\Common Files\MNAudio\mnKord`, with
+shortcuts in the Start menu. Installing a newer version over an old one works: Setup shows the version it found
+("Upgrade: v1.2.0 -> v1.3.0"), asks before going back to an older one, and asks you to close your DAW if it has
+mnKord loaded.
+
 To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (see below) are kept.
 
 ## Use it in a DAW

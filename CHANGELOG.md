@@ -4,6 +4,13 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.3.0] - 2026-10-17
+
+### Changed
+- Installer: it asks to close your DAW when the plugin is in use (the check now covers the VST3 file), instead of stopping with a file error.
+- Installer: the "Ready to install" page shows the installed version ("Upgrade: v1.2.0 -> v1.3.0"), and going back to an older version asks first.
+- Installer: the user guide and the licenses go to `Common FilesMNAudiomnKord` (there is no folder page any more), and the old `Program FilesMNAudiomnKord` folder of earlier installs is removed.
+
 ## [1.2.0] - 2026-10-16
 
 ### Removed
