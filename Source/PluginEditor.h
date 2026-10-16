@@ -116,6 +116,13 @@ private:
     struct FlatLookAndFeel : public juce::LookAndFeel_V4
     {
         juce::Typeface::Ptr getTypefaceForFont(const juce::Font&) override;
+        juce::Font getTextButtonFont(juce::TextButton&, int buttonHeight) override;
+        juce::Font getComboBoxFont(juce::ComboBox&) override;
+        juce::Font getPopupMenuFont() override;
+        juce::Font getLabelFont(juce::Label&) override;
+        juce::Font getAlertWindowTitleFont() override;
+        juce::Font getAlertWindowMessageFont() override;
+        juce::Font getAlertWindowFont() override;
         void drawButtonBackground(juce::Graphics&,
                                   juce::Button&,
                                   const juce::Colour& backgroundColour,
@@ -503,6 +510,9 @@ private:
     // The "mnKord" header title uses Montserrat; every other piece of text in the UI goes
     // through FlatLookAndFeel::getTypefaceForFont(), which uses Roboto Condensed.
     static juce::Typeface::Ptr getTitleTypeface();
+    // Roboto Condensed, bold: all UI text is drawn with uiFont().
+    static juce::Typeface::Ptr getUiTypeface();
+    static juce::Font uiFont(float height);
     // Fills, for every in-scale INPUT note across the keyboard, a tertian-style chord built by
     // stacking scale steps (root/+2/+4[/+6] scale degrees), then applies the requested initial
     // inversion and octave transposition. Used when creating a new preset while a scale

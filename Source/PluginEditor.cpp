@@ -373,12 +373,45 @@ namespace
 }
 
 //==============================================================================
-juce::Typeface::Ptr MnKordAudioProcessorEditor::FlatLookAndFeel::getTypefaceForFont(const juce::Font&)
+juce::Typeface::Ptr MnKordAudioProcessorEditor::getUiTypeface()
 {
     static const juce::Typeface::Ptr robotoCondensed = juce::Typeface::createSystemTypefaceFor(
         BinaryData::RobotoCondensed_ttf, (size_t) BinaryData::RobotoCondensed_ttfSize);
     return robotoCondensed;
 }
+
+// All text in the UI is bold, as in mnArpee. The typeface is given explicitly: JUCE resolves
+// default fonts through the global LookAndFeel only.
+juce::Font MnKordAudioProcessorEditor::uiFont(float height)
+{
+    return juce::Font(juce::FontOptions(getUiTypeface()).withHeight(height)).boldened();
+}
+
+juce::Typeface::Ptr MnKordAudioProcessorEditor::FlatLookAndFeel::getTypefaceForFont(const juce::Font&)
+{
+    return getUiTypeface();
+}
+
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getTextButtonFont(juce::TextButton&, int buttonHeight)
+{
+    return uiFont(juce::jmin(16.0f, (float) buttonHeight * 0.6f));
+}
+
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getComboBoxFont(juce::ComboBox& box)
+{
+    return uiFont(juce::jmin(16.0f, (float) box.getHeight() * 0.85f));
+}
+
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getPopupMenuFont() { return uiFont(17.0f); }
+
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getLabelFont(juce::Label& label)
+{
+    return uiFont(label.getFont().getHeight());
+}
+
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getAlertWindowTitleFont() { return uiFont(18.0f); }
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getAlertWindowMessageFont() { return uiFont(15.0f); }
+juce::Font MnKordAudioProcessorEditor::FlatLookAndFeel::getAlertWindowFont() { return uiFont(14.0f); }
 
 juce::Typeface::Ptr MnKordAudioProcessorEditor::getTitleTypeface()
 {
@@ -506,7 +539,7 @@ void MnKordAudioProcessorEditor::FlatLookAndFeel::drawPopupMenuItem(juce::Graphi
         colour = colour.withAlpha(0.45f);
 
     g.setColour(colour);
-    g.setFont(juce::FontOptions(14.0f));
+    g.setFont(uiFont(14.0f));
 
     auto textArea = row.reduced(28, 0);
     g.drawText(text, textArea, juce::Justification::centredLeft, true);
@@ -560,7 +593,7 @@ void MnKordAudioProcessorEditor::FlatLookAndFeel::getIdealPopupMenuItemSize(cons
     }
 
     // Must match drawPopupMenuItem()'s row.reduced(28, 0) text area, plus a little breathing room.
-    idealWidth = juce::GlyphArrangement::getStringWidthInt(juce::Font(juce::FontOptions(14.0f)), text) + 56 + 16;
+    idealWidth = juce::GlyphArrangement::getStringWidthInt(uiFont(14.0f), text) + 56 + 16;
 }
 
 //==============================================================================
@@ -770,14 +803,14 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
     if (midiNoteNumber % 12 == 0)
     {
         g.setColour(highlighted ? juce::Colour(0xff043716) : textColour);
-        g.setFont(11.0f);
+        g.setFont(uiFont(11.0f));
         g.drawText(getWhiteNoteText(midiNoteNumber), area.reduced(2.0f, 6.0f), juce::Justification::centredBottom, false);
     }
 
     if (highlighted && role == KeyboardRole::output)
     {
         g.setColour(juce::Colour(0xff043716));
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.setFont(uiFont(12.0f));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), area.reduced(2.0f, 8.0f),
                    juce::Justification::centredTop, false);
     }
@@ -840,7 +873,7 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
     if (highlighted && role == KeyboardRole::output)
     {
         g.setColour(juce::Colour(0xff043716));
-        g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+        g.setFont(uiFont(10.0f));
         g.drawText(owner.getOutputDegreeLabel(midiNoteNumber), keyArea.reduced(1.0f, 4.0f).toNearestInt(),
                    juce::Justification::centredTop, false);
     }
@@ -896,6 +929,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     startTimerHz(30);
 
     inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
+    chordSymbolEditor.setFont(uiFont(chordSymbolEditor.getFont().getHeight()));
     chordSymbolEditor.setTextToShowWhenEmpty("Type a chord, e.g. Dm9/G", getMutedTextColour());
     chordSymbolEditor.setTooltip("Replace the selected chord: C, Am7, F#m7b5, Bbmaj9, C6/9, G/B, Dsus4, ...");
     chordSymbolEditor.onReturnKey = [this] { applyChordSymbol(); };
@@ -903,7 +937,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     chordSymbolEditor.onTextChange = [this]
     {
         chordSymbolEditor.setColour(juce::TextEditor::textColourId, getTextColour());
-        chordSymbolEditor.applyFontToAllText(chordSymbolEditor.getFont());
+        chordSymbolEditor.applyFontToAllText(uiFont(chordSymbolEditor.getFont().getHeight()));
     };
     addAndMakeVisible(chordSymbolEditor);
     layerButton.addListener(this);
@@ -944,7 +978,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     }
 
     presetInfoLabel.setJustificationType(juce::Justification::centredLeft);
-    presetInfoLabel.setFont(juce::FontOptions(13.0f));
+    presetInfoLabel.setFont(uiFont(13.0f));
     addAndMakeVisible(presetInfoLabel);
 
     addAndMakeVisible(inputKeyboard);
@@ -1016,7 +1050,7 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
     const auto titleFont = juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened();
     const float titleWidth = (float) juce::GlyphArrangement::getStringWidthInt(titleFont, "mnKord");
     g.setColour(getMutedTextColour());
-    g.setFont(juce::FontOptions(13.0f));
+    g.setFont(uiFont(13.0f));
     g.drawText("v" MNKORD_VERSION_STRING, juce::Rectangle<float>(titleArea.getX() + titleWidth + 8.0f, titleArea.getY(), 200.0f, 44.0f),
                juce::Justification::bottomLeft, false);
 }
@@ -1130,7 +1164,7 @@ void MnKordAudioProcessorEditor::OctaveStrip::mouseDown(const juce::MouseEvent& 
 void MnKordAudioProcessorEditor::OctaveStrip::paint(juce::Graphics& g)
 {
     const int rootPitchClass = ((owner.scaleRoot % 12) + 12) % 12;
-    g.setFont(juce::FontOptions(11.0f));
+    g.setFont(uiFont(11.0f));
 
     for (int start = rootPitchClass - 12; start <= 120; start += 12)
     {
@@ -1857,7 +1891,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::FilterColumn::paintListBo
 
     g.setColour(isSelected ? editor->getAccentColour()
                            : (row == 0 ? editor->getMutedTextColour() : editor->getTextColour()));
-    g.setFont(juce::FontOptions(14.0f));
+    g.setFont(uiFont(14.0f));
     g.drawText(items[row], 10, 0, width - 14, height, juce::Justification::centredLeft, true);
 }
 
@@ -1950,7 +1984,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::paint(juce::Graphics& g)
         return;
 
     g.setColour(owner->getMutedTextColour());
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.setFont(uiFont(12.0f));
 
     const auto drawTitle = [&](const juce::String& text, juce::Rectangle<int> column)
     {
@@ -2084,7 +2118,7 @@ void MnKordAudioProcessorEditor::PresetBrowserContent::PresetColumn::paintListBo
     }
 
     g.setColour(isActive ? editor->getAccentColour() : editor->getTextColour());
-    g.setFont(juce::FontOptions(14.0f));
+    g.setFont(uiFont(14.0f));
     g.drawText(preset.name, 34, 0, width - 40, height, juce::Justification::centredLeft, true);
 }
 
@@ -2500,7 +2534,7 @@ void MnKordAudioProcessorEditor::applyChordSymbol()
     if (! chord.valid)
     {
         chordSymbolEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xffcf4b41));
-        chordSymbolEditor.applyFontToAllText(chordSymbolEditor.getFont());
+        chordSymbolEditor.applyFontToAllText(uiFont(chordSymbolEditor.getFont().getHeight()));
         return;
     }
 
@@ -2926,6 +2960,7 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     chordSymbolEditor.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
     chordSymbolEditor.setColour(juce::TextEditor::focusedOutlineColourId, getAccentColour());
     chordSymbolEditor.setColour(juce::TextEditor::highlightColourId, getAccentColour().withAlpha(0.25f));
+    chordSymbolEditor.setFont(uiFont(chordSymbolEditor.getFont().getHeight()));
     chordSymbolEditor.setTextToShowWhenEmpty("Type a chord, e.g. Dm9/G", getMutedTextColour());
 
     const auto control = getControlColour();
@@ -3766,11 +3801,11 @@ void MnKordAudioProcessorEditor::VelocityBubble::paint(juce::Graphics& g)
 
     auto text = body.reduced(2.0f, 3.0f);
     g.setColour(owner.getMutedTextColour());
-    g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+    g.setFont(uiFont(9.0f));
     g.drawText("VEL", text.removeFromTop(10.0f), juce::Justification::centred, false);
 
     g.setColour(owner.getTextColour());
-    g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
+    g.setFont(uiFont(17.0f));
     g.drawText(juce::String(velocity), text, juce::Justification::centred, false);
 }
 
