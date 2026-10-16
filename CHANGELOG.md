@@ -4,12 +4,7 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 1.1.0
-
-### Changed
-- All text in the plugin window is bold, as in mnArpee: buttons, labels, menus, dialogs and the preset browser.
-
-## [1.0.0] - 2026-10-15
+## [1.0.0] - 2026-10-16
 
 The first release: chord mapping with templates and chord symbols,
 velocity layers, octave copy, MIDI learn, undo/redo, transpose, the factory and user preset library with
