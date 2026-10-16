@@ -408,7 +408,6 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::Label selectedInputLabel;
     juce::Label chordNotesLabel;
-    juce::Label presetInfoLabel;   // shows "group · author" of the active preset in the header
 
     // Keyboard editor
     juce::MidiKeyboardState inputKeyboardState;
@@ -535,7 +534,6 @@ private:
     void promptPresetMetadata(const Preset& seed,
                               bool showGenerationOptions,
                               const std::function<void(const Preset&, const DiatonicFillOptions&)>& onSave);
-    void updatePresetMetaLabel();
     // juce::PopupMenu doesn't inherit the editor's LookAndFeel automatically -- without this,
     // a menu falls back to stock JUCE grey (see commit that fixed that for the first time).
     juce::PopupMenu makeStyledMenu();

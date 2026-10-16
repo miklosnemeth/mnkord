@@ -4,6 +4,11 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [Unreleased] - 1.1.0
+
+### Changed
+- The header no longer shows the preset's group and author under the title; the version of the plugin is there instead.
+
 ## [1.0.1] - 2026-10-16
 
 ### Fixed

@@ -963,7 +963,6 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     outputKeyboardLabel.setText("CHORD", juce::dontSendNotification);
     selectedInputLabel.setText("-", juce::dontSendNotification);
     chordNotesLabel.setText("-", juce::dontSendNotification);
-    presetInfoLabel.setText("-", juce::dontSendNotification);
 
     for (auto* label : { &inputKeyboardLabel, &outputKeyboardLabel })
     {
@@ -976,10 +975,6 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
         label->setJustificationType(juce::Justification::centredRight);
         addAndMakeVisible(label);
     }
-
-    presetInfoLabel.setJustificationType(juce::Justification::centredLeft);
-    presetInfoLabel.setFont(uiFont(13.0f));
-    addAndMakeVisible(presetInfoLabel);
 
     addAndMakeVisible(inputKeyboard);
     addAndMakeVisible(outputKeyboard);
@@ -1045,14 +1040,12 @@ void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(rect, 8.0f);
     }
 
-    // The build's version ("1.0.0", or "1.0.0-dev+<commit>" between releases) right after the
-    // title, so a bug report can say which build it came from.
-    const auto titleFont = juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened();
-    const float titleWidth = (float) juce::GlyphArrangement::getStringWidthInt(titleFont, "mnKord");
+    // The build's version ("1.0.1", or "1.0.1-dev+<commit>" between releases) under the title,
+    // so a bug report can say which build it came from.
     g.setColour(getMutedTextColour());
     g.setFont(uiFont(13.0f));
-    g.drawText("v" MNKORD_VERSION_STRING, juce::Rectangle<float>(titleArea.getX() + titleWidth + 8.0f, titleArea.getY(), 200.0f, 44.0f),
-               juce::Justification::bottomLeft, false);
+    g.drawText("v" MNKORD_VERSION_STRING, juce::Rectangle<float>(titleArea.getX(), 48.0f, 172.0f, 18.0f),
+               juce::Justification::centredLeft, false);
 }
 
 void MnKordAudioProcessorEditor::resized()
@@ -1062,8 +1055,7 @@ void MnKordAudioProcessorEditor::resized()
     // of via an outer reduced() that would otherwise desync the two.
     auto headerArea = getLocalBounds().removeFromTop(74).reduced(18, 8);
 
-    auto titleColumn = headerArea.removeFromLeft(172);
-    presetInfoLabel.setBounds(titleColumn.removeFromBottom(18));
+    headerArea.removeFromLeft(172);   // the title and the version, drawn in paint()
 
     const int groupWidth = 26 + 4 + 200 + 4 + 26 + 8 + 62 + 8 + 62 + 8 + 76;
     auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
@@ -1401,7 +1393,6 @@ void MnKordAudioProcessorEditor::refreshPresetBox()
     lastSyncedDirty = ! audioProcessor.isPresetDirty(activeIndex);
     updateDirtyState();
 
-    updatePresetMetaLabel();
     refreshSummaryLabels();
 }
 
@@ -3032,8 +3023,6 @@ void MnKordAudioProcessorEditor::applyVisualTheme()
     for (auto* label : { &selectedInputLabel, &chordNotesLabel })
         label->setColour(juce::Label::textColourId, textColour);
 
-    presetInfoLabel.setColour(juce::Label::textColourId, getMutedTextColour());
-
     inputKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, getWhiteKeyTopColour());
     inputKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, getBlackKeyBottomColour());
     outputKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, getWhiteKeyTopColour());
@@ -3097,7 +3086,6 @@ void MnKordAudioProcessorEditor::editActivePresetMetadata()
         // The host's program list shows the new name.
         audioProcessor.notifyHostProgramsChanged();
 
-        // refreshPresetBox() already calls updatePresetMetaLabel() internally.
         refreshPresetBox();
     });
 }
@@ -3266,36 +3254,6 @@ void MnKordAudioProcessorEditor::promptPresetMetadata(const Preset& seed,
                             true);
 }
 
-void MnKordAudioProcessorEditor::updatePresetMetaLabel()
-{
-    const auto& presets = audioProcessor.getPresets();
-    const int index = audioProcessor.getActivePresetIndex();
-
-    if (index < 0 || index >= (int) presets.size())
-    {
-        presetInfoLabel.setText("-", juce::dontSendNotification);
-        return;
-    }
-
-    const auto& preset = presets[(size_t) index];
-
-    juce::String meta;
-    if (preset.group.isNotEmpty())
-        meta += preset.group;
-
-    if (preset.author.isNotEmpty())
-    {
-        if (meta.isNotEmpty())
-            meta += "  ·  ";
-        meta += preset.author;
-    }
-
-    if (meta.isEmpty())
-        meta = "-";
-
-    presetInfoLabel.setText(meta, juce::dontSendNotification);
-}
-
 juce::PopupMenu MnKordAudioProcessorEditor::makeStyledMenu()
 {
     juce::PopupMenu menu;
@@ -3328,7 +3286,6 @@ void MnKordAudioProcessorEditor::setSelectedMappingIndex(int index)
 
     refreshKeyboardHighlights();
     refreshSummaryLabels();
-    updatePresetMetaLabel();
 }
 
 std::pair<int, int> MnKordAudioProcessorEditor::selectedMappingKey() const
