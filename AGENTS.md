@@ -58,3 +58,13 @@ Never create, move or delete tags, or push them, unless the owner asks.
 - The plugin window, next to the title: `v1.0.0` for a release build, `v1.0.0-dev+<commit>` for any
   other build (the suffix follows the commit by itself; see `cmake/Version.cmake`).
 - The plugin's metadata (VST3 version, `JucePlugin_VersionString`), from the same CMake number.
+
+## Documentation
+
+- The user guide is in `docs/USER_GUIDE.md` (English) and `docs/USER_GUIDE.hu.md` (Hungarian), with the
+  screenshots in `docs/images/`. When a change alters what the guide says (a control, a menu, how something
+  behaves), update **both** languages.
+- The PDFs (`docs/mnKord-User-Guide.pdf`, `docs/mnKord-Felhasznaloi-utmutato.pdf`) are generated from the
+  Markdown and go into the installer: after changing a guide, run `python docs/build-pdf.py` (needs Python 3
+  and Microsoft Edge or Chrome) and commit the PDFs with it.
+- A screenshot that no longer matches the window (a changed look, labels or menus) is retaken, not left.

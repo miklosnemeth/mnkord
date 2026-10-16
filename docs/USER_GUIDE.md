@@ -37,6 +37,8 @@ To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (se
 | **CHORD** keyboard | The notes of the chord of the selected INPUT key. |
 | Chord name field | Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) to replace the selected chord. Above it you see the chord's name and its notes. |
 
+![The mnKord window](images/main.png)
+
 ### Make a chord
 
 1. Click a key on the **INPUT** keyboard. It is selected.
@@ -49,10 +51,13 @@ Faster ways:
 - **Right-click a CHORD key** to invert the chord up or down.
 - **Learn:** press **Learn** and play a key on your controller. It selects that key's mapping (or creates it).
 
+![Chord templates: right-click an INPUT key](images/chord-templates.png)
+
 ### Copy a chord set to another octave
 
 Click an octave in the strip above the INPUT keyboard, then **Copy up** or **Copy down**. It copies that
 octave's chords one octave higher or lower.
+
 
 ### Scale
 
@@ -68,6 +73,8 @@ The layer menu above the INPUT keyboard chooses which layer you are editing:
   when you hit the key at least that hard.
 
 So one key can play a plain triad when played softly and a fuller chord when played hard.
+
+![The velocity layer menu](images/velocity-layers.png)
 
 ### Undo
 
@@ -88,6 +95,10 @@ A preset is a set of key-to-chord mappings, with a name, a group, an author and 
   velocity of each chord role).
 - The **Preset** menu has *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (the keys and
   chords together, or only the chords), *Import* (a preset or a whole bank file), *Export* and *Show in folder*.
+
+![The preset browser](images/preset-browser.png)
+
+![The Preset menu](images/preset-menu.png)
 
 Presets live in `Documents\MNAudio\mnKord`: the `Factory` folder is managed by the plugin, and the `User`
 folder holds your own presets. You can copy preset files in or out of it.

@@ -41,6 +41,8 @@ Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*
 | **CHORD** billentyűzet | A kiválasztott INPUT billentyű akkordjának hangjai. |
 | Akkordnév-mező | Írj be egy akkordszimbólumot (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), és az a kiválasztott akkord helyére kerül. Felette látod az akkord nevét és hangjait. |
 
+![A mnKord ablaka](images/main.png)
+
 ### Akkord készítése
 
 1. Kattints egy billentyűre az **INPUT** billentyűzeten. Ezzel kiválasztod.
@@ -55,10 +57,13 @@ Gyorsabb módok:
 - **Learn:** nyomd meg a **Learn** gombot, és játssz egy billentyűt a kontrolleren. Kiválasztja a billentyű
   leképezését (vagy létrehozza).
 
+![Akkordsablonok: jobb kattintás egy INPUT billentyűn](images/chord-templates.png)
+
 ### Akkordok másolása másik oktávba
 
 Kattints egy oktávra az INPUT billentyűzet feletti sávban, majd a **Copy up** vagy **Copy down** gombra. Az
 oktáv akkordjait egy oktávval feljebb vagy lejjebb másolja.
+
 
 ### Skála
 
@@ -74,6 +79,8 @@ Az INPUT billentyűzet feletti rétegmenü azt választja, melyik réteget szerk
   helyette szól, ha legalább ilyen erősen ütöd le.
 
 Így egy billentyű halkan egy sima hármashangzatot, erősen egy teltebb akkordot játszhat.
+
+![A velocity-réteg menü](images/velocity-layers.png)
 
 ### Visszavonás
 
@@ -98,6 +105,10 @@ A preset billentyű–akkord leképezések halmaza, névvel, csoporttal, szerző
 - A **Preset** menü: *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (a billentyűk és az
   akkordok együtt, vagy csak az akkordok), *Import* (egy preset vagy egy teljes bank-fájl), *Export* és
   *Show in folder*.
+
+![A preset-böngésző](images/preset-browser.png)
+
+![A Preset menü](images/preset-menu.png)
 
 A presetek a `Documents\MNAudio\mnKord` mappában vannak: a `Factory` mappát a plugin kezeli, a `User` mappában
 vannak a saját presetjeid. Preseteket átmásolhatsz oda vagy onnan.

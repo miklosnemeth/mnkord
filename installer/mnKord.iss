@@ -40,3 +40,11 @@ Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Resources\Fonts\Montserrat-OFL.txt"; DestDir: "{app}\Licenses"; Flags: ignoreversion
 Source: "..\Resources\Fonts\RobotoCondensed-LICENSE.txt"; DestDir: "{app}\Licenses"; Flags: ignoreversion
+
+; The user guide (English and Hungarian), with Start menu shortcuts.
+Source: "..\docs\mnKord-User-Guide.pdf"; DestDir: "{app}\Docs"; Flags: ignoreversion
+Source: "..\docs\mnKord-Felhasznaloi-utmutato.pdf"; DestDir: "{app}\Docs"; Flags: ignoreversion
+
+[Icons]
+Name: "{autoprograms}\MNAudio\mnKord user guide"; Filename: "{app}\Docs\mnKord-User-Guide.pdf"
+Name: "{autoprograms}\MNAudio\mnKord felhasznaloi utmutato"; Filename: "{app}\Docs\mnKord-Felhasznaloi-utmutato.pdf"
