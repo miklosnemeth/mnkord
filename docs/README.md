@@ -38,6 +38,6 @@ What is in it:
 - [Changelog](../CHANGELOG.md): what changed in each version
 - [Source code and build instructions](../README.md) (Windows, Linux)
 - [Report a bug or ask for a feature](https://github.com/miklosnemeth/mnKord/issues)
-- [Home page](index.html) (a web page with screenshots)
+- [Home page](https://miklosnemeth.github.io/mnKord/) (a web page with screenshots)
 
 mnKord is free software under the [AGPL-3.0](../LICENSE). Vibecoded by Miklós Németh.

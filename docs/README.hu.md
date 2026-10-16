@@ -38,6 +38,6 @@ Mi van benne:
 - [Változásnapló](../CHANGELOG.md) (angolul): mi változott az egyes verziókban
 - [Forráskód és fordítási útmutató](../README.md) (angolul, Windows, Linux)
 - [Hibabejelentés, ötletek](https://github.com/miklosnemeth/mnKord/issues)
-- [Főoldal](index.html) (weboldal képernyőképekkel)
+- [Főoldal](https://miklosnemeth.github.io/mnKord/) (weboldal képernyőképekkel)
 
 A mnKord szabad szoftver az [AGPL-3.0](../LICENSE) alatt. Vibecoder: Németh Miklós.
