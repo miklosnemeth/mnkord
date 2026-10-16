@@ -29,8 +29,57 @@ BROWSERS = [
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
 ]
 
+COVER = {
+    "en": {"title": "User guide", "tagline": "One key. A whole chord.", "version": "Version",
+           "by": "Vibecoded by", "author": "Miklós Németh",
+           "license": "Free software under the AGPL-3.0"},
+    "hu": {"title": "Felhasználói útmutató", "tagline": "Egy billentyű. Egy egész akkord.", "version": "Verzió",
+           "by": "Vibecoder", "author": "Németh Miklós",
+           "license": "Szabad szoftver az AGPL-3.0 alatt"},
+}
+
+
+def project_version():
+    """The release number from project(mnKord VERSION x.y.z) in CMakeLists.txt."""
+    with open(os.path.join(DOCS, "..", "CMakeLists.txt"), encoding="utf-8") as f:
+        m = re.search(r"project\(\s*mnKord\s+VERSION\s+([0-9.]+)", f.read())
+    return m.group(1) if m else ""
+
+
+def cover(lang):
+    c = COVER[lang]
+    return """
+<section class="cover">
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>
+  <div class="brand">mn<span>Kord</span></div>
+  <div class="doc">%(title)s</div>
+  <div class="tagline">%(tagline)s</div>
+  <img class="shot" src="images/main.png" alt="">
+  <div class="meta">
+    <div>%(version)s %(ver)s</div>
+    <div class="by">%(by)s <b>%(author)s</b></div>
+    <div class="small">github.com/miklosnemeth/mnKord · %(license)s</div>
+  </div>
+</section>""" % dict(c, ver=project_version())
+
+
 CSS = """
+@font-face { font-family: 'Montserrat'; src: url(assets/fonts/Montserrat.ttf); font-weight: 100 900; }
 @page { size: A4; margin: 18mm 16mm; }
+@page cover { size: A4; margin: 0; }
+.cover { page: cover; width: 210mm; height: 297mm; box-sizing: border-box; padding: 34mm 22mm 24mm; text-align: center;
+  background: #101315; color: #eef3ef; display: flex; flex-direction: column; align-items: center;
+  break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.cover .logo { width: 22mm; height: 22mm; margin-bottom: 8mm; }
+.cover .brand { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 800; font-size: 74pt; line-height: 1; letter-spacing: -0.02em; }
+.cover .brand span { color: #2ee66b; }
+.cover .doc { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 700; font-size: 25pt; margin-top: 8mm; }
+.cover .tagline { color: #95a09a; font-size: 14pt; margin-top: 3mm; }
+.cover .shot { width: 150mm; margin-top: 16mm; border: 1px solid #2a3237; border-radius: 3mm; box-shadow: 0 8mm 20mm rgba(0, 0, 0, 0.5); }
+.cover .meta { margin-top: auto; font-size: 12pt; color: #95a09a; line-height: 1.7; }
+.cover .meta .by { color: #eef3ef; font-size: 14pt; }
+.cover .meta .by b { color: #2ee66b; }
+.cover .meta .small { font-size: 9.5pt; margin-top: 2mm; }
 body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; font-size: 10.5pt; line-height: 1.5; color: #1d2227; }
 h1 { font-size: 24pt; margin: 0 0 0.4em; color: #0b6b3a; }
 h2 { font-size: 16pt; margin: 1.5em 0 0.4em; border-bottom: 1px solid #cfd6dc; padding-bottom: 0.15em; break-after: avoid; }
@@ -189,8 +238,11 @@ def main():
         with open(os.path.join(DOCS, source), encoding="utf-8") as f:
             title, body = convert(f.read())
 
+        # The cover carries the title, so the guide's own heading is left out.
+        body = re.sub(r"<h1>.*?</h1>", "", body, count=1)
+
         page = ('<!doctype html><html lang="%s"><head><meta charset="utf-8"><title>%s</title>'
-                "<style>%s</style></head><body>%s</body></html>") % (lang, html.escape(title), CSS, body)
+                "<style>%s</style></head><body>%s%s</body></html>") % (lang, html.escape(title), CSS, cover(lang), body)
 
         # Next to the Markdown, so that the relative image paths work.
         tmp = os.path.join(DOCS, ".build-%s.html" % lang)
