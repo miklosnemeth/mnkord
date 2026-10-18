@@ -3,10 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mnKord – MIDI chord plugin</title>
-<meta name="description" content="mnKord: play one key, get a whole chord. A free MIDI chord-mapping VST3 plugin with chord templates, chord symbols, velocity layers and about 30 presets. Vibecoded by Miklós Németh.">
+<title>mnKord – free MIDI chord plugin (VST3) for Windows</title>
+<meta name="description" content="mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. Chord symbols, velocity layers, scales and 31 factory presets.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="Miklós Németh">
+<link rel="canonical" href="https://miklosnemeth.github.io/mnkord/">
+<link rel="alternate" hreflang="en" href="https://miklosnemeth.github.io/mnkord/">
+<link rel="alternate" hreflang="hu" href="https://miklosnemeth.github.io/mnkord/hu/">
+<link rel="alternate" hreflang="x-default" href="https://miklosnemeth.github.io/mnkord/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="mnKord">
+<meta property="og:title" content="mnKord – free MIDI chord plugin (VST3) for Windows">
+<meta property="og:description" content="mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. Chord symbols, velocity layers, scales and 31 factory presets.">
+<meta property="og:url" content="https://miklosnemeth.github.io/mnkord/">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="hu_HU">
+<meta property="og:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
+<meta property="og:image:width" content="980">
+<meta property="og:image:height" content="475">
+<meta property="og:image:alt" content="The mnKord window with the INPUT and CHORD keyboards">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="mnKord – free MIDI chord plugin (VST3) for Windows">
+<meta name="twitter:description" content="mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. Chord symbols, velocity layers, scales and 31 factory presets.">
+<meta name="twitter:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#101315">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101315'/%3E%3Crect x='6' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='1.5' fill='%23fbfcfb'/%3E%3Crect x='21' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/Montserrat.ttf" as="font" type="font/ttf" crossorigin>
 <style>
 @font-face { font-family: 'Montserrat'; src: url(assets/fonts/Montserrat.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: 'Roboto Condensed'; src: url(assets/fonts/RobotoCondensed.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
@@ -43,8 +66,6 @@ img { max-width: 100%; display: block; }
 .display { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 800; letter-spacing: -0.02em; }
 .condensed { font-family: 'Roboto Condensed', 'Segoe UI', sans-serif; font-weight: 700; }
 
-/* language: show one of the two texts */
-html[lang="en"] [data-l="hu"], html[lang="hu"] [data-l="en"] { display: none !important; }
 
 /* top bar */
 .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; gap: 16px; }
@@ -53,10 +74,6 @@ html[lang="en"] [data-l="hu"], html[lang="hu"] [data-l="en"] { display: none !im
 .nav { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .nav a { text-decoration: none; }
 .nav a:hover { color: var(--text); }
-.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
-.lang button { font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); background: none; border: 0; padding: 4px 12px; border-radius: 999px; cursor: pointer; }
-.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
-.lang button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* hero */
 .hero { padding: 54px 0 30px; text-align: center; }
@@ -128,217 +145,490 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
   body { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+/* language links */
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); font-size: 13px; font-weight: 700; }
+.lang .cur, .lang a { padding: 4px 12px; border-radius: 999px; }
+.lang .cur { background: var(--accent); color: var(--accent-ink); }
+.lang a { color: var(--muted); }
+.lang a:hover { color: var(--text); }
+
+/* accessibility */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 12px; top: -60px; background: var(--accent); color: var(--accent-ink); padding: 10px 16px; border-radius: 10px; font-weight: 700; z-index: 10; text-decoration: none; }
+.skip:focus { top: 12px; }
+
+/* lists */
+ul.cards, ol.steps, ul.facts, ul.chips, ul.symbols, ul.plain { list-style: none; }
+ol.steps, ul.cards { margin: 0; padding: 0; }
+.listh { font-size: 22px; margin: 46px 0 6px; }
+.featlists { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 18px; }
+.fl { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; }
+.fl h4 { margin: 0 0 10px; font-size: 17px; color: var(--accent); }
+.fl ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15.5px; }
+.fl li { margin: 7px 0; }
+
+.presetgroups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.pg { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
+.pg h3 { margin: 0 0 10px; font-size: 17px; color: var(--accent); }
+.pg ul { list-style: none; margin: 0; padding: 0; font-size: 15.5px; }
+.pg li { margin: 7px 0; color: var(--muted); }
+.pg li strong { color: var(--text); font-weight: 600; }
+.pg .tags { display: block; font-size: 13px; color: var(--muted); opacity: 0.85; }
+
+.symbols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 22px; margin: 18px 0 0; padding: 0; }
+.symbols li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; }
+.symbols code { min-width: 74px; color: var(--accent); font-weight: 700; }
+.symbols span { color: var(--muted); }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; }
+.chips li { background: var(--control); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 15px; }
+.plain { margin: 18px 0 0; padding-left: 22px; list-style: disc; color: var(--muted); }
+.plain li { margin: 8px 0; }
+
+.faq { display: grid; gap: 10px; margin-top: 18px; }
+.faq details { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 22px; }
+.faq summary { cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { margin: 0 0 18px; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .featlists, .presetgroups, .symbols, .twocol { grid-template-columns: 1fr; }
+}
+.btn:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
 </style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebSite",
+   "@id": "https://miklosnemeth.github.io/mnkord/#website",
+   "url": "https://miklosnemeth.github.io/mnkord/",
+   "name": "mnKord",
+   "inLanguage": [
+    "en",
+    "hu"
+   ],
+   "publisher": {
+    "@id": "https://miklosnemeth.github.io/mnkord/#author"
+   }
+  },
+  {
+   "@type": "Person",
+   "@id": "https://miklosnemeth.github.io/mnkord/#author",
+   "name": "Miklós Németh",
+   "alternateName": "Németh Miklós",
+   "url": "https://github.com/miklosnemeth",
+   "jobTitle": "Vibecoder"
+  },
+  {
+   "@type": "SoftwareApplication",
+   "@id": "https://miklosnemeth.github.io/mnkord/#app",
+   "name": "mnKord",
+   "url": "https://miklosnemeth.github.io/mnkord/",
+   "description": "mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. Chord symbols, velocity layers, scales and 31 factory presets.",
+   "inLanguage": "en",
+   "applicationCategory": "MultimediaApplication",
+   "applicationSubCategory": "MIDI effect, VST3 audio plugin",
+   "operatingSystem": "Windows 10, Windows 11",
+   "softwareVersion": "1.3.0",
+   "downloadUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
+   "installUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
+   "fileFormat": "application/vnd.steinberg.vst3",
+   "softwareRequirements": "A DAW that hosts VST3 plugins",
+   "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+   "isAccessibleForFree": true,
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   },
+   "author": {
+    "@id": "https://miklosnemeth.github.io/mnkord/#author"
+   },
+   "image": "https://miklosnemeth.github.io/mnkord/images/main.png",
+   "screenshot": [
+    "https://miklosnemeth.github.io/mnkord/images/chord-templates.png",
+    "https://miklosnemeth.github.io/mnkord/images/preset-browser.png",
+    "https://miklosnemeth.github.io/mnkord/images/velocity-layers.png",
+    "https://miklosnemeth.github.io/mnkord/images/main.png"
+   ],
+   "featureList": [
+    "Map any of the 128 MIDI keys to a chord of your own.",
+    "Click the chord tones on the CHORD keyboard, or right-click an INPUT key for chord templates.",
+    "Type a chord symbol (for example Dm9/G) to replace the selected chord; the name of the chord is shown for the selection.",
+    "Invert a chord up or down with a right-click on a CHORD key.",
+    "Copy the chords of a whole octave one octave up or down.",
+    "Fit a chord to the selected scale, or clear it, from the right-click menu.",
+    "Velocity layers: a soft layer for any velocity and a hard layer from velocity 80, 90, 100, 110 or 120.",
+    "MIDI learn: play a key on your controller to select or create its mapping.",
+    "Overlapping chords share notes (reference counted), so notes are not cut off or left stuck.",
+    "The sustain pedal and all other non-note MIDI (CC, pitch bend, aftertouch) pass through to your synth.",
+    "VST3 plugin and a Standalone program.",
+    "31 read-only factory presets, and your own presets saved as files shared by every project.",
+    "A preset browser with group, author and style columns, search and favourites.",
+    "Preset metadata: name, group, author and style tags.",
+    "XML export and import; import accepts a single preset or a whole bank file.",
+    "The host program list mirrors the preset list (128 fixed programs), so program changes and automation pick the same presets.",
+    "A project stores the preset you used, with your edits, so it sounds the same on another computer.",
+    "Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).",
+    "Transpose the whole preset, or only its chords, by a semitone or an octave.",
+    "Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.",
+    "A dark, flat window with two keyboards and the version of the plugin under the title.",
+    "Free and open source under the AGPL-3.0."
+   ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://miklosnemeth.github.io/mnkord/#faq",
+   "inLanguage": "en",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "What is mnKord?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "mnKord is a free MIDI chord plugin (VST3) for Windows. You play one key and it sends a whole chord to your synth. Every key can have its own chord, set with templates, chord symbols or by clicking the notes."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Is mnKord free?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes. mnKord is free software under the GNU Affero General Public License v3.0, and the source code is open on GitHub."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Does mnKord make sound by itself?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. It is a MIDI effect: it turns one note into a chord, and the synth or sampler after it plays the sound. Put it on an instrument track, before your synth."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Which operating systems does it run on?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "There is an installer for Windows 10 and 11 (64-bit). On Linux you can build it from the source code. macOS is not supported yet."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Which DAWs can I use it in?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "mnKord is a standard VST3 plugin, so a DAW that hosts VST3 plugins on Windows can load it. How MIDI is routed to the next plugin differs between DAWs; the user guide has the steps."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How do I make my own chord?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Click a key on the INPUT keyboard, then click the notes on the CHORD keyboard. You can also right-click an INPUT key for chord templates, or type a chord symbol such as Dm9/G in the field above the CHORD keyboard."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Which chord symbols can I type?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Triads, suspended, power chords, sixths, sevenths, ninths, add9, altered sevenths (7b9, 7#9), 6/9, quartal chords, and slash chords with a bass note, for any root note. The full list is on this page."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "What are velocity layers?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A key can have a second, hard layer with its own chord. It plays instead of the soft layer when you hit the key at least as hard as the threshold you choose (80, 90, 100, 110 or 120)."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Where are my presets saved?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Your presets are files in Documents\\MNAudio\\mnKord\\User, shared by every project. A DAW project also stores the preset it used, with its edits, so it sounds the same on another computer."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Who made mnKord?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "mnKord is made by Miklós Németh as a vibecoding project: the idea, the taste and the decisions are his, and the code is written together with an AI."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
 </head>
 <body>
-
+<a class="skip" href="#main">Skip to the content</a>
 <div class="wrap">
   <header class="top">
-    <a class="brand display" href="#top" aria-label="mnKord">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>
-      mnKord
-    </a>
-    <nav class="nav">
-      <a class="hide-sm" href="#features"><span data-l="en">Features</span><span data-l="hu">Funkciók</span></a>
-      <a class="hide-sm" href="#screens"><span data-l="en">Screens</span><span data-l="hu">Képek</span></a>
-      <a href="#get"><span data-l="en">Get it</span><span data-l="hu">Letöltés</span></a>
-      <span class="lang" role="group" aria-label="Language / Nyelv">
-        <button type="button" data-set="en" aria-pressed="true">EN</button>
-        <button type="button" data-set="hu" aria-pressed="false">HU</button>
-      </span>
+    <a class="brand display" href="./" aria-label="mnKord"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>mnKord</a>
+    <nav class="nav" aria-label="Main">
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#presets">Presets</a>
+      <a class="hide-sm" href="#chords">Chords</a>
+      <a class="hide-sm" href="#faq">FAQ</a>
+      <a class="hide-sm" href="#get">Get it</a>
+      <span class="lang" role="group" aria-label="Language / Nyelv"><span class="cur" aria-current="true">EN</span><a href="hu/" hreflang="hu" lang="hu" title="Magyar">HU</a></span>
     </nav>
   </header>
-
-  <main id="top">
+  <main id="main">
     <div class="hero">
-      <span class="eyebrow">
-        <span data-l="en">Free MIDI chord plugin · VST3</span>
-        <span data-l="hu">Ingyenes MIDI akkord-plugin · VST3</span>
-      </span>
-      <h1 class="display">mn<span>Kord</span></h1>
-      <p class="tagline">
-        <span data-l="en">One key. A whole chord.</span>
-        <span data-l="hu">Egy billentyű. Egy egész akkord.</span>
-      </p>
-      <p class="lede">
-        <span data-l="en">Play a single note and mnKord sends the full chord to your synth. Map any key to any chord, with templates, chord symbols, velocity layers and about 30 ready-made presets.</span>
-        <span data-l="hu">Nyomj meg egy billentyűt, és a mnKord az egész akkordot elküldi a szintetizátorodnak. Bármelyik billentyűhöz bármelyik akkord rendelhető: sablonokkal, akkordszimbólumokkal, velocity-rétegekkel és kb. 30 kész presettel.</span>
-      </p>
+      <p class="eyebrow">Free MIDI chord plugin · VST3</p>
+      <h1 class="display">mn<span>Kord</span><span class="sr-only"> – free MIDI chord plugin for Windows (VST3)</span></h1>
+      <p class="tagline">One key. A whole chord.</p>
+      <p class="lede">Play a single note and mnKord sends the full chord to your synth. Map any key to any chord, with templates, chord symbols, velocity layers and 31 ready-made presets.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
-          <span data-l="en">Download for Windows</span><span data-l="hu">Letöltés Windowsra</span>
-        </a>
-        <a class="btn" href="mnKord-User-Guide.pdf" data-pdf="en">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>
-          <span data-l="en">User guide (PDF)</span><span data-l="hu">Útmutató (PDF)</span>
-        </a>
-        <a class="btn" href="https://github.com/miklosnemeth/mnkord">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-          <span data-l="en">Source on GitHub</span><span data-l="hu">Forráskód a GitHubon</span>
-        </a>
+        <a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Download for Windows</a>
+        <a class="btn" href="mnKord-User-Guide.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>User guide (PDF)</a>
+        <a class="btn" href="https://github.com/miklosnemeth/mnkord"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>Source on GitHub</a>
       </div>
       <ul class="facts">
         <li>v1.3.0</li>
         <li>VST3 · Windows x64</li>
-        <li><span data-l="en">Free and open source (AGPL-3.0)</span><span data-l="hu">Ingyenes és nyílt forráskódú (AGPL-3.0)</span></li>
+        <li>Free and open source (AGPL-3.0)</li>
       </ul>
-
-      <div class="shot">
-        <img src="images/main.png" width="980" height="470" alt="The mnKord window: INPUT and CHORD keyboards, preset bar">
-      </div>
+      <div class="shot"><img src="images/main.png" width="980" height="475" alt="The mnKord window: INPUT and CHORD keyboards and the preset bar"></div>
     </div>
-
     <section aria-labelledby="how">
-      <h2 id="how" class="display"><span data-l="en">How it works</span><span data-l="hu">Hogyan működik</span></h2>
-      <p class="sub"><span data-l="en">mnKord is a MIDI effect. It makes no sound itself: it sits in front of your synth.</span><span data-l="hu">A mnKord MIDI-effekt. Hangot nem ad, a szintetizátorod elé kerül.</span></p>
-      <div class="steps">
-        <div class="step">
-          <h3><span data-l="en">Play one key</span><span data-l="hu">Nyomj meg egy billentyűt</span></h3>
-          <p><span data-l="en">Your MIDI keyboard sends a single note.</span><span data-l="hu">A MIDI-billentyűzeted egyetlen hangot küld.</span></p>
-        </div>
-        <div class="step">
-          <h3><span data-l="en">mnKord expands it</span><span data-l="hu">A mnKord kibővíti</span></h3>
-          <p><span data-l="en">The key is looked up in the current preset and becomes a chord.</span><span data-l="hu">A billentyű az aktuális preset alapján akkorddá bővül.</span></p>
-        </div>
-        <div class="step">
-          <h3><span data-l="en">Your synth plays it</span><span data-l="hu">A szintetizátor lejátssza</span></h3>
-          <p><span data-l="en">Put any synth after mnKord. All other MIDI passes straight through.</span><span data-l="hu">Tegyél bármilyen szintetizátort a mnKord után. Minden más MIDI változatlanul átmegy.</span></p>
-        </div>
-      </div>
+      <h2 id="how" class="display">How it works</h2>
+      <p class="sub">mnKord is a MIDI effect. It makes no sound itself: it sits in front of your synth.</p>
+      <ol class="steps">
+        <li class="step"><h3>Play one key</h3><p>Your MIDI keyboard sends a single note.</p></li>
+        <li class="step"><h3>mnKord expands it</h3><p>The key is looked up in the current preset and becomes a chord.</p></li>
+        <li class="step"><h3>Your synth plays it</h3><p>Put any synth after mnKord. All other MIDI passes straight through.</p></li>
+      </ol>
     </section>
-
     <section id="features" aria-labelledby="feat">
-      <h2 id="feat" class="display"><span data-l="en">Made for fast chord playing</span><span data-l="hu">Gyors akkordjátékra tervezve</span></h2>
-      <p class="sub"><span data-l="en">Everything you need to turn one finger into a full harmony, and nothing that gets in the way.</span><span data-l="hu">Minden, amivel egy ujjból teljes harmónia lesz, és semmi, ami útban van.</span></p>
-      <div class="cards">
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8"/></svg></div>
-          <h3><span data-l="en">Any key to any chord</span><span data-l="hu">Bármely billentyű, bármely akkord</span></h3>
-          <p><span data-l="en">Click an INPUT key, then the chord tones. Or right-click for triad and seventh templates.</span><span data-l="hu">Kattints egy INPUT billentyűre, majd az akkordhangokra. Vagy jobb kattintással válassz hármas- és szeptimhangzat-sablont.</span></p>
-        </article>
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/></svg></div>
-          <h3><span data-l="en">Chord symbols</span><span data-l="hu">Akkordszimbólumok</span></h3>
-          <p><span data-l="en">Type <code>Dm9/G</code>, <code>Bbmaj7</code> or <code>C6/9</code> and the chord is voiced for you.</span><span data-l="hu">Írd be: <code>Dm9/G</code>, <code>Bbmaj7</code> vagy <code>C6/9</code>, és az akkord kész.</span></p>
-        </article>
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18c3 0 3-12 6-12s3 12 6 12 3-8 6-8"/></svg></div>
-          <h3><span data-l="en">Velocity layers</span><span data-l="hu">Velocity-rétegek</span></h3>
-          <p><span data-l="en">Play softly for one chord, hit harder and a fuller one takes over.</span><span data-l="hu">Halkan az egyik akkord szól, erősebb ütésre egy teltebb veszi át.</span></p>
-        </article>
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 12 4l8 16M7 14h10"/></svg></div>
-          <h3><span data-l="en">Scales</span><span data-l="hu">Skálák</span></h3>
-          <p><span data-l="en">Limit the keyboard to a scale and fill the whole preset with its triads or sevenths in one click.</span><span data-l="hu">Korlátozd a billentyűzetet egy skálára, és egy kattintással töltsd ki a presetet a skála hármas- vagy szeptimhangzataival.</span></p>
-        </article>
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></div>
-          <h3><span data-l="en">About 30 presets, and a real browser</span><span data-l="hu">Kb. 30 preset és igazi böngésző</span></h3>
-          <p><span data-l="en">Pop, jazz, soul, cinematic, dark, quartal. Search, tags, favourites and your own presets.</span><span data-l="hu">Pop, jazz, soul, filmzene, sötét, kvart. Keresés, címkék, kedvencek és saját presetek.</span></p>
-        </article>
-        <article class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div>
-          <h3><span data-l="en">Learn, undo, transpose</span><span data-l="hu">Learn, undo, transzponálás</span></h3>
-          <p><span data-l="en">MIDI learn from your controller, undo and redo, copy a whole octave, transpose keys or chords.</span><span data-l="hu">MIDI learn a kontrollerről, visszavonás és újra, egy egész oktáv másolása, billentyűk vagy akkordok transzponálása.</span></p>
-        </article>
+      <h2 id="feat" class="display">Made for fast chord playing</h2>
+      <p class="sub">Everything you need to turn one finger into a full harmony, and nothing that gets in the way.</p>
+      <ul class="cards">
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8"/></svg></div><h3>Any key to any chord</h3><p>Click an INPUT key, then the chord tones. Or right-click for triad and seventh templates.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/></svg></div><h3>Chord symbols</h3><p>Type <code>Dm9/G</code>, <code>Bbmaj7</code> or <code>C6/9</code> and the chord is voiced for you.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18c3 0 3-12 6-12s3 12 6 12 3-8 6-8"/></svg></div><h3>Velocity layers</h3><p>Play softly for one chord, hit harder and a fuller one takes over.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 12 4l8 16M7 14h10"/></svg></div><h3>Scales</h3><p>Limit the keyboard to a scale and fill the whole preset with its triads or sevenths in one click.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></div><h3>31 presets, and a real browser</h3><p>Pop, jazz, soul, cinematic, dark, quartal. Search, tags, favourites and your own presets.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div><h3>Learn, undo, transpose</h3><p>MIDI learn from your controller, undo and redo, copy a whole octave, transpose keys or chords.</p></li>
+      </ul>
+      <h3 class="listh">Everything in the box</h3>
+      <p class="sub">The full feature list of mnKord 1.3.0.</p>
+      <div class="featlists">
+        <div class="fl"><h4>Building chords</h4><ul>
+          <li>Map any of the 128 MIDI keys to a chord of your own.</li>
+          <li>Click the chord tones on the CHORD keyboard, or right-click an INPUT key for chord templates.</li>
+          <li>Type a chord symbol (for example <code>Dm9/G</code>) to replace the selected chord; the name of the chord is shown for the selection.</li>
+          <li>Invert a chord up or down with a right-click on a CHORD key.</li>
+          <li>Copy the chords of a whole octave one octave up or down.</li>
+          <li>Fit a chord to the selected scale, or clear it, from the right-click menu.</li>
+        </ul></div>
+        <div class="fl"><h4>Playing</h4><ul>
+          <li>Velocity layers: a soft layer for any velocity and a hard layer from velocity 80, 90, 100, 110 or 120.</li>
+          <li>MIDI learn: play a key on your controller to select or create its mapping.</li>
+          <li>Overlapping chords share notes (reference counted), so notes are not cut off or left stuck.</li>
+          <li>The sustain pedal and all other non-note MIDI (CC, pitch bend, aftertouch) pass through to your synth.</li>
+          <li>VST3 plugin and a Standalone program.</li>
+        </ul></div>
+        <div class="fl"><h4>Presets</h4><ul>
+          <li>31 read-only factory presets, and your own presets saved as files shared by every project.</li>
+          <li>A preset browser with group, author and style columns, search and favourites.</li>
+          <li>Preset metadata: name, group, author and style tags.</li>
+          <li>XML export and import; import accepts a single preset or a whole bank file.</li>
+          <li>The host program list mirrors the preset list (128 fixed programs), so program changes and automation pick the same presets.</li>
+          <li>A project stores the preset you used, with your edits, so it sounds the same on another computer.</li>
+        </ul></div>
+        <div class="fl"><h4>Workflow</h4><ul>
+          <li>Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).</li>
+          <li>Transpose the whole preset, or only its chords, by a semitone or an octave.</li>
+          <li>Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.</li>
+          <li>A dark, flat window with two keyboards and the version of the plugin under the title.</li>
+          <li>Free and open source under the AGPL-3.0.</li>
+        </ul></div>
       </div>
     </section>
-
+    <section id="presets" aria-labelledby="pre">
+      <h2 id="pre" class="display">31 factory presets</h2>
+      <p class="sub">Ready to play, grouped by style. All of them are read-only: edit one and use Save as to keep your version.</p>
+      <div class="presetgroups">
+        <div class="pg"><h3>Basics</h3><ul>
+          <li><strong>Default</strong> <span class="tags">Empty</span></li>
+          <li><strong>C Major Diatonic</strong> <span class="tags">Diatonic, Triads</span></li>
+          <li><strong>A Minor Diatonic</strong> <span class="tags">Diatonic, Minor, Triads</span></li>
+          <li><strong>Pop I-V-vi-IV</strong> <span class="tags">Pop, Triads</span></li>
+          <li><strong>Power Chords</strong> <span class="tags">Rock, Power chords</span></li>
+          <li><strong>C Jazz 7ths</strong> <span class="tags">Jazz, Sevenths</span></li>
+        </ul></div>
+        <div class="pg"><h3>Pop &amp; Rock</h3><ul>
+          <li><strong>Pop Four Chords</strong> <span class="tags">Pop</span></li>
+          <li><strong>Indie Add9</strong> <span class="tags">Indie, Pop</span></li>
+          <li><strong>Singer-Songwriter</strong> <span class="tags">Folk, Pop</span></li>
+          <li><strong>Sus Riff Rock</strong> <span class="tags">Rock</span></li>
+          <li><strong>Emo Minor Pop</strong> <span class="tags">Pop, Minor</span></li>
+        </ul></div>
+        <div class="pg"><h3>Jazz &amp; Soul</h3><ul>
+          <li><strong>Jazz Turnarounds</strong> <span class="tags">Jazz, Sevenths</span></li>
+          <li><strong>Neo-Soul Nines</strong> <span class="tags">Neo-soul, Ninths</span></li>
+          <li><strong>Bossa Nova</strong> <span class="tags">Latin, Jazz</span></li>
+          <li><strong>Minor ii-V-i (A)</strong> <span class="tags">Jazz, Minor</span></li>
+          <li><strong>Gospel Sixths</strong> <span class="tags">Gospel, Soul</span></li>
+          <li><strong>Lo-fi Chill</strong> <span class="tags">Lo-fi, Chill</span></li>
+          <li><strong>Funk Dominant 9ths</strong> <span class="tags">Funk, Ninths</span></li>
+        </ul></div>
+        <div class="pg"><h3>Cinematic</h3><ul>
+          <li><strong>Lydian Dream</strong> <span class="tags">Cinematic, Lydian</span></li>
+          <li><strong>Epic Trailer Minor</strong> <span class="tags">Cinematic, Minor</span></li>
+          <li><strong>Ambient Suspensions</strong> <span class="tags">Ambient, Suspended</span></li>
+          <li><strong>Dream Six-Nine</strong> <span class="tags">Ambient, Dream pop</span></li>
+        </ul></div>
+        <div class="pg"><h3>Minor &amp; Dark</h3><ul>
+          <li><strong>Dark Phrygian</strong> <span class="tags">Dark, Phrygian</span></li>
+          <li><strong>Harmonic Minor Drama</strong> <span class="tags">Cinematic, Minor</span></li>
+          <li><strong>Synthwave Minor</strong> <span class="tags">Synthwave, Minor</span></li>
+          <li><strong>Andalusian Cadence</strong> <span class="tags">Flamenco, Minor</span></li>
+        </ul></div>
+        <div class="pg"><h3>Modern</h3><ul>
+          <li><strong>Quartal Stacks</strong> <span class="tags">Modern, Quartal</span></li>
+          <li><strong>Circle of Fifths</strong> <span class="tags">Theory, Triads</span></li>
+        </ul></div>
+        <div class="pg"><h3>Utility</h3><ul>
+          <li><strong>Chromatic Major Triads</strong> <span class="tags">Triads, Utility</span></li>
+          <li><strong>Chromatic Minor Triads</strong> <span class="tags">Triads, Minor, Utility</span></li>
+          <li><strong>Chromatic Sevenths</strong> <span class="tags">Sevenths, Utility</span></li>
+        </ul></div>
+      </div>
+    </section>
+    <section id="chords" aria-labelledby="cho">
+      <h2 id="cho" class="display">Chord symbols, templates and scales</h2>
+      <p class="sub">Type a chord symbol in the field above the CHORD keyboard and press Enter. Any root works (C, F#, Bb, ...), and a slash adds a bass note.</p>
+      <h3 class="listh">Chord symbol endings</h3>
+      <p class="sub">Put one of these after the root note, for example <code>Dm9/G</code>. A slash and a note name add a bass note (<code>G/B</code>).</p>
+      <ul class="symbols">
+        <li><code>C</code> <span>major triad</span></li>
+        <li><code>Cm</code> <span>minor triad</span></li>
+        <li><code>Cdim</code> <span>diminished triad</span></li>
+        <li><code>Caug</code> <span>augmented triad</span></li>
+        <li><code>Csus2</code> <span>suspended second</span></li>
+        <li><code>Csus4</code> <span>suspended fourth</span></li>
+        <li><code>C5</code> <span>power chord</span></li>
+        <li><code>C6</code> <span>major sixth</span></li>
+        <li><code>Cm6</code> <span>minor sixth</span></li>
+        <li><code>Cmaj7</code> <span>major seventh</span></li>
+        <li><code>Cm7</code> <span>minor seventh</span></li>
+        <li><code>C7</code> <span>dominant seventh</span></li>
+        <li><code>Cm7b5</code> <span>half-diminished seventh</span></li>
+        <li><code>Cdim7</code> <span>diminished seventh</span></li>
+        <li><code>Cadd9</code> <span>major add nine</span></li>
+        <li><code>Cmadd9</code> <span>minor add nine</span></li>
+        <li><code>Cmaj9</code> <span>major ninth</span></li>
+        <li><code>Cm9</code> <span>minor ninth</span></li>
+        <li><code>C9</code> <span>dominant ninth</span></li>
+        <li><code>C7sus4</code> <span>dominant seventh, suspended fourth</span></li>
+        <li><code>Cmmaj7</code> <span>minor-major seventh</span></li>
+        <li><code>C7#9</code> <span>dominant seventh, sharp nine</span></li>
+        <li><code>C7b9</code> <span>dominant seventh, flat nine</span></li>
+        <li><code>C6/9</code> <span>six-nine</span></li>
+        <li><code>C4th</code> <span>quartal chord (stacked fourths)</span></li>
+      </ul>
+      <div class="twocol">
+        <div><h3 class="listh">Chord templates</h3><p class="sub">In the right-click menu of an INPUT key: triads (Maj, Min, Sus2, Sus4, Dim) and sevenths (7, Maj7, Min7, Add9).</p><ul class="chips">
+          <li>Maj</li>
+          <li>Min</li>
+          <li>Sus2</li>
+          <li>Sus4</li>
+          <li>Dim</li>
+          <li>7</li>
+          <li>Maj7</li>
+          <li>Min7</li>
+          <li>Add9</li>
+        </ul></div>
+        <div><h3 class="listh">Scales</h3><p class="sub">Restrict the keyboard to a scale and fill the preset with its triads or sevenths.</p><ul class="chips">
+          <li>Major</li>
+          <li>Natural minor</li>
+          <li>Harmonic minor</li>
+          <li>Melodic minor</li>
+          <li>Major pentatonic</li>
+          <li>Minor pentatonic</li>
+        </ul></div>
+      </div>
+    </section>
     <section id="screens" aria-labelledby="scr">
-      <h2 id="scr" class="display"><span data-l="en">A look inside</span><span data-l="hu">Egy pillantás belülről</span></h2>
-      <p class="sub"><span data-l="en">A dark, flat window with two keyboards: the keys you play, and the chord they make.</span><span data-l="hu">Egy sötét, letisztult ablak két billentyűzettel: amit játszol, és az akkord, amit kapsz.</span></p>
+      <h2 id="scr" class="display">A look inside</h2>
+      <p class="sub">A dark, flat window with two keyboards: the keys you play, and the chord they make.</p>
       <div class="gallery">
-        <figure>
-          <img src="images/chord-templates.png" loading="lazy" width="980" height="470" alt="Chord templates in the right-click menu of an INPUT key">
-          <figcaption><span data-l="en">Right-click a key for triad and seventh templates</span><span data-l="hu">Jobb kattintás egy billentyűn: hármas- és szeptimhangzat-sablonok</span></figcaption>
-        </figure>
-        <figure>
-          <img src="images/preset-browser.png" loading="lazy" width="980" height="470" alt="The preset browser with group, author and style columns">
-          <figcaption><span data-l="en">The preset browser: group, author, style, search, favourites</span><span data-l="hu">A preset-böngésző: csoport, szerző, stílus, keresés, kedvencek</span></figcaption>
-        </figure>
-        <figure>
-          <img src="images/velocity-layers.png" loading="lazy" width="980" height="470" alt="The velocity layer menu: soft layer and hard layers from velocity 80 to 120">
-          <figcaption><span data-l="en">Velocity layers: a second chord for hard hits</span><span data-l="hu">Velocity-rétegek: második akkord erős ütésre</span></figcaption>
-        </figure>
+        <figure><img src="images/chord-templates.png" loading="lazy" width="980" height="475" alt="Chord templates in the right-click menu of an INPUT key"><figcaption>Right-click a key for triad and seventh templates</figcaption></figure>
+        <figure><img src="images/preset-browser.png" loading="lazy" width="980" height="475" alt="The preset browser with group, author and style columns"><figcaption>The preset browser: group, author, style, search, favourites</figcaption></figure>
+        <figure><img src="images/velocity-layers.png" loading="lazy" width="980" height="475" alt="The velocity layer menu: soft layer and hard layers from velocity 80 to 120"><figcaption>Velocity layers: a second chord for hard hits</figcaption></figure>
       </div>
     </section>
-
+    <section id="requirements" aria-labelledby="req">
+      <h2 id="req" class="display">System requirements</h2>
+      <ul class="plain">
+        <li>Windows 10 or 11, 64-bit (installer for the VST3).</li>
+        <li>A DAW or host that loads VST3 plugins.</li>
+        <li>A MIDI keyboard or controller (or the DAW&#x27;s piano roll) to play the keys.</li>
+        <li>A synth or sampler after mnKord, because mnKord itself makes no sound.</li>
+        <li>Linux: build from the source code (instructions in the repository). macOS is not supported yet.</li>
+      </ul>
+    </section>
+    <section id="faq" aria-labelledby="faqh">
+      <h2 id="faqh" class="display">Frequently asked questions</h2>
+      <div class="faq">
+        <details><summary>What is mnKord?</summary><p>mnKord is a free MIDI chord plugin (VST3) for Windows. You play one key and it sends a whole chord to your synth. Every key can have its own chord, set with templates, chord symbols or by clicking the notes.</p></details>
+        <details><summary>Is mnKord free?</summary><p>Yes. mnKord is free software under the GNU Affero General Public License v3.0, and the source code is open on GitHub.</p></details>
+        <details><summary>Does mnKord make sound by itself?</summary><p>No. It is a MIDI effect: it turns one note into a chord, and the synth or sampler after it plays the sound. Put it on an instrument track, before your synth.</p></details>
+        <details><summary>Which operating systems does it run on?</summary><p>There is an installer for Windows 10 and 11 (64-bit). On Linux you can build it from the source code. macOS is not supported yet.</p></details>
+        <details><summary>Which DAWs can I use it in?</summary><p>mnKord is a standard VST3 plugin, so a DAW that hosts VST3 plugins on Windows can load it. How MIDI is routed to the next plugin differs between DAWs; the user guide has the steps.</p></details>
+        <details><summary>How do I make my own chord?</summary><p>Click a key on the INPUT keyboard, then click the notes on the CHORD keyboard. You can also right-click an INPUT key for chord templates, or type a chord symbol such as <code>Dm9/G</code> in the field above the CHORD keyboard.</p></details>
+        <details><summary>Which chord symbols can I type?</summary><p>Triads, suspended, power chords, sixths, sevenths, ninths, add9, altered sevenths (7b9, 7#9), 6/9, quartal chords, and slash chords with a bass note, for any root note. The full list is on this page.</p></details>
+        <details><summary>What are velocity layers?</summary><p>A key can have a second, hard layer with its own chord. It plays instead of the soft layer when you hit the key at least as hard as the threshold you choose (80, 90, 100, 110 or 120).</p></details>
+        <details><summary>Where are my presets saved?</summary><p>Your presets are files in <code>Documents\MNAudio\mnKord\User</code>, shared by every project. A DAW project also stores the preset it used, with its edits, so it sounds the same on another computer.</p></details>
+        <details><summary>Who made mnKord?</summary><p>mnKord is made by Miklós Németh as a vibecoding project: the idea, the taste and the decisions are his, and the code is written together with an AI.</p></details>
+      </div>
+    </section>
     <section id="get" aria-labelledby="getit">
-      <h2 id="getit" class="display"><span data-l="en">Get mnKord</span><span data-l="hu">Szerezd meg a mnKordot</span></h2>
-      <p class="sub"><span data-l="en">Free, with the source code open. The Windows installer is the quick way in.</span><span data-l="hu">Ingyenes, nyílt forráskóddal. A leggyorsabb út a Windows-telepítő.</span></p>
+      <h2 id="getit" class="display">Get mnKord</h2>
+      <p class="sub">Free, with the source code open. The Windows installer is the quick way in.</p>
       <div class="get">
-        <div class="box">
-          <h3><span data-l="en">Windows (64-bit)</span><span data-l="hu">Windows (64 bites)</span></h3>
-          <ol>
-            <li><span data-l="en">Download <strong>mnKord-1.3.0-win-x64-setup.exe</strong> from the latest release.</span><span data-l="hu">Töltsd le a <strong>mnKord-1.3.0-win-x64-setup.exe</strong> fájlt a legfrissebb kiadásból.</span></li>
-            <li><span data-l="en">Run it. The VST3 goes to <code>Common Files\VST3</code>.</span><span data-l="hu">Futtasd. A VST3 a <code>Common Files\VST3</code> mappába kerül.</span></li>
-            <li><span data-l="en">Rescan plugins in your DAW and put mnKord on an instrument track, before your synth.</span><span data-l="hu">Indíts új pluginkeresést a DAW-ban, és tedd a mnKordot egy hangszersávra, a szintetizátor elé.</span></li>
-          </ol>
-          <a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest"><span data-l="en">Latest release</span><span data-l="hu">Legfrissebb kiadás</span></a>
-        </div>
-        <div class="box">
-          <h3><span data-l="en">Docs and source</span><span data-l="hu">Dokumentáció és forrás</span></h3>
-          <ul>
-            <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.md"><span data-l="en">User guide (English)</span><span data-l="hu">Útmutató (angol)</span></a> · <a href="mnKord-User-Guide.pdf">PDF</a></li>
-            <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.hu.md"><span data-l="en">User guide (Hungarian)</span><span data-l="hu">Útmutató (magyar)</span></a> · <a href="mnKord-Felhasznaloi-utmutato.pdf">PDF</a></li>
-            <li><a href="https://github.com/miklosnemeth/mnkord"><span data-l="en">Source code and build instructions (Windows, Linux)</span><span data-l="hu">Forráskód és fordítási útmutató (Windows, Linux)</span></a></li>
-            <li><a href="https://github.com/miklosnemeth/mnkord/issues"><span data-l="en">Report a bug or ask for a feature</span><span data-l="hu">Hibabejelentés, ötletek</span></a></li>
-          </ul>
-          <p><span data-l="en">macOS is not supported yet.</span><span data-l="hu">macOS-t egyelőre nem támogat.</span></p>
-        </div>
+        <div class="box"><h3>Windows (64-bit)</h3><ol>
+          <li>Download <strong>mnKord-1.3.0-win-x64-setup.exe</strong> from the latest release.</li>
+          <li>Run it. The VST3 goes to <code>Common Files\VST3</code>.</li>
+          <li>Rescan plugins in your DAW and put mnKord on an instrument track, before your synth.</li>
+        </ol><a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest">Latest release</a></div>
+        <div class="box"><h3>Docs and source</h3><ul>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.md">User guide (English)</a></li>
+          <li><a href="mnKord-User-Guide.pdf">User guide, PDF (English)</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.hu.md">User guide (Hungarian)</a></li>
+          <li><a href="mnKord-Felhasznaloi-utmutato.pdf">User guide, PDF (Hungarian)</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord">Source code and build instructions</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/CHANGELOG.md">Changelog</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/issues">Report a bug or ask for a feature</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/LICENSE">License (AGPL-3.0)</a></li>
+        </ul><p>macOS is not supported yet.</p></div>
       </div>
     </section>
   </main>
 </div>
-
 <footer class="author">
   <div class="wrap">
-    <div class="tag">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>
-      <span data-l="en">Vibecoded by</span><span data-l="hu">Vibecoder</span>
-    </div>
-    <div class="name display">
-      <span data-l="en">Miklós <b>Németh</b></span>
-      <span data-l="hu"><b>Németh</b> Miklós</span>
-    </div>
-    <p>
-      <span data-l="en">mnKord is a vibecoding project: the idea, the taste and the decisions are mine, the code is written together with an AI.</span>
-      <span data-l="hu">A mnKord egy vibecoding-projekt: az ötlet, az ízlés és a döntések az enyémek, a kódot egy MI-vel együtt írom.</span>
-    </p>
-    <div class="legal">
-      © 2026 <span data-l="en">Miklós Németh</span><span data-l="hu">Németh Miklós</span> ·
-      <a href="https://github.com/miklosnemeth/mnkord/blob/master/LICENSE">AGPL-3.0</a> ·
-      <span data-l="en">Built with <a href="https://juce.com">JUCE</a>. Fonts: Montserrat (OFL) and Roboto Condensed (Apache 2.0).</span>
-      <span data-l="hu"><a href="https://juce.com">JUCE</a> alapon. Betűk: Montserrat (OFL) és Roboto Condensed (Apache 2.0).</span>
-    </div>
+    <div class="tag"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>Vibecoded by</div>
+    <p class="name display">Miklós <b>Németh</b></p>
+    <p>mnKord is a vibecoding project: the idea, the taste and the decisions are mine, the code is written together with an AI.</p>
+    <p class="legal">© 2026 Miklós Németh · <a href="https://github.com/miklosnemeth/mnkord/blob/master/LICENSE">AGPL-3.0</a> · Built with <a href="https://juce.com">JUCE</a>. Fonts: Montserrat (OFL) and Roboto Condensed (Apache 2.0).</p>
   </div>
 </footer>
-
-<script>
-(function () {
-  var root = document.documentElement;
-  var buttons = document.querySelectorAll('.lang button');
-
-  function stored() { try { return localStorage.getItem('mnkord-lang'); } catch (e) { return null; } }
-  function store(v) { try { localStorage.setItem('mnkord-lang', v); } catch (e) {} }
-
-  function setLang(lang) {
-    root.lang = lang;
-    document.title = lang === 'hu' ? 'mnKord – MIDI akkord-plugin' : 'mnKord – MIDI chord plugin';
-    buttons.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.set === lang ? 'true' : 'false'); });
-    var pdf = document.querySelector('[data-pdf]');
-    if (pdf) pdf.href = lang === 'hu' ? 'mnKord-Felhasznaloi-utmutato.pdf' : 'mnKord-User-Guide.pdf';
-  }
-
-  buttons.forEach(function (b) {
-    b.addEventListener('click', function () { setLang(b.dataset.set); store(b.dataset.set); });
-  });
-
-  var saved = stored();
-  var wanted = saved || ((navigator.language || '').toLowerCase().indexOf('hu') === 0 ? 'hu' : 'en');
-  setLang(wanted === 'hu' ? 'hu' : 'en');
-})();
-</script>
 </body>
 </html>

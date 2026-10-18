@@ -68,3 +68,9 @@ Never create, move or delete tags, or push them, unless the owner asks.
   Markdown and go into the installer: after changing a guide, run `python docs/build-pdf.py` (needs Python 3
   and Microsoft Edge or Chrome) and commit the PDFs with it.
 - A screenshot that no longer matches the window (a changed look, labels or menus) is retaken, not left.
+- The web pages `docs/index.html` (English), `docs/hu/index.html` (Hungarian) and `docs/sitemap.xml` are generated:
+  never edit them by hand. Edit `site/build-site.py` (the texts and the layout) or `site/site.css`, then run
+  `python site/build-site.py` and commit the result. The script reads the version from `CMakeLists.txt` and the
+  factory presets and chord symbols from `Source/`, so run it for every release and whenever a preset, a chord
+  symbol or a feature in the lists changes. The FAQ text is written once and feeds both the visible FAQ and the
+  FAQPage structured data. The pages are plain static HTML with no scripts.

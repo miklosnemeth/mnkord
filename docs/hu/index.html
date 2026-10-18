@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mnKord – ingyenes MIDI akkord-plugin (VST3) Windowsra</title>
+<meta name="description" content="A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. Akkordszimbólumok, velocity-rétegek, skálák és 31 gyári preset.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="Németh Miklós">
+<link rel="canonical" href="https://miklosnemeth.github.io/mnkord/hu/">
+<link rel="alternate" hreflang="en" href="https://miklosnemeth.github.io/mnkord/">
+<link rel="alternate" hreflang="hu" href="https://miklosnemeth.github.io/mnkord/hu/">
+<link rel="alternate" hreflang="x-default" href="https://miklosnemeth.github.io/mnkord/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="mnKord">
+<meta property="og:title" content="mnKord – ingyenes MIDI akkord-plugin (VST3) Windowsra">
+<meta property="og:description" content="A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. Akkordszimbólumok, velocity-rétegek, skálák és 31 gyári preset.">
+<meta property="og:url" content="https://miklosnemeth.github.io/mnkord/hu/">
+<meta property="og:locale" content="hu_HU">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
+<meta property="og:image:width" content="980">
+<meta property="og:image:height" content="475">
+<meta property="og:image:alt" content="A mnKord ablaka az INPUT és a CHORD billentyűzettel">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="mnKord – ingyenes MIDI akkord-plugin (VST3) Windowsra">
+<meta name="twitter:description" content="A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. Akkordszimbólumok, velocity-rétegek, skálák és 31 gyári preset.">
+<meta name="twitter:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#101315">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101315'/%3E%3Crect x='6' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='1.5' fill='%23fbfcfb'/%3E%3Crect x='21' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3C/svg%3E">
+<link rel="preload" href="../assets/fonts/Montserrat.ttf" as="font" type="font/ttf" crossorigin>
+<style>
+@font-face { font-family: 'Montserrat'; src: url(../assets/fonts/Montserrat.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Roboto Condensed'; src: url(../assets/fonts/RobotoCondensed.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
+
+:root {
+  --bg: #101315;
+  --panel: #191e21;
+  --line: #2a3237;
+  --control: #242b2f;
+  --text: #eef3ef;
+  --muted: #95a09a;
+  --accent: #2ee66b;
+  --accent-ink: #04210f;
+  --playing: #ffa53a;
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 520px at 78% -8%, rgba(46, 230, 107, 0.13), transparent 60%),
+    radial-gradient(900px 480px at 0% 8%, rgba(255, 165, 58, 0.06), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+.wrap { width: min(1080px, 100% - 40px); margin-inline: auto; }
+.display { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 800; letter-spacing: -0.02em; }
+.condensed { font-family: 'Roboto Condensed', 'Segoe UI', sans-serif; font-weight: 700; }
+
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; gap: 16px; }
+.brand { font-size: 22px; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 28px; height: 28px; }
+.nav { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
+.nav a { text-decoration: none; }
+.nav a:hover { color: var(--text); }
+
+/* hero */
+.hero { padding: 54px 0 30px; text-align: center; }
+.eyebrow { display: inline-block; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(46, 230, 107, 0.35); background: rgba(46, 230, 107, 0.07); padding: 5px 14px; border-radius: 999px; }
+.hero h1 { font-size: clamp(64px, 13vw, 132px); line-height: 1; margin: 22px 0 6px; }
+.hero h1 span { color: var(--accent); }
+.tagline { font-size: clamp(22px, 3.6vw, 34px); font-weight: 700; margin: 0 0 14px; }
+.lede { max-width: 680px; margin: 0 auto 30px; color: var(--muted); font-size: 19px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--control); color: var(--text); transition: transform .12s, background .12s; }
+.btn:hover { transform: translateY(-1px); background: #2d363b; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { background: #55f088; }
+.btn svg { width: 18px; height: 18px; }
+.facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; margin: 26px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
+.facts li::before { content: "•"; color: var(--accent); margin-right: 8px; }
+
+.shot { margin: 46px auto 0; position: relative; }
+.shot::before { content: ""; position: absolute; inset: 8% 6% -4%; background: radial-gradient(closest-side, rgba(46, 230, 107, 0.28), transparent); filter: blur(34px); z-index: -1; }
+.shot img { border-radius: var(--radius); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); width: 100%; }
+
+/* sections */
+section { padding: 78px 0 0; }
+h2 { font-size: clamp(28px, 4.4vw, 42px); margin: 0 0 8px; line-height: 1.15; }
+.sub { color: var(--muted); max-width: 640px; margin: 0 0 34px; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; position: relative; }
+.step::before { counter-increment: step; content: counter(step); font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--accent-ink); background: var(--accent); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 14px; }
+.step h3 { margin: 0 0 6px; font-size: 19px; }
+.step p { margin: 0; color: var(--muted); font-size: 16px; }
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: border-color .15s, transform .15s; }
+.card:hover { border-color: rgba(46, 230, 107, 0.5); transform: translateY(-2px); }
+.card .ic { width: 38px; height: 38px; border-radius: 10px; background: rgba(46, 230, 107, 0.12); color: var(--accent); display: grid; place-items: center; margin-bottom: 14px; }
+.card .ic svg { width: 22px; height: 22px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; background: var(--control); padding: 1px 6px; border-radius: 5px; }
+
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.gallery figure { margin: 0; }
+.gallery figure:first-child { grid-column: 1 / -1; }
+.gallery img { border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4); width: 100%; }
+.gallery figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; text-align: center; }
+
+.get { display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
+.box h3 { margin: 0 0 10px; font-size: 20px; }
+.box ol, .box ul { margin: 0 0 18px; padding-left: 20px; color: var(--muted); }
+.box li { margin: 5px 0; }
+.box p { color: var(--muted); margin: 0 0 14px; }
+.box strong { color: var(--text); }
+
+/* author */
+.author { margin-top: 84px; padding: 46px 0 52px; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(46, 230, 107, 0.05), transparent 70%); text-align: center; }
+.author .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--playing); font-weight: 700; }
+.author .name { font-size: clamp(30px, 6vw, 54px); margin: 12px 0 6px; }
+.author .name b { color: var(--accent); font-weight: inherit; }
+.author p { margin: 0 auto; max-width: 560px; color: var(--muted); }
+.legal { margin-top: 26px; font-size: 14px; color: var(--muted); }
+.legal a { color: var(--text); }
+
+@media (max-width: 860px) {
+  .steps, .cards, .get { grid-template-columns: 1fr; }
+  .gallery { grid-template-columns: 1fr; }
+  .nav a.hide-sm { display: none; }
+  body { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+/* language links */
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); font-size: 13px; font-weight: 700; }
+.lang .cur, .lang a { padding: 4px 12px; border-radius: 999px; }
+.lang .cur { background: var(--accent); color: var(--accent-ink); }
+.lang a { color: var(--muted); }
+.lang a:hover { color: var(--text); }
+
+/* accessibility */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 12px; top: -60px; background: var(--accent); color: var(--accent-ink); padding: 10px 16px; border-radius: 10px; font-weight: 700; z-index: 10; text-decoration: none; }
+.skip:focus { top: 12px; }
+
+/* lists */
+ul.cards, ol.steps, ul.facts, ul.chips, ul.symbols, ul.plain { list-style: none; }
+ol.steps, ul.cards { margin: 0; padding: 0; }
+.listh { font-size: 22px; margin: 46px 0 6px; }
+.featlists { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 18px; }
+.fl { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; }
+.fl h4 { margin: 0 0 10px; font-size: 17px; color: var(--accent); }
+.fl ul { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15.5px; }
+.fl li { margin: 7px 0; }
+
+.presetgroups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.pg { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
+.pg h3 { margin: 0 0 10px; font-size: 17px; color: var(--accent); }
+.pg ul { list-style: none; margin: 0; padding: 0; font-size: 15.5px; }
+.pg li { margin: 7px 0; color: var(--muted); }
+.pg li strong { color: var(--text); font-weight: 600; }
+.pg .tags { display: block; font-size: 13px; color: var(--muted); opacity: 0.85; }
+
+.symbols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 22px; margin: 18px 0 0; padding: 0; }
+.symbols li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; }
+.symbols code { min-width: 74px; color: var(--accent); font-weight: 700; }
+.symbols span { color: var(--muted); }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; }
+.chips li { background: var(--control); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 15px; }
+.plain { margin: 18px 0 0; padding-left: 22px; list-style: disc; color: var(--muted); }
+.plain li { margin: 8px 0; }
+
+.faq { display: grid; gap: 10px; margin-top: 18px; }
+.faq details { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 22px; }
+.faq summary { cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { margin: 0 0 18px; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .featlists, .presetgroups, .symbols, .twocol { grid-template-columns: 1fr; }
+}
+.btn:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebSite",
+   "@id": "https://miklosnemeth.github.io/mnkord/#website",
+   "url": "https://miklosnemeth.github.io/mnkord/",
+   "name": "mnKord",
+   "inLanguage": [
+    "en",
+    "hu"
+   ],
+   "publisher": {
+    "@id": "https://miklosnemeth.github.io/mnkord/#author"
+   }
+  },
+  {
+   "@type": "Person",
+   "@id": "https://miklosnemeth.github.io/mnkord/#author",
+   "name": "Miklós Németh",
+   "alternateName": "Németh Miklós",
+   "url": "https://github.com/miklosnemeth",
+   "jobTitle": "Vibecoder"
+  },
+  {
+   "@type": "SoftwareApplication",
+   "@id": "https://miklosnemeth.github.io/mnkord/#app",
+   "name": "mnKord",
+   "url": "https://miklosnemeth.github.io/mnkord/hu/",
+   "description": "A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. Akkordszimbólumok, velocity-rétegek, skálák és 31 gyári preset.",
+   "inLanguage": "hu",
+   "applicationCategory": "MultimediaApplication",
+   "applicationSubCategory": "MIDI effect, VST3 audio plugin",
+   "operatingSystem": "Windows 10, Windows 11",
+   "softwareVersion": "1.3.0",
+   "downloadUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
+   "installUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
+   "fileFormat": "application/vnd.steinberg.vst3",
+   "softwareRequirements": "A DAW that hosts VST3 plugins",
+   "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+   "isAccessibleForFree": true,
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   },
+   "author": {
+    "@id": "https://miklosnemeth.github.io/mnkord/#author"
+   },
+   "image": "https://miklosnemeth.github.io/mnkord/images/main.png",
+   "screenshot": [
+    "https://miklosnemeth.github.io/mnkord/images/chord-templates.png",
+    "https://miklosnemeth.github.io/mnkord/images/preset-browser.png",
+    "https://miklosnemeth.github.io/mnkord/images/velocity-layers.png",
+    "https://miklosnemeth.github.io/mnkord/images/main.png"
+   ],
+   "featureList": [
+    "A 128 MIDI-billentyű bármelyikéhez saját akkordot rendelhetsz.",
+    "Kattints az akkordhangokra a CHORD billentyűzeten, vagy jobb kattintással válassz akkordsablont egy INPUT billentyűn.",
+    "Írj be egy akkordszimbólumot (például Dm9/G), és az a kiválasztott akkord helyére kerül; a kijelölés akkordjának nevét a program kiírja.",
+    "Az akkordot jobb kattintással felfelé vagy lefelé megfordíthatod egy CHORD billentyűn.",
+    "Egy egész oktáv akkordjait egy oktávval feljebb vagy lejjebb másolhatod.",
+    "Az akkordot a jobb kattintású menüből a kiválasztott skálához igazíthatod, vagy törölheted.",
+    "Velocity-rétegek: egy soft réteg bármilyen erősséghez, és egy hard réteg 80, 90, 100, 110 vagy 120 velocity-től.",
+    "MIDI learn: játssz egy billentyűt a kontrolleren, és az kiválasztja (vagy létrehozza) a leképezését.",
+    "Az átfedő akkordok osztoznak a hangokon (hivatkozásszámlálással), így nem vágódnak le és nem ragadnak be hangok.",
+    "A szusztain pedál és minden más, nem hang típusú MIDI (CC, pitch bend, aftertouch) átmegy a szintetizátorra.",
+    "VST3 plugin és Standalone program.",
+    "31 csak olvasható gyári preset, és a saját presetjeid, amelyek fájlként mentődnek, és minden projekt közösen használja őket.",
+    "Preset-böngésző csoport, szerző és stílus oszlopokkal, kereséssel és kedvencekkel.",
+    "Preset-adatok: név, csoport, szerző és stílus-címkék.",
+    "XML export és import; az import egy presetet vagy egy teljes bank-fájlt is elfogad.",
+    "A hoszt programlistája tükrözi a presetlistát (128 fix program), így a programváltás és az automatizálás ugyanazt a presetet választja.",
+    "A projekt a használt presetet a szerkesztéseivel együtt tárolja, ezért egy másik gépen is ugyanúgy szól.",
+    "Visszavonás és újra minden leképezés-szerkesztéshez (Ctrl+Z, Ctrl+Y).",
+    "A teljes preset, vagy csak az akkordjai transzponálása félhanggal vagy oktávval.",
+    "A billentyűzet korlátozása egy skálára, és a preset kitöltése a skála hármas- vagy szeptimhangzataival.",
+    "Sötét, letisztult ablak két billentyűzettel, a cím alatt a plugin verziójával.",
+    "Ingyenes és nyílt forráskódú, AGPL-3.0 alatt."
+   ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://miklosnemeth.github.io/mnkord/hu/#faq",
+   "inLanguage": "hu",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "Mi a mnKord?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra. Megnyomsz egy billentyűt, és egy egész akkordot küld a szintetizátorodnak. Minden billentyűnek saját akkordja lehet, amit sablonokkal, akkordszimbólumokkal vagy a hangokra kattintva állítasz be."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Ingyenes a mnKord?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Igen. A mnKord szabad szoftver a GNU Affero General Public License v3.0 alatt, a forráskódja nyílt a GitHubon."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Ad hangot a mnKord magától?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Nem. MIDI-effekt: egy hangból akkordot csinál, a hangot a mögötte lévő szintetizátor vagy sampler adja. Tedd egy hangszersávra, a szintetizátor elé."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Milyen operációs rendszereken fut?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Windows 10-re és 11-re (64 bites) van telepítő. Linuxon a forráskódból lefordíthatod. macOS-t egyelőre nem támogat."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Melyik DAW-ban használhatom?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A mnKord szabványos VST3 plugin, ezért minden DAW betöltheti, amelyik Windowson VST3 pluginokat hosztol. Hogy a MIDI hogyan jut a következő pluginhoz, DAW-onként más; a lépések az útmutatóban vannak."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Hogyan készítek saját akkordot?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Kattints egy billentyűre az INPUT billentyűzeten, majd a hangokra a CHORD billentyűzeten. Jobb kattintással akkordsablonokat is kapsz, vagy beírhatsz egy akkordszimbólumot (például Dm9/G) a CHORD billentyűzet feletti mezőbe."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Milyen akkordszimbólumokat írhatok be?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Hármashangzatokat, sus akkordokat, power chordot, szextet, szeptimeket, nónákat, add9-et, módosított szeptimeket (7b9, 7#9), 6/9-et, kvart-akkordokat és basszushangos (perjeles) akkordokat, bármilyen alaphanggal. A teljes lista ezen az oldalon van."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Mik azok a velocity-rétegek?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Egy billentyűnek lehet egy második, hard rétege saját akkorddal. A soft réteg helyett az szól, ha legalább olyan erősen ütöd le a billentyűt, mint a választott küszöb (80, 90, 100, 110 vagy 120)."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Hol vannak a presetjeim?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A saját presetjeid fájlok a Documents\\MNAudio\\mnKord\\User mappában, minden projekt közösen használja őket. A DAW-projekt a használt presetet a szerkesztéseivel együtt is tárolja, ezért egy másik gépen is ugyanúgy szól."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Ki készítette a mnKordot?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "A mnKordot Németh Miklós készítette vibecoding-projektként: az ötlet, az ízlés és a döntések az övéi, a kódot egy MI-vel együtt írja."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Ugrás a tartalomra</a>
+<div class="wrap">
+  <header class="top">
+    <a class="brand display" href="../" aria-label="mnKord"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>mnKord</a>
+    <nav class="nav" aria-label="Főmenü">
+      <a class="hide-sm" href="#features">Funkciók</a>
+      <a class="hide-sm" href="#presets">Presetek</a>
+      <a class="hide-sm" href="#chords">Akkordok</a>
+      <a class="hide-sm" href="#faq">GYIK</a>
+      <a class="hide-sm" href="#get">Letöltés</a>
+      <span class="lang" role="group" aria-label="Language / Nyelv"><span class="cur" aria-current="true">HU</span><a href="../" hreflang="en" lang="en" title="English">EN</a></span>
+    </nav>
+  </header>
+  <main id="main">
+    <div class="hero">
+      <p class="eyebrow">Ingyenes MIDI akkord-plugin · VST3</p>
+      <h1 class="display">mn<span>Kord</span><span class="sr-only"> – ingyenes MIDI akkord-plugin Windowsra (VST3)</span></h1>
+      <p class="tagline">Egy billentyű. Egy egész akkord.</p>
+      <p class="lede">Nyomj meg egy billentyűt, és a mnKord az egész akkordot elküldi a szintetizátorodnak. Bármelyik billentyűhöz bármelyik akkord rendelhető: sablonokkal, akkordszimbólumokkal, velocity-rétegekkel és 31 kész presettel.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Letöltés Windowsra</a>
+        <a class="btn" href="../mnKord-Felhasznaloi-utmutato.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>Útmutató (PDF)</a>
+        <a class="btn" href="https://github.com/miklosnemeth/mnkord"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>Forráskód a GitHubon</a>
+      </div>
+      <ul class="facts">
+        <li>v1.3.0</li>
+        <li>VST3 · Windows x64</li>
+        <li>Ingyenes és nyílt forráskódú (AGPL-3.0)</li>
+      </ul>
+      <div class="shot"><img src="../images/main.png" width="980" height="475" alt="A mnKord ablaka: INPUT és CHORD billentyűzet, preset-sáv"></div>
+    </div>
+    <section aria-labelledby="how">
+      <h2 id="how" class="display">Hogyan működik</h2>
+      <p class="sub">A mnKord MIDI-effekt. Hangot nem ad, a szintetizátorod elé kerül.</p>
+      <ol class="steps">
+        <li class="step"><h3>Nyomj meg egy billentyűt</h3><p>A MIDI-billentyűzeted egyetlen hangot küld.</p></li>
+        <li class="step"><h3>A mnKord kibővíti</h3><p>A billentyű az aktuális preset alapján akkorddá bővül.</p></li>
+        <li class="step"><h3>A szintetizátor lejátssza</h3><p>Tegyél bármilyen szintetizátort a mnKord után. Minden más MIDI változatlanul átmegy.</p></li>
+      </ol>
+    </section>
+    <section id="features" aria-labelledby="feat">
+      <h2 id="feat" class="display">Gyors akkordjátékra tervezve</h2>
+      <p class="sub">Minden, amivel egy ujjból teljes harmónia lesz, és semmi, ami útban van.</p>
+      <ul class="cards">
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8"/></svg></div><h3>Bármely billentyű, bármely akkord</h3><p>Kattints egy INPUT billentyűre, majd az akkordhangokra. Vagy jobb kattintással válassz hármas- és szeptimhangzat-sablont.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/></svg></div><h3>Akkordszimbólumok</h3><p>Írd be: <code>Dm9/G</code>, <code>Bbmaj7</code> vagy <code>C6/9</code>, és az akkord kész.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18c3 0 3-12 6-12s3 12 6 12 3-8 6-8"/></svg></div><h3>Velocity-rétegek</h3><p>Halkan az egyik akkord szól, erősebb ütésre egy teltebb veszi át.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 12 4l8 16M7 14h10"/></svg></div><h3>Skálák</h3><p>Korlátozd a billentyűzetet egy skálára, és egy kattintással töltsd ki a presetet a skála hármas- vagy szeptimhangzataival.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></div><h3>31 preset és igazi böngésző</h3><p>Pop, jazz, soul, filmzene, sötét, kvart. Keresés, címkék, kedvencek és saját presetek.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div><h3>Learn, undo, transzponálás</h3><p>MIDI learn a kontrollerről, visszavonás és újra, egy egész oktáv másolása, billentyűk vagy akkordok transzponálása.</p></li>
+      </ul>
+      <h3 class="listh">Minden, ami benne van</h3>
+      <p class="sub">A mnKord 1.3.0 teljes funkciólistája.</p>
+      <div class="featlists">
+        <div class="fl"><h4>Akkordok építése</h4><ul>
+          <li>A 128 MIDI-billentyű bármelyikéhez saját akkordot rendelhetsz.</li>
+          <li>Kattints az akkordhangokra a CHORD billentyűzeten, vagy jobb kattintással válassz akkordsablont egy INPUT billentyűn.</li>
+          <li>Írj be egy akkordszimbólumot (például <code>Dm9/G</code>), és az a kiválasztott akkord helyére kerül; a kijelölés akkordjának nevét a program kiírja.</li>
+          <li>Az akkordot jobb kattintással felfelé vagy lefelé megfordíthatod egy CHORD billentyűn.</li>
+          <li>Egy egész oktáv akkordjait egy oktávval feljebb vagy lejjebb másolhatod.</li>
+          <li>Az akkordot a jobb kattintású menüből a kiválasztott skálához igazíthatod, vagy törölheted.</li>
+        </ul></div>
+        <div class="fl"><h4>Játék</h4><ul>
+          <li>Velocity-rétegek: egy soft réteg bármilyen erősséghez, és egy hard réteg 80, 90, 100, 110 vagy 120 velocity-től.</li>
+          <li>MIDI learn: játssz egy billentyűt a kontrolleren, és az kiválasztja (vagy létrehozza) a leképezését.</li>
+          <li>Az átfedő akkordok osztoznak a hangokon (hivatkozásszámlálással), így nem vágódnak le és nem ragadnak be hangok.</li>
+          <li>A szusztain pedál és minden más, nem hang típusú MIDI (CC, pitch bend, aftertouch) átmegy a szintetizátorra.</li>
+          <li>VST3 plugin és Standalone program.</li>
+        </ul></div>
+        <div class="fl"><h4>Presetek</h4><ul>
+          <li>31 csak olvasható gyári preset, és a saját presetjeid, amelyek fájlként mentődnek, és minden projekt közösen használja őket.</li>
+          <li>Preset-böngésző csoport, szerző és stílus oszlopokkal, kereséssel és kedvencekkel.</li>
+          <li>Preset-adatok: név, csoport, szerző és stílus-címkék.</li>
+          <li>XML export és import; az import egy presetet vagy egy teljes bank-fájlt is elfogad.</li>
+          <li>A hoszt programlistája tükrözi a presetlistát (128 fix program), így a programváltás és az automatizálás ugyanazt a presetet választja.</li>
+          <li>A projekt a használt presetet a szerkesztéseivel együtt tárolja, ezért egy másik gépen is ugyanúgy szól.</li>
+        </ul></div>
+        <div class="fl"><h4>Munkafolyamat</h4><ul>
+          <li>Visszavonás és újra minden leképezés-szerkesztéshez (Ctrl+Z, Ctrl+Y).</li>
+          <li>A teljes preset, vagy csak az akkordjai transzponálása félhanggal vagy oktávval.</li>
+          <li>A billentyűzet korlátozása egy skálára, és a preset kitöltése a skála hármas- vagy szeptimhangzataival.</li>
+          <li>Sötét, letisztult ablak két billentyűzettel, a cím alatt a plugin verziójával.</li>
+          <li>Ingyenes és nyílt forráskódú, AGPL-3.0 alatt.</li>
+        </ul></div>
+      </div>
+    </section>
+    <section id="presets" aria-labelledby="pre">
+      <h2 id="pre" class="display">31 gyári preset</h2>
+      <p class="sub">Azonnal játszhatók, stílus szerint csoportosítva. Mind csak olvasható: szerkeszd, és a Save as gombbal mentsd el a saját változatodat.</p>
+      <div class="presetgroups">
+        <div class="pg"><h3>Alapok</h3><ul>
+          <li><strong>Default</strong> <span class="tags">Empty</span></li>
+          <li><strong>C Major Diatonic</strong> <span class="tags">Diatonic, Triads</span></li>
+          <li><strong>A Minor Diatonic</strong> <span class="tags">Diatonic, Minor, Triads</span></li>
+          <li><strong>Pop I-V-vi-IV</strong> <span class="tags">Pop, Triads</span></li>
+          <li><strong>Power Chords</strong> <span class="tags">Rock, Power chords</span></li>
+          <li><strong>C Jazz 7ths</strong> <span class="tags">Jazz, Sevenths</span></li>
+        </ul></div>
+        <div class="pg"><h3>Pop &amp; Rock</h3><ul>
+          <li><strong>Pop Four Chords</strong> <span class="tags">Pop</span></li>
+          <li><strong>Indie Add9</strong> <span class="tags">Indie, Pop</span></li>
+          <li><strong>Singer-Songwriter</strong> <span class="tags">Folk, Pop</span></li>
+          <li><strong>Sus Riff Rock</strong> <span class="tags">Rock</span></li>
+          <li><strong>Emo Minor Pop</strong> <span class="tags">Pop, Minor</span></li>
+        </ul></div>
+        <div class="pg"><h3>Jazz &amp; Soul</h3><ul>
+          <li><strong>Jazz Turnarounds</strong> <span class="tags">Jazz, Sevenths</span></li>
+          <li><strong>Neo-Soul Nines</strong> <span class="tags">Neo-soul, Ninths</span></li>
+          <li><strong>Bossa Nova</strong> <span class="tags">Latin, Jazz</span></li>
+          <li><strong>Minor ii-V-i (A)</strong> <span class="tags">Jazz, Minor</span></li>
+          <li><strong>Gospel Sixths</strong> <span class="tags">Gospel, Soul</span></li>
+          <li><strong>Lo-fi Chill</strong> <span class="tags">Lo-fi, Chill</span></li>
+          <li><strong>Funk Dominant 9ths</strong> <span class="tags">Funk, Ninths</span></li>
+        </ul></div>
+        <div class="pg"><h3>Cinematic</h3><ul>
+          <li><strong>Lydian Dream</strong> <span class="tags">Cinematic, Lydian</span></li>
+          <li><strong>Epic Trailer Minor</strong> <span class="tags">Cinematic, Minor</span></li>
+          <li><strong>Ambient Suspensions</strong> <span class="tags">Ambient, Suspended</span></li>
+          <li><strong>Dream Six-Nine</strong> <span class="tags">Ambient, Dream pop</span></li>
+        </ul></div>
+        <div class="pg"><h3>Minor &amp; Dark</h3><ul>
+          <li><strong>Dark Phrygian</strong> <span class="tags">Dark, Phrygian</span></li>
+          <li><strong>Harmonic Minor Drama</strong> <span class="tags">Cinematic, Minor</span></li>
+          <li><strong>Synthwave Minor</strong> <span class="tags">Synthwave, Minor</span></li>
+          <li><strong>Andalusian Cadence</strong> <span class="tags">Flamenco, Minor</span></li>
+        </ul></div>
+        <div class="pg"><h3>Modern</h3><ul>
+          <li><strong>Quartal Stacks</strong> <span class="tags">Modern, Quartal</span></li>
+          <li><strong>Circle of Fifths</strong> <span class="tags">Theory, Triads</span></li>
+        </ul></div>
+        <div class="pg"><h3>Utility</h3><ul>
+          <li><strong>Chromatic Major Triads</strong> <span class="tags">Triads, Utility</span></li>
+          <li><strong>Chromatic Minor Triads</strong> <span class="tags">Triads, Minor, Utility</span></li>
+          <li><strong>Chromatic Sevenths</strong> <span class="tags">Sevenths, Utility</span></li>
+        </ul></div>
+      </div>
+    </section>
+    <section id="chords" aria-labelledby="cho">
+      <h2 id="cho" class="display">Akkordszimbólumok, sablonok és skálák</h2>
+      <p class="sub">Írj be egy akkordszimbólumot a CHORD billentyűzet feletti mezőbe, és nyomj Entert. Bármilyen alaphang megy (C, F#, Bb, ...), a perjel pedig basszushangot ad.</p>
+      <h3 class="listh">Akkordszimbólum-végződések</h3>
+      <p class="sub">Az alaphang után írd az egyiket, például <code>Dm9/G</code>. A perjel és egy hangnév basszushangot ad (<code>G/B</code>).</p>
+      <ul class="symbols">
+        <li><code>C</code> <span>dúr hármashangzat</span></li>
+        <li><code>Cm</code> <span>moll hármashangzat</span></li>
+        <li><code>Cdim</code> <span>szűkített hármashangzat</span></li>
+        <li><code>Caug</code> <span>bővített hármashangzat</span></li>
+        <li><code>Csus2</code> <span>szekund-késleltetéses (sus2)</span></li>
+        <li><code>Csus4</code> <span>kvart-késleltetéses (sus4)</span></li>
+        <li><code>C5</code> <span>power chord</span></li>
+        <li><code>C6</code> <span>dúr szext</span></li>
+        <li><code>Cm6</code> <span>moll szext</span></li>
+        <li><code>Cmaj7</code> <span>nagy szeptim (maj7)</span></li>
+        <li><code>Cm7</code> <span>moll szeptim</span></li>
+        <li><code>C7</code> <span>domináns szeptim</span></li>
+        <li><code>Cm7b5</code> <span>fél-szűkített szeptim</span></li>
+        <li><code>Cdim7</code> <span>szűkített szeptim</span></li>
+        <li><code>Cadd9</code> <span>dúr add9</span></li>
+        <li><code>Cmadd9</code> <span>moll add9</span></li>
+        <li><code>Cmaj9</code> <span>maj9 (nagy nóna)</span></li>
+        <li><code>Cm9</code> <span>moll nóna</span></li>
+        <li><code>C9</code> <span>domináns nóna</span></li>
+        <li><code>C7sus4</code> <span>domináns szeptim, sus4</span></li>
+        <li><code>Cmmaj7</code> <span>moll-nagyszeptim</span></li>
+        <li><code>C7#9</code> <span>domináns szeptim, felemelt nóna</span></li>
+        <li><code>C7b9</code> <span>domináns szeptim, leszállított nóna</span></li>
+        <li><code>C6/9</code> <span>six-nine (6/9)</span></li>
+        <li><code>C4th</code> <span>kvart-akkord (kvartokból építve)</span></li>
+      </ul>
+      <div class="twocol">
+        <div><h3 class="listh">Akkordsablonok</h3><p class="sub">Egy INPUT billentyű jobb kattintású menüjében: hármashangzatok (Maj, Min, Sus2, Sus4, Dim) és szeptimek (7, Maj7, Min7, Add9).</p><ul class="chips">
+          <li>Maj</li>
+          <li>Min</li>
+          <li>Sus2</li>
+          <li>Sus4</li>
+          <li>Dim</li>
+          <li>7</li>
+          <li>Maj7</li>
+          <li>Min7</li>
+          <li>Add9</li>
+        </ul></div>
+        <div><h3 class="listh">Skálák</h3><p class="sub">Korlátozd a billentyűzetet egy skálára, és töltsd ki a presetet a skála hármas- vagy szeptimhangzataival.</p><ul class="chips">
+          <li>Dúr</li>
+          <li>Természetes moll</li>
+          <li>Harmonikus moll</li>
+          <li>Dallamos moll</li>
+          <li>Dúr pentaton</li>
+          <li>Moll pentaton</li>
+        </ul></div>
+      </div>
+    </section>
+    <section id="screens" aria-labelledby="scr">
+      <h2 id="scr" class="display">Egy pillantás belülről</h2>
+      <p class="sub">Egy sötét, letisztult ablak két billentyűzettel: amit játszol, és az akkord, amit kapsz.</p>
+      <div class="gallery">
+        <figure><img src="../images/chord-templates.png" loading="lazy" width="980" height="475" alt="Akkordsablonok egy INPUT billentyű jobb kattintású menüjében"><figcaption>Jobb kattintás egy billentyűn: hármas- és szeptimhangzat-sablonok</figcaption></figure>
+        <figure><img src="../images/preset-browser.png" loading="lazy" width="980" height="475" alt="A preset-böngésző csoport, szerző és stílus oszlopokkal"><figcaption>A preset-böngésző: csoport, szerző, stílus, keresés, kedvencek</figcaption></figure>
+        <figure><img src="../images/velocity-layers.png" loading="lazy" width="980" height="475" alt="A velocity-réteg menü: soft réteg és hard rétegek 80-tól 120 velocity-ig"><figcaption>Velocity-rétegek: második akkord erős ütésre</figcaption></figure>
+      </div>
+    </section>
+    <section id="requirements" aria-labelledby="req">
+      <h2 id="req" class="display">Rendszerkövetelmények</h2>
+      <ul class="plain">
+        <li>Windows 10 vagy 11, 64 bites (telepítő a VST3-hoz).</li>
+        <li>VST3 pluginokat betöltő DAW vagy hoszt.</li>
+        <li>MIDI-billentyűzet vagy kontroller (vagy a DAW zongorasávja) a billentyűk megszólaltatásához.</li>
+        <li>Egy szintetizátor vagy sampler a mnKord után, mert a mnKord maga nem ad hangot.</li>
+        <li>Linux: fordítás a forráskódból (útmutató a tárolóban). macOS-t egyelőre nem támogat.</li>
+      </ul>
+    </section>
+    <section id="faq" aria-labelledby="faqh">
+      <h2 id="faqh" class="display">Gyakori kérdések</h2>
+      <div class="faq">
+        <details><summary>Mi a mnKord?</summary><p>A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra. Megnyomsz egy billentyűt, és egy egész akkordot küld a szintetizátorodnak. Minden billentyűnek saját akkordja lehet, amit sablonokkal, akkordszimbólumokkal vagy a hangokra kattintva állítasz be.</p></details>
+        <details><summary>Ingyenes a mnKord?</summary><p>Igen. A mnKord szabad szoftver a GNU Affero General Public License v3.0 alatt, a forráskódja nyílt a GitHubon.</p></details>
+        <details><summary>Ad hangot a mnKord magától?</summary><p>Nem. MIDI-effekt: egy hangból akkordot csinál, a hangot a mögötte lévő szintetizátor vagy sampler adja. Tedd egy hangszersávra, a szintetizátor elé.</p></details>
+        <details><summary>Milyen operációs rendszereken fut?</summary><p>Windows 10-re és 11-re (64 bites) van telepítő. Linuxon a forráskódból lefordíthatod. macOS-t egyelőre nem támogat.</p></details>
+        <details><summary>Melyik DAW-ban használhatom?</summary><p>A mnKord szabványos VST3 plugin, ezért minden DAW betöltheti, amelyik Windowson VST3 pluginokat hosztol. Hogy a MIDI hogyan jut a következő pluginhoz, DAW-onként más; a lépések az útmutatóban vannak.</p></details>
+        <details><summary>Hogyan készítek saját akkordot?</summary><p>Kattints egy billentyűre az INPUT billentyűzeten, majd a hangokra a CHORD billentyűzeten. Jobb kattintással akkordsablonokat is kapsz, vagy beírhatsz egy akkordszimbólumot (például <code>Dm9/G</code>) a CHORD billentyűzet feletti mezőbe.</p></details>
+        <details><summary>Milyen akkordszimbólumokat írhatok be?</summary><p>Hármashangzatokat, sus akkordokat, power chordot, szextet, szeptimeket, nónákat, add9-et, módosított szeptimeket (7b9, 7#9), 6/9-et, kvart-akkordokat és basszushangos (perjeles) akkordokat, bármilyen alaphanggal. A teljes lista ezen az oldalon van.</p></details>
+        <details><summary>Mik azok a velocity-rétegek?</summary><p>Egy billentyűnek lehet egy második, hard rétege saját akkorddal. A soft réteg helyett az szól, ha legalább olyan erősen ütöd le a billentyűt, mint a választott küszöb (80, 90, 100, 110 vagy 120).</p></details>
+        <details><summary>Hol vannak a presetjeim?</summary><p>A saját presetjeid fájlok a <code>Documents\MNAudio\mnKord\User</code> mappában, minden projekt közösen használja őket. A DAW-projekt a használt presetet a szerkesztéseivel együtt is tárolja, ezért egy másik gépen is ugyanúgy szól.</p></details>
+        <details><summary>Ki készítette a mnKordot?</summary><p>A mnKordot Németh Miklós készítette vibecoding-projektként: az ötlet, az ízlés és a döntések az övéi, a kódot egy MI-vel együtt írja.</p></details>
+      </div>
+    </section>
+    <section id="get" aria-labelledby="getit">
+      <h2 id="getit" class="display">Szerezd meg a mnKordot</h2>
+      <p class="sub">Ingyenes, nyílt forráskóddal. A leggyorsabb út a Windows-telepítő.</p>
+      <div class="get">
+        <div class="box"><h3>Windows (64 bites)</h3><ol>
+          <li>Töltsd le a <strong>mnKord-1.3.0-win-x64-setup.exe</strong> fájlt a legfrissebb kiadásból.</li>
+          <li>Futtasd. A VST3 a <code>Common Files\VST3</code> mappába kerül.</li>
+          <li>Indíts új pluginkeresést a DAW-ban, és tedd a mnKordot egy hangszersávra, a szintetizátor elé.</li>
+        </ol><a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest">Legfrissebb kiadás</a></div>
+        <div class="box"><h3>Dokumentáció és forrás</h3><ul>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.hu.md">Felhasználói útmutató (magyar)</a></li>
+          <li><a href="../mnKord-Felhasznaloi-utmutato.pdf">Felhasználói útmutató, PDF (magyar)</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/docs/USER_GUIDE.md">Felhasználói útmutató (angol)</a></li>
+          <li><a href="../mnKord-User-Guide.pdf">Felhasználói útmutató, PDF (angol)</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord">Forráskód és fordítási útmutató</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/CHANGELOG.md">Változásnapló (angolul)</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/issues">Hibabejelentés, ötletek</a></li>
+          <li><a href="https://github.com/miklosnemeth/mnkord/blob/master/LICENSE">Licenc (AGPL-3.0)</a></li>
+        </ul><p>macOS-t egyelőre nem támogat.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+<footer class="author">
+  <div class="wrap">
+    <div class="tag"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>Vibecoder</div>
+    <p class="name display"><b>Németh</b> Miklós</p>
+    <p>A mnKord egy vibecoding-projekt: az ötlet, az ízlés és a döntések az enyémek, a kódot egy MI-vel együtt írom.</p>
+    <p class="legal">© 2026 Németh Miklós · <a href="https://github.com/miklosnemeth/mnkord/blob/master/LICENSE">AGPL-3.0</a> · <a href="https://juce.com">JUCE</a> alapon. Betűk: Montserrat (OFL) és Roboto Condensed (Apache 2.0).</p>
+  </div>
+</footer>
+</body>
+</html>

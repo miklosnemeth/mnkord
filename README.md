@@ -1,7 +1,7 @@
 # mnKord
 
 **mnKord** is a MIDI chord-mapping effect: one input key triggers a chord of output notes.  
-**Home page and download:** https://miklosnemeth.github.io/mnkord/ · [Latest release](https://github.com/miklosnemeth/mnkord/releases/latest)  
+**Home page and download:** https://miklosnemeth.github.io/mnkord/ ([magyarul](https://miklosnemeth.github.io/mnkord/hu/)) · [Latest release](https://github.com/miklosnemeth/mnkord/releases/latest)  
 Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 
 **Documentation:** [English](docs/README.md) · [Magyar](docs/README.hu.md). **User guide:** [English](docs/USER_GUIDE.md) ([PDF](docs/mnKord-User-Guide.pdf)) · [Magyar](docs/USER_GUIDE.hu.md) ([PDF](docs/mnKord-Felhasznaloi-utmutato.pdf))
@@ -121,7 +121,8 @@ CMakeLists.txt
 CHANGELOG.md
 AGENTS.md                  # rules for AI agents (build, tests, versioning); CLAUDE.md points to it
 docs/                      # documentation home (README.md, README.hu.md), user guide in English and Hungarian
-                           # (+ PDFs, images/, build-pdf.py) and index.html, the web home page
+                           # (+ PDFs, images/, build-pdf.py), and the generated web pages (index.html, hu/, sitemap.xml)
+site/                      # build-site.py + site.css: generate the web pages (see AGENTS.md)
 cmake/
   Version.cmake            # dev suffix (commit) for the displayed version
   MnKordVersion.h.in       # template of the generated MnKordVersion.h
