@@ -4,6 +4,11 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.4.1] - 2026-10-20
+
+### Fixed
+- The two keyboards are the same height again (1.4.0 made the CHORD keyboard taller than the INPUT one).
+
 ## [1.4.0] - 2026-10-20
 
 ### Changed

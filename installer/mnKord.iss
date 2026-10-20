@@ -1,6 +1,6 @@
 ; Windows installer for the mnKord VST3 (the Standalone is not included).
 ; Build it with Inno Setup 6 from a Release build, giving the version on the command line:
-;   ISCC.exe /DMyAppVersion=1.4.0 installer\mnKord.iss
+;   ISCC.exe /DMyAppVersion=1.4.1 installer\mnKord.iss
 ; The result is build\installer\mnKord-<version>-win-x64-setup.exe (see README "Installer").
 
 #ifndef MyAppVersion

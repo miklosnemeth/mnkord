@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 # The one place the version is set (Semantic Versioning, see README "Versioning"). JUCE takes
 # the plugin's version from here; cmake/Version.cmake adds the dev suffix for display.
-project(mnKord VERSION 1.4.0)
+project(mnKord VERSION 1.4.1)
 include(cmake/Version.cmake)
 
 set(CMAKE_CXX_STANDARD 17)

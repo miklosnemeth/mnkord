@@ -1042,9 +1042,9 @@ void MnKordAudioProcessorEditor::resized()
     redoButton.setBounds(head.redo);
 
     auto area = head.below;
-    inputCard = area.removeFromTop(150);
+    inputCard = area.removeFromTop(188);   // the octave strip makes it 10 px taller than the chord card,
     area.removeFromTop(mnaudio::ui::metrics::cardGap);
-    outputCard = area.removeFromTop(216);
+    outputCard = area.removeFromTop(178);  // so that both keyboards are 126 px high
 
     auto inputPanel = inputCard.reduced(12, 10);
     auto inputHeader = inputPanel.removeFromTop(24);
