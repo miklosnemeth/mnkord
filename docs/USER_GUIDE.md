@@ -37,7 +37,7 @@ To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (se
 
 | Area | What it is |
 |------|------------|
-| Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Preset** menu, and **Undo / Redo**. A dot after the name means the preset has unsaved changes. |
+| Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Menu** button, and **Undo / Redo**. A dot at the left of the name means the preset has unsaved changes. |
 | **INPUT** keyboard | The keys you play. Keys that have a chord are coloured. The strip above the keys shows octaves. |
 | **CHORD** keyboard | The notes of the chord of the selected INPUT key. |
 | Chord name field | Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) to replace the selected chord. Above it you see the chord's name and its notes. |
@@ -98,12 +98,12 @@ A preset is a set of key-to-chord mappings, with a name, a group, an author and 
   them. For a factory preset the choices are *Discard* or *Cancel* (use *Save as* first to keep them).
 - **New** creates a preset. You can fill it with the chords of a scale (chord size, inversion, octave and the
   velocity of each chord role).
-- The **Preset** menu has *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (the keys and
+- The **Menu** button has *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (the keys and
   chords together, or only the chords), *Import* (a preset or a whole bank file), *Export* and *Show in folder*.
 
 ![The preset browser](images/preset-browser.png)
 
-![The Preset menu](images/preset-menu.png)
+![The Menu button](images/preset-menu.png)
 
 Presets live in `Documents\MNAudio\mnKord`: the `Factory` folder is managed by the plugin, and the `User`
 folder holds your own presets. You can copy preset files in or out of it.

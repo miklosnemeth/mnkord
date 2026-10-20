@@ -616,10 +616,10 @@ MnKordAudioProcessorEditor::MappingKeyboard::MappingKeyboard(MnKordAudioProcesso
 
     setColour(whiteNoteColourId, owner.getWhiteKeyTopColour());
     setColour(blackNoteColourId, owner.getBlackKeyBottomColour());
-    setColour(keySeparatorLineColourId, juce::Colour(0xff485057));
-    setColour(mouseOverKeyOverlayColourId, juce::Colour(0x1a2ee66b));
-    setColour(keyDownOverlayColourId, juce::Colour(0x3d2ee66b));
-    setColour(textLabelColourId, juce::Colour(0xff66716b));
+    setColour(keySeparatorLineColourId, juce::Colour(0xff4a5f53));
+    setColour(mouseOverKeyOverlayColourId, juce::Colour(0x1a3ddc84));
+    setColour(keyDownOverlayColourId, juce::Colour(0x3d3ddc84));
+    setColour(textLabelColourId, juce::Colour(0xff6f8577));
     setColour(shadowColourId, juce::Colour(0x88000000));
 }
 
@@ -912,7 +912,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     newPresetButton.setButtonText("New");
     savePresetButton.setButtonText("Save");
-    presetMenuButton.setButtonText("Preset");
+    presetMenuButton.setButtonText("Menu");
     savePresetButton.setTooltip("Save changes to this preset");
     presetMenuButton.setTooltip("Save as, revert, rename, import, export, delete");
 
@@ -1008,76 +1008,45 @@ MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 //==============================================================================
 void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(getBackgroundColour());
+    mnaudio::ui::paintWindow(g, getLocalBounds());
+    mnaudio::ui::paintCard(g, inputCard);
+    mnaudio::ui::paintCard(g, outputCard);
 
-    auto bounds = getLocalBounds().toFloat();
-    auto header = bounds.removeFromTop(74.0f);
+    // The build's version ("1.4.0", or "1.4.0-dev+<commit>" between releases) under the title, so a
+    // bug report can say which build it came from.
+    mnaudio::ui::paintBrand(g, brandArea, versionArea, "mnKord", "v" MNKORD_VERSION_STRING,
+                            juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(mnaudio::ui::metrics::titleSize)).boldened(),
+                            uiFont(mnaudio::ui::metrics::versionSize));
+}
 
-    g.setGradientFill(juce::ColourGradient(getPanelColour().brighter(0.08f), 0.0f, 0.0f,
-                                           getBackgroundColour(), bounds.getRight(), header.getBottom(), false));
-    g.fillRect(header);
-
-    g.setColour(getTextColour());
-    g.setFont(juce::Font(juce::FontOptions(getTitleTypeface()).withHeight(34.0f)).boldened());
-
-    const auto titleArea = header.withTrimmedLeft(18.0f);
-
-    // The variable font's default instance plus JUCE's synthetic bold isn't quite heavy
-    // enough on its own, so restroke the text with a small offset to thicken it further.
-    for (const auto offset : { juce::Point<float> (0.0f, 0.0f), juce::Point<float> (0.6f, 0.0f) })
-        g.drawText("mnKord", titleArea.translated(offset.x, offset.y), juce::Justification::centredLeft);
-
-    auto panelArea = getLocalBounds().reduced(14).withTrimmedTop(74).toFloat();
-    auto topPanel = panelArea.removeFromTop(142.0f);
-    panelArea.removeFromTop(14.0f);
-    auto bottomPanel = panelArea.removeFromTop(184.0f);
-
-    for (const auto rect : { topPanel, bottomPanel })
-    {
-        g.setColour(getPanelColour());
-        g.fillRoundedRectangle(rect, 8.0f);
-    }
-
-    // The build's version ("1.0.1", or "1.0.1-dev+<commit>" between releases) under the title,
-    // so a bug report can say which build it came from.
-    g.setColour(getMutedTextColour());
-    g.setFont(uiFont(13.0f));
-    g.drawText("v" MNKORD_VERSION_STRING, juce::Rectangle<float>(titleArea.getX(), 48.0f, 172.0f, 18.0f),
-               juce::Justification::centredLeft, false);
+void MnKordAudioProcessorEditor::paintOverChildren(juce::Graphics& g)
+{
+    // Unsaved changes: a dot at the left of the preset name.
+    if (lastSyncedDirty)
+        mnaudio::ui::paintDirtyDot(g, presetSummaryButton.getBounds());
 }
 
 void MnKordAudioProcessorEditor::resized()
 {
-    // The header background (paint()) spans the full, unmargined width/height 0-74, so its
-    // children are laid out from raw local bounds too, with margins applied per-child instead
-    // of via an outer reduced() that would otherwise desync the two.
-    auto headerArea = getLocalBounds().removeFromTop(74).reduced(18, 8);
+    // The header is laid out by the shared MnAudioUi.h, the same as in mnArpee.
+    const auto head = mnaudio::ui::layoutHeader(getLocalBounds());
+    brandArea = head.brand;
+    versionArea = head.version;
+    prevPresetButton.setBounds(head.prev);
+    presetSummaryButton.setBounds(head.preset);
+    nextPresetButton.setBounds(head.next);
+    newPresetButton.setBounds(head.newButton);
+    savePresetButton.setBounds(head.save);
+    presetMenuButton.setBounds(head.menu);
+    undoButton.setBounds(head.undo);
+    redoButton.setBounds(head.redo);
 
-    headerArea.removeFromLeft(172);   // the title and the version, drawn in paint()
+    auto area = head.below;
+    inputCard = area.removeFromTop(150);
+    area.removeFromTop(mnaudio::ui::metrics::cardGap);
+    outputCard = area.removeFromTop(216);
 
-    const int groupWidth = 26 + 4 + 200 + 4 + 26 + 8 + 62 + 8 + 62 + 8 + 76;
-    auto controls = headerArea.withSizeKeepingCentre(groupWidth, 34);
-    prevPresetButton.setBounds(controls.removeFromLeft(26));
-    controls.removeFromLeft(4);
-    presetSummaryButton.setBounds(controls.removeFromLeft(200));
-    controls.removeFromLeft(4);
-    nextPresetButton.setBounds(controls.removeFromLeft(26));
-    controls.removeFromLeft(8);
-    newPresetButton.setBounds(controls.removeFromLeft(62));
-    controls.removeFromLeft(8);
-    savePresetButton.setBounds(controls.removeFromLeft(62));
-    controls.removeFromLeft(8);
-    presetMenuButton.setBounds(controls.removeFromLeft(76));
-
-    const auto redoBounds = juce::Rectangle<int>(26, 26).withCentre({ getWidth() - 18 - 13, headerArea.getCentreY() });
-    redoButton.setBounds(redoBounds);
-    undoButton.setBounds(redoBounds.translated(-34, 0));
-
-    // Left/right/bottom margins of 14, top starting exactly where the header ends.
-    auto area = getLocalBounds().reduced(14).withTrimmedTop(60);
-    area.removeFromTop(14);
-
-    auto inputPanel = area.removeFromTop(142).reduced(14, 10);
+    auto inputPanel = inputCard.reduced(12, 10);
     auto inputHeader = inputPanel.removeFromTop(24);
     inputKeyboardLabel.setBounds(inputHeader.removeFromLeft(120));
     scaleSummaryButton.setBounds(inputHeader.removeFromRight(110));
@@ -1099,9 +1068,7 @@ void MnKordAudioProcessorEditor::resized()
     // (see setLowestVisibleKey()) puts A4/440Hz (MIDI 69) roughly in the middle of the window.
     inputKeyboard.setKeyWidth((float) inputPanel.getWidth() / (5 * 7));
 
-    area.removeFromTop(14);
-
-    auto outputPanel = area.removeFromTop(184).reduced(14, 10);
+    auto outputPanel = outputCard.reduced(12, 10);
     auto outputHeader = outputPanel.removeFromTop(24);
     outputKeyboardLabel.setBounds(outputHeader.removeFromLeft(120));
     chordSymbolEditor.setBounds(outputHeader.removeFromRight(190).reduced(0, 1));
@@ -1352,10 +1319,8 @@ void MnKordAudioProcessorEditor::updateDirtyState()
     // "Save" is for user presets; a changed factory preset can only go through Save as.
     const bool isFactory = valid && presets[(size_t) activeIndex].isFactory;
     juce::String text = valid ? presets[(size_t) activeIndex].name : juce::String("No preset");
-    if (dirty)
-        text += "  \xe2\x80\xa2";   // bullet (U+2022); the geometric dot U+25CF isn't in every font
-
     presetSummaryButton.setButtonText(text);
+    repaint(presetSummaryButton.getBounds());   // the dot over it (paintOverChildren)
     savePresetButton.setEnabled(dirty);
     savePresetButton.setTooltip(isFactory ? "Factory presets can't be overwritten: Save opens Save as"
                                           : "Save changes to this preset");
@@ -2465,7 +2430,7 @@ void MnKordAudioProcessorEditor::applyChordSymbol()
     const auto chord = ChordSymbol::parseChord(chordSymbolEditor.getText());
     if (! chord.valid)
     {
-        chordSymbolEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xffcf4b41));
+        chordSymbolEditor.setColour(juce::TextEditor::textColourId, mnaudio::ui::Palette::danger());
         chordSymbolEditor.applyFontToAllText(uiFont(chordSymbolEditor.getFont().getHeight()));
         return;
     }
@@ -2614,7 +2579,7 @@ void MnKordAudioProcessorEditor::showPresetRowMenu(int presetIndex)
     menu.addItem(3, "Rename / edit info...", ! preset.isFactory);
     menu.addItem(4, "Show in folder", preset.file.existsAsFile());
     menu.addSeparator();
-    menu.addColouredItem(5, "Delete", juce::Colour(0xffcf4b41), ! preset.isFactory);
+    menu.addColouredItem(5, "Delete", mnaudio::ui::Palette::danger(), ! preset.isFactory);
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
@@ -2715,7 +2680,7 @@ void MnKordAudioProcessorEditor::showPresetMenu()
     menu.addItem(5, "Export...", valid);
     menu.addItem(6, "Show in folder", valid && presets[(size_t) index].file.existsAsFile());
     menu.addSeparator();
-    menu.addColouredItem(7, "Delete", juce::Colour(0xffcf4b41), valid && ! isFactory);
+    menu.addColouredItem(7, "Delete", mnaudio::ui::Palette::danger(), valid && ! isFactory);
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
@@ -2905,13 +2870,6 @@ void MnKordAudioProcessorEditor::applyColours()
     scaleSummaryButton.setColour(juce::TextButton::textColourOnId, textColour);
     // The primary preset selector, so its text reads at full strength (unlike the muted
     // scale chip above), matching how the preset name looked in the combo box it replaced.
-    for (auto* arrow : { &prevPresetButton, &nextPresetButton, &undoButton, &redoButton })
-    {
-        arrow->dimColour = getMutedTextColour();
-        arrow->litColour = getAccentColour();
-        arrow->repaint();
-    }
-
     presetSummaryButton.setColour(juce::TextButton::buttonColourId, control);
     presetSummaryButton.setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));
     presetSummaryButton.setColour(juce::TextButton::textColourOffId, textColour);
@@ -3367,7 +3325,7 @@ void MnKordAudioProcessorEditor::showChordTemplateMenu(int midiNoteNumber)
     menu.addItem(14, "Fit to scale", anyNoteOutOfScale);
 
     menu.addSeparator();
-    menu.addColouredItem(13, "Delete mapping", juce::Colour(0xffcf4b41));
+    menu.addColouredItem(13, "Delete mapping", mnaudio::ui::Palette::danger());
 
     juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
 
@@ -3750,37 +3708,37 @@ juce::String MnKordAudioProcessorEditor::getOutputDegreeLabel(int midiNoteNumber
 
 juce::Colour MnKordAudioProcessorEditor::getBackgroundColour() const
 {
-    return juce::Colour(0xff101315);
+    return mnaudio::ui::Palette::bg();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getPanelColour() const
 {
-    return juce::Colour(0xff191e21);
+    return mnaudio::ui::Palette::card();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getPanelLineColour() const
 {
-    return juce::Colour(0xff2a3237);
+    return mnaudio::ui::Palette::border();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getTextColour() const
 {
-    return juce::Colour(0xffeef3ef);
+    return mnaudio::ui::Palette::text();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getMutedTextColour() const
 {
-    return juce::Colour(0xff95a09a);
+    return mnaudio::ui::Palette::dimText();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getAccentColour() const
 {
-    return juce::Colour(0xff2ee66b);
+    return mnaudio::ui::Palette::accent();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getControlColour() const
 {
-    return juce::Colour(0xff242b2f);
+    return mnaudio::ui::Palette::cardHi();
 }
 
 juce::Colour MnKordAudioProcessorEditor::getWhiteKeyTopColour() const
@@ -3795,12 +3753,12 @@ juce::Colour MnKordAudioProcessorEditor::getWhiteKeyBottomColour() const
 
 juce::Colour MnKordAudioProcessorEditor::getBlackKeyTopColour() const
 {
-    return juce::Colour(0xff252b2e);
+    return juce::Colour(0xff25302a);
 }
 
 juce::Colour MnKordAudioProcessorEditor::getBlackKeyBottomColour() const
 {
-    return juce::Colour(0xff111416);
+    return juce::Colour(0xff0f1612);
 }
 
 NoteMapping* MnKordAudioProcessorEditor::getSelectedMapping()

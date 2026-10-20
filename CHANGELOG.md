@@ -4,6 +4,13 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.4.0] - 2026-10-20
+
+### Changed
+- The look now matches mnArpee: a slightly green dark palette, a green title with the version under it, cards with a border, and the same header with the arrows, New, Save, the undo and redo buttons.
+- The Preset button in the header is called Menu now, and unsaved changes show as a dot at the left of the preset name (not a bullet after it).
+- The keyboards are taller, to keep the window at the same height as the header is slimmer.
+
 ## [1.3.0] - 2026-10-17
 
 ### Changed

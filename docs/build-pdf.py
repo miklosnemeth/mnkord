@@ -50,7 +50,7 @@ def cover(lang):
     c = COVER[lang]
     return """
 <section class="cover">
-  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#13211a"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/></svg>
   <div class="brand">mn<span>Kord</span></div>
   <div class="doc">%(title)s</div>
   <div class="tagline">%(tagline)s</div>
@@ -68,17 +68,17 @@ CSS = """
 @page { size: A4; margin: 18mm 16mm; }
 @page cover { size: A4; margin: 0; }
 .cover { page: cover; width: 210mm; height: 297mm; box-sizing: border-box; padding: 34mm 22mm 24mm; text-align: center;
-  background: #101315; color: #eef3ef; display: flex; flex-direction: column; align-items: center;
+  background: #0b1510; color: #f0faf3; display: flex; flex-direction: column; align-items: center;
   break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .cover .logo { width: 22mm; height: 22mm; margin-bottom: 8mm; }
 .cover .brand { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 800; font-size: 74pt; line-height: 1; letter-spacing: -0.02em; }
-.cover .brand span { color: #2ee66b; }
+.cover .brand span { color: #3ddc84; }
 .cover .doc { font-family: 'Montserrat', 'Segoe UI', sans-serif; font-weight: 700; font-size: 25pt; margin-top: 8mm; }
-.cover .tagline { color: #95a09a; font-size: 14pt; margin-top: 3mm; }
-.cover .shot { width: 150mm; margin-top: 16mm; border: 1px solid #2a3237; border-radius: 3mm; box-shadow: 0 8mm 20mm rgba(0, 0, 0, 0.5); }
-.cover .meta { margin-top: auto; font-size: 12pt; color: #95a09a; line-height: 1.7; }
-.cover .meta .by { color: #eef3ef; font-size: 14pt; }
-.cover .meta .by b { color: #2ee66b; }
+.cover .tagline { color: #b4cdbc; font-size: 14pt; margin-top: 3mm; }
+.cover .shot { width: 150mm; margin-top: 16mm; border: 1px solid #2d4a3a; border-radius: 3mm; box-shadow: 0 8mm 20mm rgba(0, 0, 0, 0.5); }
+.cover .meta { margin-top: auto; font-size: 12pt; color: #b4cdbc; line-height: 1.7; }
+.cover .meta .by { color: #f0faf3; font-size: 14pt; }
+.cover .meta .by b { color: #3ddc84; }
 .cover .meta .small { font-size: 9.5pt; margin-top: 2mm; }
 body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; font-size: 10.5pt; line-height: 1.5; color: #1d2227; }
 h1 { font-size: 24pt; margin: 0 0 0.4em; color: #0b6b3a; }

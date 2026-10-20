@@ -452,9 +452,9 @@ def plain(s):
 
 
 def logo_svg(extra=""):
-    return ('<svg %sviewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/>'
-            '<rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/>'
-            '<rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>') % extra
+    return ('<svg %sviewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#13211a"/>'
+            '<rect x="6" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/>'
+            '<rect x="21" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/></svg>') % extra
 
 
 ICONS = [
@@ -554,8 +554,8 @@ def build_page(lang, ctx):
     w('<meta name="twitter:description" content="%s">' % esc(description))
     w('<meta name="twitter:image" content="%s">' % image)
     w('<meta name="color-scheme" content="dark">')
-    w('<meta name="theme-color" content="#101315">')
-    w('<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 32 32\'%3E%3Crect width=\'32\' height=\'32\' rx=\'7\' fill=\'%23101315\'/%3E%3Crect x=\'6\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%232ee66b\'/%3E%3Crect x=\'13.5\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%23fbfcfb\'/%3E%3Crect x=\'21\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%232ee66b\'/%3E%3C/svg%3E">')
+    w('<meta name="theme-color" content="#0b1510">')
+    w('<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 32 32\'%3E%3Crect width=\'32\' height=\'32\' rx=\'7\' fill=\'%230b1510\'/%3E%3Crect x=\'6\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%233ddc84\'/%3E%3Crect x=\'13.5\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%23fbfcfb\'/%3E%3Crect x=\'21\' y=\'7\' width=\'5\' height=\'18\' rx=\'1.5\' fill=\'%233ddc84\'/%3E%3C/svg%3E">')
     w('<link rel="preload" href="%sassets/fonts/Montserrat.ttf" as="font" type="font/ttf" crossorigin>' % base)
     w("<style>")
     w(ctx["css"].replace("{{BASE}}", base))

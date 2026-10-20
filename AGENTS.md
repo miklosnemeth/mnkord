@@ -74,3 +74,10 @@ Never create, move or delete tags, or push them, unless the owner asks.
   factory presets and chord symbols from `Source/`, so run it for every release and whenever a preset, a chord
   symbol or a feature in the lists changes. The FAQ text is written once and feeds both the visible FAQ and the
   FAQPage structured data. The pages are plain static HTML with no scripts.
+
+## Shared look with mnArpee
+
+`Source/MnAudioUi.h` (the palette, the sizes and layout of the header, and the drawing of the window frame, the cards,
+the title and the unsaved dot) is the **same file** as `Source/MnAudioUi.h` in the sister plugin mnArpee
+(`D:\dev\prjs\audio\mnArpee`, github.com/miklosnemeth/mnArpee). Change it in one repository and copy it to the other, so
+that both plugins look the same. Colours come from `mnaudio::ui::Palette`, not from literals.

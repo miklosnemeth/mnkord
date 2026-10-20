@@ -16,7 +16,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - **Learn**: play a key on your MIDI controller to select (or create) its mapping
 - **Undo / Redo** (buttons or Ctrl+Z / Ctrl+Y) for mapping edits
 - **Velocity layers**: a key can have a second, hard layer that plays when the input velocity reaches a threshold (pick Soft / Hard from the layer menu above the INPUT keyboard)
-- **Transpose** the whole preset (keys and chords) or only its chords, from the Preset menu
+- **Transpose** the whole preset (keys and chords) or only its chords, from the Menu
 - Preset library: read-only factory presets (about 30: diatonic, pop, jazz and soul, cinematic, dark, quartal, chromatic utility sets)
   plus your own presets, saved as files shared by every project (see below)
 - Preset browser with GROUP / AUTHOR / STYLE (tag) columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert
@@ -71,7 +71,7 @@ cmake --build build -j
 2. Pick a preset from the chip in the header, or create one with **New**.
 3. Click a key on the **INPUT** keyboard to select or create a mapping.
 4. Click keys on the **CHORD** keyboard to add/remove chord tones, or right-click an INPUT key for chord templates.
-5. **Save** writes your changes (a dot next to the preset name marks unsaved ones). The **Preset** menu has Save as, Revert, Rename, Import, Export, Show in folder and Delete.
+5. **Save** writes your changes (a dot at the left of the preset name marks unsaved ones). The **Menu** button has Save as, Revert, Rename, Import, Export, Show in folder and Delete.
 
 Unmapped input notes are dropped. Mapped notes expand to their chord; overlapping chords share output notes via reference counting so notes do not cut each other off incorrectly.
 
@@ -129,6 +129,7 @@ cmake/
 Source/
   PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
   PluginEditor.h/.cpp      # UI, keyboards, colours, preset browser/menu
+  MnAudioUi.h              # palette and header shared with mnArpee (the same file in both repositories)
   NoteName.h/.cpp          # MIDI note ↔ name helpers
   ChordSymbol.h/.cpp       # chord symbols ↔ notes, chord voicing and naming
 Tests/
@@ -191,10 +192,10 @@ and asks to close the DAW when the plugin is in use. It is built with
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release --target mnKord_VST3
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.3.0 installer\mnKord.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.4.0 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-1.3.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-1.4.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 

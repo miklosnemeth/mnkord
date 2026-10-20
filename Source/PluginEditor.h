@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "MnAudioUi.h"
 
 //==============================================================================
 class MnKordAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -12,6 +13,7 @@ public:
     ~MnKordAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
+    void paintOverChildren(juce::Graphics&) override;
     void resized() override;
 
     // Listener callbacks
@@ -374,11 +376,13 @@ private:
     std::uint32_t learnStamp = 0;
     // Read-only summary of the active preset's name; clicking it opens showPresetBrowser().
     juce::TextButton presetSummaryButton;
-    PresetBrowserContent::IconButton undoButton { PresetBrowserContent::IconButton::Kind::Undo };
-    PresetBrowserContent::IconButton redoButton { PresetBrowserContent::IconButton::Kind::Redo };
+    mnaudio::ui::HistoryButton undoButton { false };
+    mnaudio::ui::HistoryButton redoButton { true };
     // Step to the previous / next preset in the library.
-    PresetBrowserContent::IconButton prevPresetButton { PresetBrowserContent::IconButton::Kind::Prev };
-    PresetBrowserContent::IconButton nextPresetButton { PresetBrowserContent::IconButton::Kind::Next };
+    juce::ArrowButton prevPresetButton { "previous preset", 0.5f, mnaudio::ui::Palette::text() };
+    juce::ArrowButton nextPresetButton { "next preset", 0.0f, mnaudio::ui::Palette::text() };
+    // The title and the version (drawn in paint()) and the two cards, set in resized().
+    juce::Rectangle<int> brandArea, versionArea, inputCard, outputCard;
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;

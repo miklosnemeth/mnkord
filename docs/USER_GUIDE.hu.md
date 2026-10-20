@@ -40,7 +40,7 @@ Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*
 
 | Terület | Mi ez |
 |---------|-------|
-| Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Preset** menü és **Undo / Redo**. A név utáni pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
+| Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Menu** gomb és **Undo / Redo**. A név bal oldalán lévő pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
 | **INPUT** billentyűzet | A billentyűk, amelyeket játszol. Az akkorddal rendelkező billentyűk színesek. A billentyűk feletti sáv az oktávokat mutatja. |
 | **CHORD** billentyűzet | A kiválasztott INPUT billentyű akkordjának hangjai. |
 | Akkordnév-mező | Írj be egy akkordszimbólumot (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), és az a kiválasztott akkord helyére kerül. Felette látod az akkord nevét és hangjait. |
@@ -106,13 +106,13 @@ A preset billentyű–akkord leképezések halmaza, névvel, csoporttal, szerző
   akarod tartani).
 - A **New** új presetet hoz létre. Kitöltheted egy skála akkordjaival (akkordméret, fordítás, oktáv és az
   egyes akkordszerepek velocity-je).
-- A **Preset** menü: *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (a billentyűk és az
+- A **Menu** gomb: *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (a billentyűk és az
   akkordok együtt, vagy csak az akkordok), *Import* (egy preset vagy egy teljes bank-fájl), *Export* és
   *Show in folder*.
 
 ![A preset-böngésző](images/preset-browser.png)
 
-![A Preset menü](images/preset-menu.png)
+![A Menu gomb](images/preset-menu.png)
 
 A presetek a `Documents\MNAudio\mnKord` mappában vannak: a `Factory` mappát a plugin kezeli, a `User` mappában
 vannak a saját presetjeid. Preseteket átmásolhatsz oda vagy onnan.
