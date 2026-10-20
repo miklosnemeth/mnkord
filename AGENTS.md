@@ -81,3 +81,7 @@ Never create, move or delete tags, or push them, unless the owner asks.
 the title and the unsaved dot) is the **same file** as `Source/MnAudioUi.h` in the sister plugin mnArpee
 (`D:\dev\prjs\audio\mnArpee`, github.com/miklosnemeth/mnArpee). Change it in one repository and copy it to the other, so
 that both plugins look the same. Colours come from `mnaudio::ui::Palette`, not from literals.
+
+The part of the Windows installer that mnKord and mnArpee share (the folders, closing the DAW, the version of the installed
+plugin, the old version) is `installer/MnAudioInstaller.iss`, again the **same file** in both repositories: change it in
+one and copy it to the other. `installer/mnKord.iss` only has what is specific to mnKord (the files and the shortcuts).

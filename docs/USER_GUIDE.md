@@ -13,8 +13,8 @@ MIDI keyboard  ->  mnKord  ->  synth / instrument
 ## Install
 
 **Windows:** run `mnKord-<version>-win-x64-setup.exe`. It puts the plugin (VST3) into
-`C:\Program Files\Common Files\VST3\`, where every DAW looks for VST3 plugins. Rescan the plugins in your
-DAW if it does not show up. The Standalone program is not part of the installer.
+`C:\Program Files\Common Files\VST3\MNAudio\` (a folder of its own inside the standard VST3 folder, which DAWs scan). Rescan the
+plugins in your DAW if it does not show up. The Standalone program is not part of the installer.
 
 The user guide (PDF) and the licenses are installed into `C:\Program Files\Common Files\MNAudio\mnKord`, with
 shortcuts in the Start menu. Installing a newer version over an old one works: Setup shows the version it found
@@ -135,7 +135,7 @@ to a synth, for example through a virtual MIDI cable.
 - **Stuck notes:** transport stop and "all notes off" release the notes. If the synth still hangs a note,
   press the same key again.
 - **The preset name has a dot:** it has unsaved changes. See *Projects* above.
-- **Where is the plugin?** `C:\Program Files\Common Files\VST3\mnKord.vst3`. Rescan the plugins in the DAW.
+- **Where is the plugin?** `C:\Program Files\Common Files\VST3\MNAudio\mnKord.vst3`. Rescan the plugins in the DAW.
 
 ## Keyboard
 

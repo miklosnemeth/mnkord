@@ -231,7 +231,7 @@ T = {
         "get_win": "Windows (64-bit)",
         "get_steps": [
             "Download <strong>mnKord-{version}-win-x64-setup.exe</strong> from the latest release.",
-            "Run it. The VST3 goes to <code>Common Files\\VST3</code>.",
+            "Run it. The VST3 goes to <code>Common Files\\VST3\\MNAudio</code>.",
             "Rescan plugins in your DAW and put mnKord on an instrument track, before your synth.",
         ],
         "get_btn": "Latest release",
@@ -353,7 +353,7 @@ T = {
         "get_win": "Windows (64 bites)",
         "get_steps": [
             "Töltsd le a <strong>mnKord-{version}-win-x64-setup.exe</strong> fájlt a legfrissebb kiadásból.",
-            "Futtasd. A VST3 a <code>Common Files\\VST3</code> mappába kerül.",
+            "Futtasd. A VST3 a <code>Common Files\\VST3\\MNAudio</code> mappába kerül.",
             "Indíts új pluginkeresést a DAW-ban, és tedd a mnKordot egy hangszersávra, a szintetizátor elé.",
         ],
         "get_btn": "Legfrissebb kiadás",

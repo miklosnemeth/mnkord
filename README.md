@@ -183,19 +183,20 @@ A build of the tagged commit shows the plain version (`v1.0.0`).
 
 ## Installer (Windows)
 
-The installer puts the VST3 into `%CommonProgramFiles%\VST3` (the Standalone is not included) and the
-licenses into `Common Files\MNAudio\mnKord`; an older install in `Program Files\MNAudio\mnKord` is removed.
-It shows the installed version on the "Ready to install" page, warns before going back to an older version
-and asks to close the DAW when the plugin is in use. It is built with
-[Inno Setup 6](https://jrsoftware.org/isinfo.php) from a Release build of the tagged commit:
+The installer puts the VST3 into `%CommonProgramFiles%\VST3\MNAudio\mnKord.vst3` (the Standalone is not included) and the
+documents into `Common Files\MNAudio\mnKord`. It shows the installed version on the "Ready to install" page, warns before
+going back to an older version, asks to close the DAW when the plugin is in use, uninstalls the old version first and removes the
+folders of earlier installers (`Program Files\MNAudio\mnKord`, `VST3\mnKord.vst3`). The part of the script that it shares with
+the [mnArpee](https://github.com/miklosnemeth/mnArpee) installer is `installer/MnAudioInstaller.iss`, the same file in both
+repositories. It is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php) from a Release build of the tagged commit:
 
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release --target mnKord_VST3
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.4.1 installer\mnKord.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.5.0 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-1.4.1-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-1.5.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 

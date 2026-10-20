@@ -8,7 +8,7 @@ nem ad ki magától, ezért egy hangszersávon a szintetizátor elé kell tenni.
 ## Gyors kezdés
 
 1. **Telepítsd.** Futtasd a `mnKord-<verzió>-win-x64-setup.exe` fájlt (Windows). A VST3 a
-   `C:\Program Files\Common Files\VST3\` mappába kerül. Indíts új pluginkeresést a DAW-ban.
+   `C:\Program Files\Common Files\VST3\MNAudio\` mappába kerül. Indíts új pluginkeresést a DAW-ban.
 2. **Tedd egy sávra.** A mnKordot egy hangszersávra tedd, **a szintetizátor elé**, amelyik az akkordokat játssza.
 3. **Válassz presetet.** Kattints a preset nevére a fejlécben, és válassz egyet, például a *Pop Four Chords*-ot.
 4. **Játssz.** Minden billentyű, amelyiknek van akkordja, azt játssza. A többi MIDI (pitch bend, szusztain, ...) átmegy.

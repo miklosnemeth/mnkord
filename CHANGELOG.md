@@ -4,6 +4,13 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.5.0] - 2026-10-20
+
+### Changed
+- Installer: the plugin is installed into `Common Files\VST3\MNAudio\mnKord.vst3`, a folder of its own for MNAudio (as mnArpee does), instead of directly into `Common Files\VST3`. An earlier install in the old place is removed.
+- Installer: the installed version is uninstalled before the new one goes in, so nothing of it is left behind, and the "Ready to install" page says whether this is a new installation, an upgrade, a reinstall or a downgrade.
+- Installer: the part it shares with the mnArpee installer is one file in both projects, so the two installers behave the same.
+
 ## [1.4.1] - 2026-10-20
 
 ### Fixed

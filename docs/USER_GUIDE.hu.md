@@ -15,7 +15,7 @@ A program felületén angol feliratok vannak, ezért ez az útmutató is angolul
 ## Telepítés
 
 **Windows:** futtasd a `mnKord-<verzió>-win-x64-setup.exe` fájlt. A plugint (VST3) a
-`C:\Program Files\Common Files\VST3\` mappába teszi, ahol minden DAW keresi a VST3 pluginokat. Ha a DAW nem
+`C:\Program Files\Common Files\VST3\MNAudio\` mappába teszi (ez a szabványos VST3-mappa saját almappája, amelyet a DAW-ok átnéznek). Ha a DAW nem
 mutatja, indíts egy új pluginkeresést (rescan). A Standalone program nem része a telepítőnek.
 
 Az útmutató (PDF) és a licencek a `C:\Program Files\Common Files\MNAudio\mnKord` mappába kerülnek, Start menü
@@ -145,7 +145,7 @@ MIDI-kimenetét küldd egy szintetizátorra, például virtuális MIDI-kábellel
 - **Beragadt hangok:** a transport leállítása és az "all notes off" elengedi a hangokat. Ha a szintetizátor
   mégis lógatna egy hangot, nyomd meg újra ugyanazt a billentyűt.
 - **A preset nevén pont van:** mentetlen változásai vannak. Lásd fent: *Projektek*.
-- **Hol van a plugin?** `C:\Program Files\Common Files\VST3\mnKord.vst3`. Indíts új pluginkeresést a DAW-ban.
+- **Hol van a plugin?** `C:\Program Files\Common Files\VST3\MNAudio\mnKord.vst3`. Indíts új pluginkeresést a DAW-ban.
 
 ## Billentyűk
 

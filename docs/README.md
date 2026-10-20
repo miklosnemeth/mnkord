@@ -8,7 +8,7 @@ itself, so it goes in front of a synth on an instrument track.
 ## Quick start
 
 1. **Install it.** Run `mnKord-<version>-win-x64-setup.exe` (Windows). The VST3 goes to
-   `C:\Program Files\Common Files\VST3\`. Rescan the plugins in your DAW.
+   `C:\Program Files\Common Files\VST3\MNAudio\`. Rescan the plugins in your DAW.
 2. **Add it to a track.** Put mnKord on an instrument track, **before** the synth that should play the chords.
 3. **Pick a preset.** Click the preset name in the header and choose one, for example *Pop Four Chords*.
 4. **Play.** Every key that has a chord plays it. Other MIDI (pitch bend, sustain, ...) passes through.
