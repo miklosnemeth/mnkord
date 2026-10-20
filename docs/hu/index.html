@@ -27,21 +27,21 @@
 <meta name="twitter:description" content="A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. Akkordszimbólumok, velocity-rétegek, skálák és 31 gyári preset.">
 <meta name="twitter:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#101315">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101315'/%3E%3Crect x='6' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='1.5' fill='%23fbfcfb'/%3E%3Crect x='21' y='7' width='5' height='18' rx='1.5' fill='%232ee66b'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0b1510">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1510'/%3E%3Crect x='6' y='7' width='5' height='18' rx='1.5' fill='%233ddc84'/%3E%3Crect x='13.5' y='7' width='5' height='18' rx='1.5' fill='%23fbfcfb'/%3E%3Crect x='21' y='7' width='5' height='18' rx='1.5' fill='%233ddc84'/%3E%3C/svg%3E">
 <link rel="preload" href="../assets/fonts/Montserrat.ttf" as="font" type="font/ttf" crossorigin>
 <style>
 @font-face { font-family: 'Montserrat'; src: url(../assets/fonts/Montserrat.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: 'Roboto Condensed'; src: url(../assets/fonts/RobotoCondensed.ttf) format('truetype'); font-weight: 100 900; font-display: swap; }
 
 :root {
-  --bg: #101315;
-  --panel: #191e21;
-  --line: #2a3237;
-  --control: #242b2f;
-  --text: #eef3ef;
-  --muted: #95a09a;
-  --accent: #2ee66b;
+  --bg: #0b1510;
+  --panel: #13211a;
+  --line: #2d4a3a;
+  --control: #1c3026;
+  --text: #f0faf3;
+  --muted: #b4cdbc;
+  --accent: #3ddc84;
   --accent-ink: #04210f;
   --playing: #ffa53a;
   --radius: 14px;
@@ -51,7 +51,7 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background:
-    radial-gradient(1100px 520px at 78% -8%, rgba(46, 230, 107, 0.13), transparent 60%),
+    radial-gradient(1100px 520px at 78% -8%, rgba(61, 220, 132, 0.13), transparent 60%),
     radial-gradient(900px 480px at 0% 8%, rgba(255, 165, 58, 0.06), transparent 60%),
     var(--bg);
   color: var(--text);
@@ -77,22 +77,22 @@ img { max-width: 100%; display: block; }
 
 /* hero */
 .hero { padding: 54px 0 30px; text-align: center; }
-.eyebrow { display: inline-block; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(46, 230, 107, 0.35); background: rgba(46, 230, 107, 0.07); padding: 5px 14px; border-radius: 999px; }
+.eyebrow { display: inline-block; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(61, 220, 132, 0.35); background: rgba(61, 220, 132, 0.07); padding: 5px 14px; border-radius: 999px; }
 .hero h1 { font-size: clamp(64px, 13vw, 132px); line-height: 1; margin: 22px 0 6px; }
 .hero h1 span { color: var(--accent); }
 .tagline { font-size: clamp(22px, 3.6vw, 34px); font-weight: 700; margin: 0 0 14px; }
 .lede { max-width: 680px; margin: 0 auto 30px; color: var(--muted); font-size: 19px; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1px solid var(--line); background: var(--control); color: var(--text); transition: transform .12s, background .12s; }
-.btn:hover { transform: translateY(-1px); background: #2d363b; }
+.btn:hover { transform: translateY(-1px); background: #284536; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.btn.primary:hover { background: #55f088; }
+.btn.primary:hover { background: #62e898; }
 .btn svg { width: 18px; height: 18px; }
 .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; margin: 26px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
 .facts li::before { content: "•"; color: var(--accent); margin-right: 8px; }
 
 .shot { margin: 46px auto 0; position: relative; }
-.shot::before { content: ""; position: absolute; inset: 8% 6% -4%; background: radial-gradient(closest-side, rgba(46, 230, 107, 0.28), transparent); filter: blur(34px); z-index: -1; }
+.shot::before { content: ""; position: absolute; inset: 8% 6% -4%; background: radial-gradient(closest-side, rgba(61, 220, 132, 0.28), transparent); filter: blur(34px); z-index: -1; }
 .shot img { border-radius: var(--radius); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); width: 100%; }
 
 /* sections */
@@ -108,8 +108,8 @@ h2 { font-size: clamp(28px, 4.4vw, 42px); margin: 0 0 8px; line-height: 1.15; }
 
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: border-color .15s, transform .15s; }
-.card:hover { border-color: rgba(46, 230, 107, 0.5); transform: translateY(-2px); }
-.card .ic { width: 38px; height: 38px; border-radius: 10px; background: rgba(46, 230, 107, 0.12); color: var(--accent); display: grid; place-items: center; margin-bottom: 14px; }
+.card:hover { border-color: rgba(61, 220, 132, 0.5); transform: translateY(-2px); }
+.card .ic { width: 38px; height: 38px; border-radius: 10px; background: rgba(61, 220, 132, 0.12); color: var(--accent); display: grid; place-items: center; margin-bottom: 14px; }
 .card .ic svg { width: 22px; height: 22px; }
 .card h3 { margin: 0 0 6px; font-size: 18px; }
 .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
@@ -130,7 +130,7 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 0.92em; bac
 .box strong { color: var(--text); }
 
 /* author */
-.author { margin-top: 84px; padding: 46px 0 52px; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(46, 230, 107, 0.05), transparent 70%); text-align: center; }
+.author { margin-top: 84px; padding: 46px 0 52px; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(61, 220, 132, 0.05), transparent 70%); text-align: center; }
 .author .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--playing); font-weight: 700; }
 .author .name { font-size: clamp(30px, 6vw, 54px); margin: 12px 0 6px; }
 .author .name b { color: var(--accent); font-weight: inherit; }
@@ -235,7 +235,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
    "applicationCategory": "MultimediaApplication",
    "applicationSubCategory": "MIDI effect, VST3 audio plugin",
    "operatingSystem": "Windows 10, Windows 11",
-   "softwareVersion": "1.3.0",
+   "softwareVersion": "1.4.0",
    "downloadUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
    "installUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
    "fileFormat": "application/vnd.steinberg.vst3",
@@ -377,7 +377,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
 <a class="skip" href="#main">Ugrás a tartalomra</a>
 <div class="wrap">
   <header class="top">
-    <a class="brand display" href="../" aria-label="mnKord"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#191e21"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#2ee66b"/></svg>mnKord</a>
+    <a class="brand display" href="../" aria-label="mnKord"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#13211a"/><rect x="6" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/><rect x="13.5" y="7" width="5" height="18" rx="1.5" fill="#fbfcfb"/><rect x="21" y="7" width="5" height="18" rx="1.5" fill="#3ddc84"/></svg>mnKord</a>
     <nav class="nav" aria-label="Főmenü">
       <a class="hide-sm" href="#features">Funkciók</a>
       <a class="hide-sm" href="#presets">Presetek</a>
@@ -399,7 +399,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <a class="btn" href="https://github.com/miklosnemeth/mnkord"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>Forráskód a GitHubon</a>
       </div>
       <ul class="facts">
-        <li>v1.3.0</li>
+        <li>v1.4.0</li>
         <li>VST3 · Windows x64</li>
         <li>Ingyenes és nyílt forráskódú (AGPL-3.0)</li>
       </ul>
@@ -426,7 +426,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div><h3>Learn, undo, transzponálás</h3><p>MIDI learn a kontrollerről, visszavonás és újra, egy egész oktáv másolása, billentyűk vagy akkordok transzponálása.</p></li>
       </ul>
       <h3 class="listh">Minden, ami benne van</h3>
-      <p class="sub">A mnKord 1.3.0 teljes funkciólistája.</p>
+      <p class="sub">A mnKord 1.4.0 teljes funkciólistája.</p>
       <div class="featlists">
         <div class="fl"><h4>Akkordok építése</h4><ul>
           <li>A 128 MIDI-billentyű bármelyikéhez saját akkordot rendelhetsz.</li>
@@ -604,7 +604,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
       <p class="sub">Ingyenes, nyílt forráskóddal. A leggyorsabb út a Windows-telepítő.</p>
       <div class="get">
         <div class="box"><h3>Windows (64 bites)</h3><ol>
-          <li>Töltsd le a <strong>mnKord-1.3.0-win-x64-setup.exe</strong> fájlt a legfrissebb kiadásból.</li>
+          <li>Töltsd le a <strong>mnKord-1.4.0-win-x64-setup.exe</strong> fájlt a legfrissebb kiadásból.</li>
           <li>Futtasd. A VST3 a <code>Common Files\VST3</code> mappába kerül.</li>
           <li>Indíts új pluginkeresést a DAW-ban, és tedd a mnKordot egy hangszersávra, a szintetizátor elé.</li>
         </ol><a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest">Legfrissebb kiadás</a></div>
