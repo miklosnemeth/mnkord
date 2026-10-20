@@ -12,7 +12,8 @@
 ; and has its own AppId=, AppName=, AppVersion=, OutputDir=, [Files] and [Icons].
 ;
 ; What it does:
-;  - the plugin goes to Common Files\VST3\MNAudio\<name>.vst3, the documents to Common Files\MNAudio\<name>
+;  - the plugin goes to Common Files\VST3\MNAudio\<name>.vst3 (the standard VST3 folder), the documents
+;    to Program Files\MNAudio\<name>
 ;  - a DAW that has the plugin loaded is asked to close (the check covers .vst3 files)
 ;  - the version found on the computer is shown on the "Ready to install" page; going back to an older
 ;    version asks first (a silent install says no)
@@ -28,9 +29,10 @@
 AppPublisher=MNAudio
 AppPublisherURL=https://github.com/miklosnemeth/{#MyRepo}
 AppSupportURL=https://github.com/miklosnemeth/{#MyRepo}/issues
-; The documents live in Common Files, next to the shared VST3 folder; there is nothing to choose, so there
-; is no folder page. UsePreviousAppDir=no moves an install from an older version to this folder.
-DefaultDirName={commoncf64}\MNAudio\{#MyAppName}
+; The documents and the licenses live in Program Files like those of any program; there is nothing to
+; choose, so there is no folder page. UsePreviousAppDir=no moves an install from an older version to
+; this folder.
+DefaultDirName={autopf}\MNAudio\{#MyAppName}
 DisableDirPage=yes
 UsePreviousAppDir=no
 DefaultGroupName=MNAudio
@@ -51,10 +53,11 @@ CloseApplicationsFilter=*.vst3,*.exe,*.dll
 RestartApplications=no
 
 [InstallDelete]
-; What earlier installers put elsewhere: the documents in Program Files, the plugin directly in the VST3 folder.
-Type: filesandordirs; Name: "{autopf}\MNAudio\{#MyAppName}"
-Type: dirifempty; Name: "{autopf}\MNAudio"
+; What earlier installers put elsewhere: the plugin directly in the VST3 folder, and (versions that kept the
+; documents in Common Files) the documents in Common Files\MNAudio.
 Type: filesandordirs; Name: "{commoncf64}\VST3\{#MyAppName}.vst3"
+Type: filesandordirs; Name: "{commoncf64}\MNAudio\{#MyAppName}"
+Type: dirifempty; Name: "{commoncf64}\MNAudio"
 
 [Code]
 // An older (or the same) version on this computer is found through the uninstall entry of Setup

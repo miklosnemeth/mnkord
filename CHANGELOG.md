@@ -4,6 +4,11 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [1.6.0] - 2026-10-20
+
+### Changed
+- Installer: the user guide and the licenses go back to `Program Files\MNAudio\mnKord`, where the documents of a program usually are (1.3.0 to 1.5.0 used `Common Files\MNAudio\mnKord`; the new installer removes that folder). The plugin stays in `Common Files\VST3\MNAudio\mnKord.vst3`.
+
 ## [1.5.0] - 2026-10-20
 
 ### Changed
