@@ -30,7 +30,7 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 ## Requirements
 
 - CMake ≥ 3.22  
-- C++17 compiler (MSVC / Visual Studio recommended on Windows)  
+- C++23 compiler (MSVC / Visual Studio recommended on Windows)  
 - Git (JUCE is fetched via `FetchContent`)  
 - Network on first configure (downloads JUCE 9.0.1)
 

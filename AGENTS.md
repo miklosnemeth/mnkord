@@ -12,6 +12,8 @@ cmake --build build --config Release
 build/mnKordTests        # Linux / single-config generators; Visual Studio: build\Release\mnKordTests.exe
 ```
 
+All code is **C++23** (`CMAKE_CXX_STANDARD 23`), in mnKord, mnArpee and every new project; never lower it.
+
 Build and run the tests before every commit; they must end with `0 failures`. The configure step prints
 `mnKord version: ...` and warns if the version and the changelog disagree (see below).
 

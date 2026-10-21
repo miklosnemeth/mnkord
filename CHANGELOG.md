@@ -4,6 +4,11 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [Unreleased] - 1.6.1
+
+### Changed
+- The plugin is built as C++23 (it was C++17), the same as mnArpee. Nothing changes for users.
+
 ## [1.6.0] - 2026-10-20
 
 ### Changed
