@@ -8,14 +8,14 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 
 ## Features
 
-- Map any MIDI note to an arbitrary chord (click INPUT key, then CHORD keys)
+- Map any MIDI note to an arbitrary chord: one keyboard, with the **TRIGGER** lane above it (small markers, one per key); click a marker to choose the trigger key, then click the keys to edit its chord
 - Chord templates: Maj, Min, Sus2, Sus4, 7, Maj7, Min7, Dim, Add9
-- Invert a chord (right-click a CHORD key)
-- Octave strip above the INPUT keyboard: click an octave (it starts on the scale root), then **Copy up** / **Copy down** to duplicate its chords one octave higher or lower
-- Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) in the field above the CHORD keyboard to replace the selected chord; the chord's name is shown for the selection
+- Invert a chord (right-click a key)
+- Octave strip above the TRIGGER lane: click an octave (it starts on the scale root), then **Copy up** / **Copy down** to duplicate its chords one octave higher or lower
+- Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) in the field under the keyboard to replace the selected chord; the chord's name is shown for the selection
 - **Learn**: play a key on your MIDI controller to select (or create) its mapping
 - **Undo / Redo** (buttons or Ctrl+Z / Ctrl+Y) for mapping edits
-- **Velocity layers**: a key can have a second, hard layer that plays when the input velocity reaches a threshold (pick Soft / Hard from the layer menu above the INPUT keyboard)
+- **Velocity layers**: a key can have a second, hard layer that plays when the input velocity reaches a threshold (pick Soft / Hard from the layer menu in the TRIGGER row)
 - **Transpose** the whole preset (keys and chords) or only its chords, from the Menu
 - Preset library: read-only factory presets (about 30: diatonic, pop, jazz and soul, cinematic, dark, quartal, chromatic utility sets)
   plus your own presets, saved as files shared by every project (see below)
@@ -69,8 +69,8 @@ cmake --build build -j
 
 1. Load **mnKord** as a MIDI effect (or run the Standalone and route MIDI in/out).
 2. Pick a preset from the chip in the header, or create one with **New**.
-3. Click a key on the **INPUT** keyboard to select or create a mapping.
-4. Click keys on the **CHORD** keyboard to add/remove chord tones, or right-click an INPUT key for chord templates.
+3. Click a marker in the **TRIGGER** lane (above the keys) to select or create a mapping.
+4. Click keys on the keyboard to add/remove chord tones, or right-click a TRIGGER marker for chord templates.
 5. **Save** writes your changes (a dot at the left of the preset name marks unsaved ones). The **Menu** button has Save as, Revert, Rename, Import, Export, Show in folder and Delete.
 
 Unmapped input notes are dropped. Mapped notes expand to their chord; overlapping chords share output notes via reference counting so notes do not cut each other off incorrectly.
@@ -128,7 +128,7 @@ cmake/
   MnKordVersion.h.in       # template of the generated MnKordVersion.h
 Source/
   PluginProcessor.h/.cpp   # MIDI engine, preset library, state, file I/O
-  PluginEditor.h/.cpp      # UI, keyboards, colours, preset browser/menu
+  PluginEditor.h/.cpp      # UI, the keyboard and the TRIGGER lane, colours, preset browser/menu
   MnAudioUi.h              # palette and header shared with mnArpee (the same file in both repositories)
   NoteName.h/.cpp          # MIDI note ↔ name helpers
   ChordSymbol.h/.cpp       # chord symbols ↔ notes, chord voicing and naming

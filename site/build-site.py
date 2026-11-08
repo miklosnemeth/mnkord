@@ -95,7 +95,7 @@ def png_size(path):
 
 
 # ----------------------------------------------------------------------------------------------
-# Texts. UI names (INPUT, CHORD, Soft layer, ...) stay in English in both languages.
+# Texts. UI names (TRIGGER, CHORD, Soft layer, ...) stay in English in both languages.
 # ----------------------------------------------------------------------------------------------
 QUALITY_NAMES = {
     "en": {
@@ -136,7 +136,7 @@ T = {
         "title": "mnKord – free MIDI chord plugin (VST3) for Windows",
         "description": "mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. "
                        "Chord symbols, velocity layers, scales and {presets} factory presets.",
-        "og_alt": "The mnKord window with the INPUT and CHORD keyboards",
+        "og_alt": "The mnKord window with the TRIGGER lane above the keyboard",
         "skip": "Skip to the content",
         "nav": [("#features", "Features"), ("#presets", "Presets"), ("#chords", "Chords"), ("#faq", "FAQ"), ("#get", "Get it")],
         "other_lang": ("HU", "Magyar", "hu/"),
@@ -149,7 +149,7 @@ T = {
         "cta_download": "Download for Windows", "cta_guide": "User guide (PDF)", "cta_source": "Source on GitHub",
         "pdf": "mnKord-User-Guide.pdf", "guide_md": "USER_GUIDE.md",
         "facts": ["v{version}", "VST3 · Windows x64", "Free and open source (AGPL-3.0)"],
-        "main_alt": "The mnKord window: INPUT and CHORD keyboards and the preset bar",
+        "main_alt": "The mnKord window: the TRIGGER lane, the keyboard and the preset bar",
         "how_h": "How it works",
         "how_sub": "mnKord is a MIDI effect. It makes no sound itself: it sits in front of your synth.",
         "steps": [("Play one key", "Your MIDI keyboard sends a single note."),
@@ -158,7 +158,7 @@ T = {
         "feat_h": "Made for fast chord playing",
         "feat_sub": "Everything you need to turn one finger into a full harmony, and nothing that gets in the way.",
         "cards": [
-            ("Any key to any chord", "Click an INPUT key, then the chord tones. Or right-click for triad and seventh templates."),
+            ("Any key to any chord", "Click a TRIGGER marker above a key, then the chord tones. Or right-click it for triad and seventh templates."),
             ("Chord symbols", "Type {c1}, {c2} or {c3} and the chord is voiced for you."),
             ("Velocity layers", "Play softly for one chord, hit harder and a fuller one takes over."),
             ("Scales", "Limit the keyboard to a scale and fill the whole preset with its triads or sevenths in one click."),
@@ -170,9 +170,9 @@ T = {
         "feature_groups": [
             ("Building chords", [
                 "Map any of the 128 MIDI keys to a chord of your own.",
-                "Click the chord tones on the CHORD keyboard, or right-click an INPUT key for chord templates.",
+                "Click the chord tones on the keyboard, or right-click a TRIGGER marker for chord templates.",
                 "Type a chord symbol (for example {c1}) to replace the selected chord; the name of the chord is shown for the selection.",
-                "Invert a chord up or down with a right-click on a CHORD key.",
+                "Invert a chord up or down with a right-click on a key.",
                 "Copy the chords of a whole octave one octave up or down.",
                 "Fit a chord to the selected scale, or clear it, from the right-click menu.",
             ]),
@@ -195,25 +195,25 @@ T = {
                 "Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).",
                 "Transpose the whole preset, or only its chords, by a semitone or an octave.",
                 "Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.",
-                "A dark, flat window with two keyboards and the version of the plugin under the title.",
+                "A dark, flat window with one keyboard, the TRIGGER lane above it, and the version of the plugin under the title.",
                 "Free and open source under the AGPL-3.0.",
             ]),
         ],
         "presets_h": "{presets} factory presets",
         "presets_sub": "Ready to play, grouped by style. All of them are read-only: edit one and use Save as to keep your version.",
         "chords_h": "Chord symbols, templates and scales",
-        "chords_sub": "Type a chord symbol in the field above the CHORD keyboard and press Enter. Any root works (C, F#, Bb, ...), and a slash adds a bass note.",
+        "chords_sub": "Type a chord symbol in the field under the keyboard and press Enter. Any root works (C, F#, Bb, ...), and a slash adds a bass note.",
         "symbols_h": "Chord symbol endings",
         "symbols_note": "Put one of these after the root note, for example {c1}. A slash and a note name add a bass note ({c4}).",
         "major_name": "(nothing after the root)",
         "templates_h": "Chord templates",
-        "templates_sub": "In the right-click menu of an INPUT key: triads ({tri}) and sevenths ({sev}).",
+        "templates_sub": "In the right-click menu of a TRIGGER marker: triads ({tri}) and sevenths ({sev}).",
         "scales_h": "Scales",
         "scales_sub": "Restrict the keyboard to a scale and fill the preset with its triads or sevenths.",
         "scr_h": "A look inside",
-        "scr_sub": "A dark, flat window with two keyboards: the keys you play, and the chord they make.",
+        "scr_sub": "A dark, flat window with one keyboard: the markers above it choose the key you play, the keys show its chord.",
         "shots": [
-            ("chord-templates.png", "Chord templates in the right-click menu of an INPUT key", "Right-click a key for triad and seventh templates"),
+            ("chord-templates.png", "Chord templates in the right-click menu of a TRIGGER marker", "Right-click a TRIGGER marker for triad and seventh templates"),
             ("preset-browser.png", "The preset browser with group, author and style columns", "The preset browser: group, author, style, search, favourites"),
             ("velocity-layers.png", "The velocity layer menu: soft layer and hard layers from velocity 80 to 120", "Velocity layers: a second chord for hard hits"),
         ],
@@ -258,7 +258,7 @@ T = {
         "title": "mnKord – ingyenes MIDI akkord-plugin (VST3) Windowsra",
         "description": "A mnKord egy ingyenes MIDI akkord-plugin (VST3) Windowsra: egy billentyűvel egész akkordot játszol. "
                        "Akkordszimbólumok, velocity-rétegek, skálák és {presets} gyári preset.",
-        "og_alt": "A mnKord ablaka az INPUT és a CHORD billentyűzettel",
+        "og_alt": "A mnKord ablaka a billentyűzet feletti TRIGGER sávval",
         "skip": "Ugrás a tartalomra",
         "nav": [("#features", "Funkciók"), ("#presets", "Presetek"), ("#chords", "Akkordok"), ("#faq", "GYIK"), ("#get", "Letöltés")],
         "other_lang": ("EN", "English", "../"),
@@ -271,7 +271,7 @@ T = {
         "cta_download": "Letöltés Windowsra", "cta_guide": "Útmutató (PDF)", "cta_source": "Forráskód a GitHubon",
         "pdf": "mnKord-Felhasznaloi-utmutato.pdf", "guide_md": "USER_GUIDE.hu.md",
         "facts": ["v{version}", "VST3 · Windows x64", "Ingyenes és nyílt forráskódú (AGPL-3.0)"],
-        "main_alt": "A mnKord ablaka: INPUT és CHORD billentyűzet, preset-sáv",
+        "main_alt": "A mnKord ablaka: TRIGGER sáv, billentyűzet, preset-sáv",
         "how_h": "Hogyan működik",
         "how_sub": "A mnKord MIDI-effekt. Hangot nem ad, a szintetizátorod elé kerül.",
         "steps": [("Nyomj meg egy billentyűt", "A MIDI-billentyűzeted egyetlen hangot küld."),
@@ -280,7 +280,7 @@ T = {
         "feat_h": "Gyors akkordjátékra tervezve",
         "feat_sub": "Minden, amivel egy ujjból teljes harmónia lesz, és semmi, ami útban van.",
         "cards": [
-            ("Bármely billentyű, bármely akkord", "Kattints egy INPUT billentyűre, majd az akkordhangokra. Vagy jobb kattintással válassz hármas- és szeptimhangzat-sablont."),
+            ("Bármely billentyű, bármely akkord", "Kattints egy TRIGGER jelölőre egy billentyű fölött, majd az akkordhangokra. Vagy jobb kattintással válassz rajta hármas- és szeptimhangzat-sablont."),
             ("Akkordszimbólumok", "Írd be: {c1}, {c2} vagy {c3}, és az akkord kész."),
             ("Velocity-rétegek", "Halkan az egyik akkord szól, erősebb ütésre egy teltebb veszi át."),
             ("Skálák", "Korlátozd a billentyűzetet egy skálára, és egy kattintással töltsd ki a presetet a skála hármas- vagy szeptimhangzataival."),
@@ -292,9 +292,9 @@ T = {
         "feature_groups": [
             ("Akkordok építése", [
                 "A 128 MIDI-billentyű bármelyikéhez saját akkordot rendelhetsz.",
-                "Kattints az akkordhangokra a CHORD billentyűzeten, vagy jobb kattintással válassz akkordsablont egy INPUT billentyűn.",
+                "Kattints az akkordhangokra a billentyűzeten, vagy jobb kattintással válassz akkordsablont egy TRIGGER jelölőn.",
                 "Írj be egy akkordszimbólumot (például {c1}), és az a kiválasztott akkord helyére kerül; a kijelölés akkordjának nevét a program kiírja.",
-                "Az akkordot jobb kattintással felfelé vagy lefelé megfordíthatod egy CHORD billentyűn.",
+                "Az akkordot jobb kattintással felfelé vagy lefelé megfordíthatod egy billentyűn.",
                 "Egy egész oktáv akkordjait egy oktávval feljebb vagy lejjebb másolhatod.",
                 "Az akkordot a jobb kattintású menüből a kiválasztott skálához igazíthatod, vagy törölheted.",
             ]),
@@ -317,25 +317,25 @@ T = {
                 "Visszavonás és újra minden leképezés-szerkesztéshez (Ctrl+Z, Ctrl+Y).",
                 "A teljes preset, vagy csak az akkordjai transzponálása félhanggal vagy oktávval.",
                 "A billentyűzet korlátozása egy skálára, és a preset kitöltése a skála hármas- vagy szeptimhangzataival.",
-                "Sötét, letisztult ablak két billentyűzettel, a cím alatt a plugin verziójával.",
+                "Sötét, letisztult ablak egy billentyűzettel, felette a TRIGGER sávval, a cím alatt a plugin verziójával.",
                 "Ingyenes és nyílt forráskódú, AGPL-3.0 alatt.",
             ]),
         ],
         "presets_h": "{presets} gyári preset",
         "presets_sub": "Azonnal játszhatók, stílus szerint csoportosítva. Mind csak olvasható: szerkeszd, és a Save as gombbal mentsd el a saját változatodat.",
         "chords_h": "Akkordszimbólumok, sablonok és skálák",
-        "chords_sub": "Írj be egy akkordszimbólumot a CHORD billentyűzet feletti mezőbe, és nyomj Entert. Bármilyen alaphang megy (C, F#, Bb, ...), a perjel pedig basszushangot ad.",
+        "chords_sub": "Írj be egy akkordszimbólumot a billentyűzet alatti mezőbe, és nyomj Entert. Bármilyen alaphang megy (C, F#, Bb, ...), a perjel pedig basszushangot ad.",
         "symbols_h": "Akkordszimbólum-végződések",
         "symbols_note": "Az alaphang után írd az egyiket, például {c1}. A perjel és egy hangnév basszushangot ad ({c4}).",
         "major_name": "(semmi az alaphang után)",
         "templates_h": "Akkordsablonok",
-        "templates_sub": "Egy INPUT billentyű jobb kattintású menüjében: hármashangzatok ({tri}) és szeptimek ({sev}).",
+        "templates_sub": "Egy TRIGGER jelölő jobb kattintású menüjében: hármashangzatok ({tri}) és szeptimek ({sev}).",
         "scales_h": "Skálák",
         "scales_sub": "Korlátozd a billentyűzetet egy skálára, és töltsd ki a presetet a skála hármas- vagy szeptimhangzataival.",
         "scr_h": "Egy pillantás belülről",
-        "scr_sub": "Egy sötét, letisztult ablak két billentyűzettel: amit játszol, és az akkord, amit kapsz.",
+        "scr_sub": "Egy sötét, letisztult ablak egy billentyűzettel: a fölötte lévő jelölők választják ki, mit játszol, a billentyűk mutatják az akkordját.",
         "shots": [
-            ("chord-templates.png", "Akkordsablonok egy INPUT billentyű jobb kattintású menüjében", "Jobb kattintás egy billentyűn: hármas- és szeptimhangzat-sablonok"),
+            ("chord-templates.png", "Akkordsablonok egy TRIGGER jelölő jobb kattintású menüjében", "Jobb kattintás egy TRIGGER jelölőn: hármas- és szeptimhangzat-sablonok"),
             ("preset-browser.png", "A preset-böngésző csoport, szerző és stílus oszlopokkal", "A preset-böngésző: csoport, szerző, stílus, keresés, kedvencek"),
             ("velocity-layers.png", "A velocity-réteg menü: soft réteg és hard rétegek 80-tól 120 velocity-ig", "Velocity-rétegek: második akkord erős ütésre"),
         ],
@@ -394,8 +394,8 @@ FAQ = {
          "mnKord is a standard VST3 plugin, so a DAW that hosts VST3 plugins on Windows can load it. "
          "How MIDI is routed to the next plugin differs between DAWs; the user guide has the steps."),
         ("How do I make my own chord?",
-         "Click a key on the INPUT keyboard, then click the notes on the CHORD keyboard. You can also right-click an INPUT key for "
-         "chord templates, or type a chord symbol such as <code>Dm9/G</code> in the field above the CHORD keyboard."),
+         "Click a marker in the TRIGGER lane above the keys, then click the notes on the keyboard. You can also right-click a marker for "
+         "chord templates, or type a chord symbol such as <code>Dm9/G</code> in the field under the keyboard."),
         ("Which chord symbols can I type?",
          "Triads, suspended, power chords, sixths, sevenths, ninths, add9, altered sevenths (7b9, 7#9), 6/9, quartal chords, and "
          "slash chords with a bass note, for any root note. The full list is on this page."),
@@ -423,8 +423,8 @@ FAQ = {
          "A mnKord szabványos VST3 plugin, ezért minden DAW betöltheti, amelyik Windowson VST3 pluginokat hosztol. "
          "Hogy a MIDI hogyan jut a következő pluginhoz, DAW-onként más; a lépések az útmutatóban vannak."),
         ("Hogyan készítek saját akkordot?",
-         "Kattints egy billentyűre az INPUT billentyűzeten, majd a hangokra a CHORD billentyűzeten. Jobb kattintással akkordsablonokat is kapsz, "
-         "vagy beírhatsz egy akkordszimbólumot (például <code>Dm9/G</code>) a CHORD billentyűzet feletti mezőbe."),
+         "Kattints egy jelölőre a billentyűk feletti TRIGGER sávban, majd a hangokra a billentyűzeten. A jelölőn jobb kattintással akkordsablonokat is kapsz, "
+         "vagy beírhatsz egy akkordszimbólumot (például <code>Dm9/G</code>) a billentyűzet alatti mezőbe."),
         ("Milyen akkordszimbólumokat írhatok be?",
          "Hármashangzatokat, sus akkordokat, power chordot, szextet, szeptimeket, nónákat, add9-et, módosított szeptimeket (7b9, 7#9), 6/9-et, "
          "kvart-akkordokat és basszushangos (perjeles) akkordokat, bármilyen alaphanggal. A teljes lista ezen az oldalon van."),

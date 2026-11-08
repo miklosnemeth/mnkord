@@ -38,29 +38,32 @@ To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (se
 | Area | What it is |
 |------|------------|
 | Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Menu** button, and **Undo / Redo**. A dot at the left of the name means the preset has unsaved changes. |
-| **INPUT** keyboard | The keys you play. Keys that have a chord are coloured. The strip above the keys shows octaves. |
-| **CHORD** keyboard | The notes of the chord of the selected INPUT key. |
-| Chord name field | Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) to replace the selected chord. Above it you see the chord's name and its notes. |
+| **TRIGGER** row | The selected trigger key, the layer menu, **Learn**, **Copy up / down** and the scale button. Under it, a strip shows the octaves. |
+| **TRIGGER** lane | Small markers above the keys, one per key, in line with it. A key that has a chord is marked red, the selected one is lit, and a key you play on your controller glows. |
+| Keyboard | The notes of the selected chord, in green. The chord's trigger key has a red band at its top, and the notes that sound are marked as you play. |
+| **CHORD** row | Under the keyboard: the chord's name and notes, and a field to type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) that replaces the selected chord. |
+
+The window can be made wider (848 to 1600 pixels) where the DAW lets you resize a plugin window; the keys get wider.
 
 ![The mnKord window](images/main.png)
 
 ### Make a chord
 
-1. Click a key on the **INPUT** keyboard. It is selected.
-2. Click keys on the **CHORD** keyboard to add or remove notes of its chord.
+1. Click a marker in the **TRIGGER** lane, above the key that should play the chord. It is selected.
+2. Click keys on the keyboard to add or remove notes of its chord.
 
 Faster ways:
-- **Right-click an INPUT key** for chord templates (triads and sevenths). A template that would leave the
+- **Right-click a TRIGGER marker** for chord templates (triads and sevenths). A template that would leave the
   selected scale is greyed out. The menu also has *Octave up / down*, *Clear chord* and *Fit to scale*.
-- **Type a chord symbol** in the field above the CHORD keyboard and press Enter.
-- **Right-click a CHORD key** to invert the chord up or down.
+- **Type a chord symbol** in the field under the keyboard and press Enter.
+- **Right-click a key** of the keyboard to invert the chord up or down.
 - **Learn:** press **Learn** and play a key on your controller. It selects that key's mapping (or creates it).
 
-![Chord templates: right-click an INPUT key](images/chord-templates.png)
+![Chord templates: right-click a TRIGGER marker](images/chord-templates.png)
 
 ### Copy a chord set to another octave
 
-Click an octave in the strip above the INPUT keyboard, then **Copy up** or **Copy down**. It copies that
+Click an octave in the strip above the TRIGGER lane, then **Copy up** or **Copy down**. It copies that
 octave's chords one octave higher or lower.
 
 
@@ -71,7 +74,7 @@ The scale button (it says **Full range** until you choose one) limits the keyboa
 
 ### Velocity layers
 
-The layer menu above the INPUT keyboard chooses which layer you are editing:
+The layer menu in the TRIGGER row chooses which layer you are editing:
 
 - **Soft layer:** plays at any velocity.
 - **Hard layer from velocity 80 / 90 / 100 / 110 / 120:** a second chord for the same key, played instead

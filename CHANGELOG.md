@@ -4,6 +4,13 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [Unreleased] - 1.7.0
+
+### Changed
+- One keyboard instead of two, as in mnKarp: the INPUT keyboard is replaced by the **TRIGGER** lane, a row of small markers above the keys (one per key, in line with it). Click a marker to choose the trigger key and edit its chord on the keyboard below; right-click it for the chord templates. Keys that have a chord are marked red, the selected one is lit, and a key played on the controller glows. The chord's trigger key is shown in red on the keyboard too.
+- The window is shorter, since it has one keyboard.
+- The window can be made wider (848 to 1600 pixels; the keys get wider), so that mnKarp can show it as wide as mnArpee.
+
 ## [1.6.1] - 2026-11-08
 
 ### Fixed

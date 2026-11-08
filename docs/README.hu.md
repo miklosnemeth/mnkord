@@ -13,7 +13,7 @@ nem ad ki magától, ezért egy hangszersávon a szintetizátor elé kell tenni.
 3. **Válassz presetet.** Kattints a preset nevére a fejlécben, és válassz egyet, például a *Pop Four Chords*-ot.
 4. **Játssz.** Minden billentyű, amelyiknek van akkordja, azt játssza. A többi MIDI (pitch bend, szusztain, ...) átmegy.
 
-Saját akkord készítése: kattints egy billentyűre az **INPUT** billentyűzeten, majd a hangokra a **CHORD**
+Saját akkord készítése: kattints egy jelölőre a billentyűk feletti **TRIGGER** sávban, majd a hangokra a
 billentyűzeten (vagy írj be egy akkordszimbólumot, például `Dm9/G`).
 
 ## A felhasználói útmutató

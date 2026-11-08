@@ -748,8 +748,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
                                                                 juce::Colour textColour)
 {
     const auto highlighted = owner.isHighlightedKey(role, midiNoteNumber);
-    const auto mapped = role == KeyboardRole::input && owner.isMappedInputKey(midiNoteNumber);
-    const auto outOfScale = role == KeyboardRole::input && ! owner.isInSelectedScale(midiNoteNumber);
+    const auto mapped = owner.isSelectedTriggerKey(midiNoteNumber);   // the selected chord's trigger key
+    const auto outOfScale = false;
     auto keyArea = area.reduced(0.5f, 0.0f);
 
     if (highlighted)
@@ -759,10 +759,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
     }
     else if (mapped)
     {
-        g.setGradientFill(juce::ColourGradient(owner.getWhiteKeyTopColour().interpolatedWith(owner.getAccentColour(), 0.22f),
-                                               keyArea.getX(), keyArea.getY(),
-                                               owner.getWhiteKeyBottomColour().interpolatedWith(owner.getAccentColour(), 0.28f),
-                                               keyArea.getX(), keyArea.getBottom(), false));
+        g.setGradientFill(juce::ColourGradient(owner.getTriggerColour().brighter(0.45f), keyArea.getX(), keyArea.getY(),
+                                               owner.getTriggerColour(), keyArea.getX(), keyArea.getBottom(), false));
     }
     else
     {
@@ -794,7 +792,14 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawWhiteNote(int midiNoteNumb
         g.fillRect(keyArea.withTop(keyArea.getBottom() - 7.0f));
     }
 
-    if (highlighted)
+    // The trigger key (also when it is a chord note, as a root often is) and a key played on the controller:
+    // a band at the top of the key in the trigger colour.
+    if (owner.isPlayingKey(KeyboardRole::input, midiNoteNumber) || (mapped && highlighted))
+    {
+        g.setColour(owner.getTriggerColour());
+        g.fillRect(keyArea.withHeight(6.0f));
+    }
+    else if (highlighted)
     {
         g.setColour(juce::Colour(0x22000000));
         g.fillRect(area.withHeight(5.0f).reduced(2.0f, 0.0f));
@@ -824,8 +829,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
                                                                 juce::Colour noteFillColour)
 {
     const auto highlighted = owner.isHighlightedKey(role, midiNoteNumber);
-    const auto mapped = role == KeyboardRole::input && owner.isMappedInputKey(midiNoteNumber);
-    const auto outOfScale = role == KeyboardRole::input && ! owner.isInSelectedScale(midiNoteNumber);
+    const auto mapped = owner.isSelectedTriggerKey(midiNoteNumber);   // the selected chord's trigger key
+    const auto outOfScale = false;
     auto keyArea = area.reduced(1.0f, 0.0f);
 
     if (highlighted)
@@ -835,10 +840,8 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
     }
     else if (mapped)
     {
-        g.setGradientFill(juce::ColourGradient(owner.getBlackKeyTopColour().interpolatedWith(owner.getAccentColour(), 0.34f),
-                                               keyArea.getX(), keyArea.getY(),
-                                               owner.getBlackKeyBottomColour().interpolatedWith(owner.getAccentColour(), 0.3f),
-                                               keyArea.getX(), keyArea.getBottom(), false));
+        g.setGradientFill(juce::ColourGradient(owner.getTriggerColour().brighter(0.2f), keyArea.getX(), keyArea.getY(),
+                                               owner.getTriggerColour().darker(0.25f), keyArea.getX(), keyArea.getBottom(), false));
     }
     else
     {
@@ -870,6 +873,12 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
         g.fillRect(keyArea.withTop(keyArea.getBottom() - 7.0f));
     }
 
+    if (owner.isPlayingKey(KeyboardRole::input, midiNoteNumber) || (mapped && highlighted))
+    {
+        g.setColour(owner.getTriggerColour());
+        g.fillRect(keyArea.withHeight(5.0f));
+    }
+
     if (highlighted && role == KeyboardRole::output)
     {
         g.setColour(juce::Colour(0xff043716));
@@ -883,7 +892,6 @@ void MnKordAudioProcessorEditor::MappingKeyboard::drawBlackNote(int midiNoteNumb
 MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     : AudioProcessorEditor(&p),
       audioProcessor(p),
-      inputKeyboard(*this, KeyboardRole::input, inputKeyboardState),
       outputKeyboard(*this, KeyboardRole::output, outputKeyboardState)
 {
     setLookAndFeel(&flatLookAndFeel);
@@ -926,7 +934,7 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     // (Also polls which notes are playing for the live key overlay, hence the rate.)
     startTimerHz(30);
 
-    inputKeyboardLabel.setText("INPUT", juce::dontSendNotification);
+    inputKeyboardLabel.setText("TRIGGER", juce::dontSendNotification);
     chordSymbolEditor.setFont(uiFont(chordSymbolEditor.getFont().getHeight()));
     chordSymbolEditor.setTextToShowWhenEmpty("Type a chord, e.g. Dm9/G", getMutedTextColour());
     chordSymbolEditor.setTooltip("Replace the selected chord: C, Am7, F#m7b5, Bbmaj9, C6/9, G/B, Dsus4, ...");
@@ -970,18 +978,24 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
 
     for (auto* label : { &selectedInputLabel, &chordNotesLabel })
     {
-        label->setJustificationType(juce::Justification::centredRight);
+        label->setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(label);
     }
 
-    addAndMakeVisible(inputKeyboard);
+    triggerLane.setTooltip("Trigger keys: click one to edit its chord on the keys below, right-click for chord templates");
+    addAndMakeVisible(triggerLane);
     addAndMakeVisible(outputKeyboard);
 
     velocityBubble.setInterceptsMouseClicks(false, false);
     addChildComponent(velocityBubble);
 
-    // The header's button row needs 640px plus the 172px title column and 36px of margins.
-    setSize(980, 456);
+    // The header's button row needs 640px plus the 172px title column and 36px of margins. Below the header,
+    // one card: the trigger row, the octave strip, the trigger lane, the keyboard and the chord row.
+    const int height = 12 + mnaudio::ui::metrics::headerHeight + keysCardHeight + 12;
+    setSize(980, height);
+    // Only the width changes (the keys get wider), so that a host such as mnKarp can make it as wide as mnArpee.
+    setResizable(true, false);
+    setResizeLimits(848, height, 1600, height);
 
     updateScaleSummaryText();
     applyColours();
@@ -1009,8 +1023,7 @@ MnKordAudioProcessorEditor::~MnKordAudioProcessorEditor()
 void MnKordAudioProcessorEditor::paint(juce::Graphics& g)
 {
     mnaudio::ui::paintWindow(g, getLocalBounds());
-    mnaudio::ui::paintCard(g, inputCard);
-    mnaudio::ui::paintCard(g, outputCard);
+    mnaudio::ui::paintCard(g, keysCard);
 
     // The build's version ("1.4.0", or "1.4.0-dev+<commit>" between releases) under the title, so a
     // bug report can say which build it came from.
@@ -1042,48 +1055,45 @@ void MnKordAudioProcessorEditor::resized()
     redoButton.setBounds(head.redo);
 
     auto area = head.below;
-    inputCard = area.removeFromTop(188);   // the octave strip makes it 10 px taller than the chord card,
-    area.removeFromTop(mnaudio::ui::metrics::cardGap);
-    outputCard = area.removeFromTop(178);  // so that both keyboards are 126 px high
+    keysCard = area.removeFromTop(keysCardHeight);
 
-    auto inputPanel = inputCard.reduced(12, 10);
-    auto inputHeader = inputPanel.removeFromTop(24);
-    inputKeyboardLabel.setBounds(inputHeader.removeFromLeft(120));
-    scaleSummaryButton.setBounds(inputHeader.removeFromRight(110));
-    inputHeader.removeFromRight(8);
-    copyOctaveDownButton.setBounds(inputHeader.removeFromRight(76));
-    inputHeader.removeFromRight(6);
-    copyOctaveUpButton.setBounds(inputHeader.removeFromRight(66));
-    inputHeader.removeFromRight(6);
-    learnButton.setBounds(inputHeader.removeFromRight(56));
-    inputHeader.removeFromRight(6);
-    layerButton.setBounds(inputHeader.removeFromRight(112));
-    selectedInputLabel.setBounds(inputHeader);
-    inputPanel.removeFromTop(2);
-    octaveStrip.setBounds(inputPanel.removeFromTop(14));
-    inputPanel.removeFromTop(2);
-    inputKeyboard.setBounds(inputPanel);
-    // 5 octaves (7 white keys each) fill the visible width exactly; the rest of
-    // setAvailableRange()'s range is reachable via the scroll buttons/drag. Starting at C2
-    // (see setLowestVisibleKey()) puts A4/440Hz (MIDI 69) roughly in the middle of the window.
-    inputKeyboard.setKeyWidth((float) inputPanel.getWidth() / (5 * 7));
+    auto panel = keysCard.reduced(12, 10);
+    auto triggerRow = panel.removeFromTop(24);
+    inputKeyboardLabel.setBounds(triggerRow.removeFromLeft(86));
+    scaleSummaryButton.setBounds(triggerRow.removeFromRight(110));
+    triggerRow.removeFromRight(8);
+    copyOctaveDownButton.setBounds(triggerRow.removeFromRight(76));
+    triggerRow.removeFromRight(6);
+    copyOctaveUpButton.setBounds(triggerRow.removeFromRight(66));
+    triggerRow.removeFromRight(6);
+    learnButton.setBounds(triggerRow.removeFromRight(56));
+    triggerRow.removeFromRight(6);
+    layerButton.setBounds(triggerRow.removeFromRight(112));
+    selectedInputLabel.setBounds(triggerRow);
 
-    auto outputPanel = outputCard.reduced(12, 10);
-    auto outputHeader = outputPanel.removeFromTop(24);
-    outputKeyboardLabel.setBounds(outputHeader.removeFromLeft(120));
-    chordSymbolEditor.setBounds(outputHeader.removeFromRight(190).reduced(0, 1));
-    outputHeader.removeFromRight(8);
-    chordNotesLabel.setBounds(outputHeader);
-    outputPanel.removeFromTop(8);
-    outputKeyboard.setBounds(outputPanel);
-    outputKeyboard.setKeyWidth((float) outputPanel.getWidth() / (5 * 7));
+    auto chordRow = panel.removeFromBottom(24);
+    outputKeyboardLabel.setBounds(chordRow.removeFromLeft(86));
+    chordSymbolEditor.setBounds(chordRow.removeFromRight(190).reduced(0, 1));
+    chordRow.removeFromRight(8);
+    chordNotesLabel.setBounds(chordRow);
+    panel.removeFromBottom(6);
+
+    panel.removeFromTop(2);
+    octaveStrip.setBounds(panel.removeFromTop(14));
+    panel.removeFromTop(2);
+    triggerLane.setBounds(panel.removeFromTop(TriggerLaneHeight));
+    panel.removeFromTop(1);
+    outputKeyboard.setBounds(panel);
+    // 5 octaves (7 white keys each) fill the visible width exactly; the rest of the range is reachable with
+    // the scroll buttons. Starting at C2 puts A4/440Hz (MIDI 69) roughly in the middle.
+    outputKeyboard.setKeyWidth((float) panel.getWidth() / (5 * 7));
 }
 
 //==============================================================================
 juce::Range<float> MnKordAudioProcessorEditor::OctaveStrip::segmentRange(int start) const
 {
     constexpr int lowest = 21, highest = 108;   // the keyboards' available range
-    const auto& keyboard = owner.inputKeyboard;
+    const auto& keyboard = owner.outputKeyboard;
 
     const int first = juce::jlimit(lowest, highest, start);
     const int last = juce::jlimit(lowest, highest, start + 11);
@@ -1265,7 +1275,7 @@ void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
                 editor.scaleType = fillOptions.scaleType;
                 editor.initVoicing = fillOptions.voicing;
                 editor.updateScaleSummaryText();
-                editor.inputKeyboard.repaint();
+                editor.triggerLane.repaint();
 
                 const bool written = editor.audioProcessor.addPreset(preset);
                 editor.selectedMappingIndex = -1;
@@ -1651,7 +1661,7 @@ void MnKordAudioProcessorEditor::ScalePopupContent::comboBoxChanged(juce::ComboB
     owner->scaleRoot = juce::jmax(0, rootBox.getSelectedItemIndex());
     owner->scaleType = scaleTypeForIndex(typeBox.getSelectedItemIndex());
     owner->updateScaleSummaryText();
-    owner->inputKeyboard.repaint();
+    owner->triggerLane.repaint();
     updateStepperCaptions();
     updateFillButtons();
 }
@@ -2921,13 +2931,11 @@ void MnKordAudioProcessorEditor::applyColours()
     for (auto* label : { &selectedInputLabel, &chordNotesLabel })
         label->setColour(juce::Label::textColourId, textColour);
 
-    inputKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, getWhiteKeyTopColour());
-    inputKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, getBlackKeyBottomColour());
     outputKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, getWhiteKeyTopColour());
     outputKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, getBlackKeyBottomColour());
 
     repaint();
-    inputKeyboard.repaint();
+    triggerLane.repaint();
     outputKeyboard.repaint();
 }
 
@@ -3010,11 +3018,12 @@ void MnKordAudioProcessorEditor::timerCallback()
 
     // The strip follows the keyboard when it scrolls or the scale root changes; repaint it
     // only then, not on every tick.
-    const auto stripKey = std::make_pair(inputKeyboard.getLowestVisibleKey(), scaleRoot);
+    const auto stripKey = std::make_pair(outputKeyboard.getLowestVisibleKey(), scaleRoot);
     if (stripKey != lastOctaveStripKey)
     {
         lastOctaveStripKey = stripKey;
         octaveStrip.repaint();
+        triggerLane.repaint();
     }
     trackHistory();
 
@@ -3028,9 +3037,9 @@ void MnKordAudioProcessorEditor::timerCallback()
             keyboardNoteClicked(KeyboardRole::input, note);
 
             // Bring the key into view if it is outside the visible part of the keyboard.
-            const auto keyArea = inputKeyboard.getRectangleForKey(note);
-            if (keyArea.getX() < 0.0f || keyArea.getRight() > (float) inputKeyboard.getWidth())
-                inputKeyboard.setLowestVisibleKey(juce::jlimit(21, 108, note - 12));
+            const auto keyArea = outputKeyboard.getRectangleForKey(note);
+            if (keyArea.getX() < 0.0f || keyArea.getRight() > (float) outputKeyboard.getWidth())
+                outputKeyboard.setLowestVisibleKey(juce::jlimit(21, 108, note - 12));
         }
     }
 
@@ -3038,7 +3047,8 @@ void MnKordAudioProcessorEditor::timerCallback()
     if (input != playingInputNotes)
     {
         playingInputNotes = input;
-        inputKeyboard.repaint();
+        triggerLane.repaint();
+        outputKeyboard.repaint();
     }
 
     const auto output = audioProcessor.getActiveOutputNotes();
@@ -3559,20 +3569,16 @@ void MnKordAudioProcessorEditor::fitSelectedChordToScale()
 
 void MnKordAudioProcessorEditor::refreshKeyboardHighlights()
 {
-    inputKeyboardState.allNotesOff(1);
     outputKeyboardState.allNotesOff(1);
 
     if (const auto* mapping = getSelectedMapping())
     {
-        if (mapping->inputNote >= 0 && mapping->inputNote < 128)
-            inputKeyboardState.noteOn(1, mapping->inputNote, 0.9f);
-
         for (const auto note : mapping->outputNotes)
             if (note >= 0 && note < 128)
                 outputKeyboardState.noteOn(1, note, 0.85f);
     }
 
-    inputKeyboard.repaint();
+    triggerLane.repaint();
     outputKeyboard.repaint();
 }
 
@@ -3592,7 +3598,7 @@ void MnKordAudioProcessorEditor::refreshSummaryLabels()
     }
     else
     {
-        selectedInputLabel.setText("-", juce::dontSendNotification);
+        selectedInputLabel.setText("Click a trigger key in the lane above the keys", juce::dontSendNotification);
         chordNotesLabel.setText("-", juce::dontSendNotification);
     }
 }
@@ -3686,6 +3692,108 @@ bool MnKordAudioProcessorEditor::isHighlightedKey(KeyboardRole role, int midiNot
     }
 
     return false;
+}
+
+bool MnKordAudioProcessorEditor::isSelectedTriggerKey(int midiNoteNumber) const
+{
+    const auto* mapping = getSelectedMapping();
+    return mapping != nullptr && mapping->inputNote == midiNoteNumber;
+}
+
+juce::Colour MnKordAudioProcessorEditor::getTriggerColour() const
+{
+    return juce::Colour(0xffff5d5d);   // the MNAudio red (Palette::accent2)
+}
+
+//==============================================================================
+juce::Rectangle<float> MnKordAudioProcessorEditor::TriggerLane::cellFor(int note) const
+{
+    const auto& keyboard = owner.outputKeyboard;
+    const auto key = keyboard.getRectangleForKey(note).translated((float) (keyboard.getX() - getX()), 0.0f);
+    const bool black = juce::MidiMessage::isMidiNoteBlack(note);
+    const float half = (float) getHeight() / 2.0f;
+    return black ? juce::Rectangle<float>(key.getX() + 1.0f, 0.0f, key.getWidth() - 2.0f, half - 1.0f)
+                 : juce::Rectangle<float>(key.getX() + 1.5f, half, key.getWidth() - 3.0f, half - 1.0f);
+}
+
+int MnKordAudioProcessorEditor::TriggerLane::noteAt(juce::Point<float> position) const
+{
+    const auto& keyboard = owner.outputKeyboard;
+    const int lowest = juce::jmax(0, keyboard.getLowestVisibleKey() - 1);
+    for (int note = lowest; note < 128; ++note)
+    {
+        const auto cell = cellFor(note);
+        if (cell.getX() > (float) getWidth())
+            break;
+        // A cell is as tall as its half of the lane; the click may land a little outside it.
+        if (cell.withY(juce::MidiMessage::isMidiNoteBlack(note) ? 0.0f : (float) getHeight() / 2.0f)
+                .withHeight((float) getHeight() / 2.0f).contains(position)
+            && owner.isInSelectedScale(note))
+            return note;
+    }
+    return -1;
+}
+
+void MnKordAudioProcessorEditor::TriggerLane::paint(juce::Graphics& g)
+{
+    const auto& keyboard = owner.outputKeyboard;
+    const auto trigger = owner.getTriggerColour();
+    const int lowest = juce::jmax(0, keyboard.getLowestVisibleKey() - 1);
+
+    for (int note = lowest; note < 128; ++note)
+    {
+        const auto cell = cellFor(note);
+        if (cell.getX() > (float) getWidth())
+            break;
+        if (cell.getRight() < 0.0f || ! owner.isInSelectedScale(note))
+            continue;
+
+        const bool selected = owner.isSelectedTriggerKey(note);
+        const bool mapped = owner.isMappedInputKey(note);
+        const bool playing = owner.isPlayingKey(KeyboardRole::input, note);
+
+        // An empty cell looks like its key in miniature: light over a white key, dark with an outline over a black one.
+        const bool black = juce::MidiMessage::isMidiNoteBlack(note);
+        juce::Colour fill = black ? owner.getBlackKeyTopColour() : owner.getWhiteKeyBottomColour().withAlpha(0.32f);
+        if (selected)
+            fill = trigger;
+        else if (playing)
+            fill = trigger.withAlpha(0.8f);
+        else if (mapped)
+            fill = trigger.withAlpha(0.38f);
+
+        g.setColour(fill);
+        g.fillRoundedRectangle(cell, 2.5f);
+
+        if (black && ! selected && ! playing && ! mapped)
+        {
+            g.setColour(owner.getMutedTextColour().withAlpha(0.5f));
+            g.drawRoundedRectangle(cell.reduced(0.5f), 2.5f, 1.0f);
+        }
+
+        if (selected)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.85f));
+            g.drawRoundedRectangle(cell.reduced(0.5f), 2.5f, 1.0f);
+        }
+    }
+}
+
+void MnKordAudioProcessorEditor::TriggerLane::mouseDown(const juce::MouseEvent& e)
+{
+    const int note = noteAt(e.position);
+    if (note < 0)
+        return;
+
+    if (e.mods.isPopupMenu())
+        owner.showChordTemplateMenu(note);
+    else
+        owner.keyboardNoteClicked(KeyboardRole::input, note);
+}
+
+void MnKordAudioProcessorEditor::TriggerLane::mouseMove(const juce::MouseEvent& e)
+{
+    setMouseCursor(noteAt(e.position) >= 0 ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
 }
 
 bool MnKordAudioProcessorEditor::isMappedInputKey(int midiNoteNumber) const

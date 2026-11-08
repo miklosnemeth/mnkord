@@ -216,6 +216,24 @@ private:
         int selectedStart = -1;
     };
 
+    // The lane above the keyboard where the trigger keys are chosen: one cell per key (the black keys' cells
+    // in the upper half, the white keys' in the lower half), in line with the keys. A key that has a chord is
+    // marked, the selected one is lit, a key being played glows. A click selects (or creates) the key's chord,
+    // a right-click opens the chord templates. Out-of-scale keys have no cell.
+    struct TriggerLane : public juce::Component,
+                         public juce::SettableTooltipClient
+    {
+        explicit TriggerLane(MnKordAudioProcessorEditor& ownerRef) : owner(ownerRef) {}
+        void paint(juce::Graphics&) override;
+        void mouseDown(const juce::MouseEvent&) override;
+        void mouseMove(const juce::MouseEvent&) override;
+        // The key whose cell is under the position, or -1.
+        int noteAt(juce::Point<float> position) const;
+        juce::Rectangle<float> cellFor(int note) const;
+
+        MnKordAudioProcessorEditor& owner;
+    };
+
     // Tooltip-style bubble showing a selected chord note's velocity, floated above its key
     // while hovering or dragging it. Lives on the editor (not the keyboard) so it can sit above
     // the keyboard's top edge.
@@ -382,7 +400,7 @@ private:
     juce::ArrowButton prevPresetButton { "previous preset", 0.5f, mnaudio::ui::Palette::text() };
     juce::ArrowButton nextPresetButton { "next preset", 0.0f, mnaudio::ui::Palette::text() };
     // The title and the version (drawn in paint()) and the two cards, set in resized().
-    juce::Rectangle<int> brandArea, versionArea, inputCard, outputCard;
+    juce::Rectangle<int> brandArea, versionArea, keysCard;
     // The CallOutBox launched by showPresetBrowser(), tracked for the same reason as
     // activeScalePopup above.
     juce::Component::SafePointer<juce::CallOutBox> activePresetPopup;
@@ -396,11 +414,14 @@ private:
     juce::Label selectedInputLabel;
     juce::Label chordNotesLabel;
 
-    // Keyboard editor
-    juce::MidiKeyboardState inputKeyboardState;
+    static constexpr int TriggerLaneHeight = 26;
+    // trigger row 24 + strip 14 + lane + keyboard 140 + chord row 24, with the gaps and the card's padding
+    static constexpr int keysCardHeight = 20 + 24 + 2 + 14 + 2 + TriggerLaneHeight + 1 + 140 + 6 + 24;
+
+    // Keyboard editor: one keyboard for the chord notes, with the trigger lane above it.
     juce::MidiKeyboardState outputKeyboardState;
-    MappingKeyboard inputKeyboard;
     MappingKeyboard outputKeyboard;
+    TriggerLane triggerLane { *this };
     VelocityBubble velocityBubble { *this };
     juce::Label inputKeyboardLabel;
     juce::Label outputKeyboardLabel;
@@ -561,6 +582,11 @@ private:
     void showVelocityBubble(const MappingKeyboard& keyboard, int outputNote);
     void hideVelocityBubble();
     bool isMappedInputKey(int midiNoteNumber) const;
+    // The trigger key of the selected chord (drawn on the keyboard in the trigger colour).
+    bool isSelectedTriggerKey(int midiNoteNumber) const;
+    // Trigger keys and the notes being played on the controller; the chord notes are the accent green and the
+    // sounding chord notes the playing colour.
+    juce::Colour getTriggerColour() const;
     juce::String getOutputDegreeLabel(int midiNoteNumber) const;
     juce::Colour getBackgroundColour() const;
     juce::Colour getPanelColour() const;

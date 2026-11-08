@@ -13,7 +13,7 @@ itself, so it goes in front of a synth on an instrument track.
 3. **Pick a preset.** Click the preset name in the header and choose one, for example *Pop Four Chords*.
 4. **Play.** Every key that has a chord plays it. Other MIDI (pitch bend, sustain, ...) passes through.
 
-To make your own chord: click a key on the **INPUT** keyboard, then click the notes on the **CHORD** keyboard
+To make your own chord: click a marker in the **TRIGGER** lane above the keys, then click the notes on the keyboard
 (or type a chord symbol such as `Dm9/G`).
 
 ## The user guide

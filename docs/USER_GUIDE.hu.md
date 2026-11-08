@@ -41,31 +41,34 @@ Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*
 | Terület | Mi ez |
 |---------|-------|
 | Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Menu** gomb és **Undo / Redo**. A név bal oldalán lévő pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
-| **INPUT** billentyűzet | A billentyűk, amelyeket játszol. Az akkorddal rendelkező billentyűk színesek. A billentyűk feletti sáv az oktávokat mutatja. |
-| **CHORD** billentyűzet | A kiválasztott INPUT billentyű akkordjának hangjai. |
-| Akkordnév-mező | Írj be egy akkordszimbólumot (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), és az a kiválasztott akkord helyére kerül. Felette látod az akkord nevét és hangjait. |
+| **TRIGGER** sor | A kiválasztott trigger-billentyű, a rétegmenü, a **Learn**, a **Copy up / down** és a skála-gomb. Alatta egy sáv az oktávokat mutatja. |
+| **TRIGGER** sáv | Kis jelölők a billentyűk felett, mindegyik a saját billentyűje fölött. Az akkorddal rendelkező billentyű jelölője piros, a kiválasztotté világít, a kontrolleren játszott billentyűé felizzik. |
+| Billentyűzet | A kiválasztott akkord hangjai, zölden. Az akkord trigger-billentyűjének tetején piros sáv van, és játék közben a megszólaló hangok is látszanak. |
+| **CHORD** sor | A billentyűzet alatt: az akkord neve és hangjai, és egy mező, ahová akkordszimbólumot írhatsz (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), ez a kiválasztott akkord helyére kerül. |
+
+Az ablak szélesebbre húzható (848 és 1600 képpont között), ahol a DAW engedi a pluginablak átméretezését; a billentyűk is szélesebbek lesznek.
 
 ![A mnKord ablaka](images/main.png)
 
 ### Akkord készítése
 
-1. Kattints egy billentyűre az **INPUT** billentyűzeten. Ezzel kiválasztod.
-2. Kattints a **CHORD** billentyűzet billentyűire, hogy hozzáadj vagy elvegyél hangokat az akkordból.
+1. Kattints egy jelölőre a **TRIGGER** sávban, annak a billentyűnek a fölött, amelyiknek az akkordot kell játszania. Ezzel kiválasztod.
+2. Kattints a billentyűzet billentyűire, hogy hozzáadj vagy elvegyél hangokat az akkordból.
 
 Gyorsabb módok:
-- **Jobb kattintás egy INPUT billentyűn:** akkordsablonok (hármas- és szeptimhangzatok). Az a sablon, amelyik
+- **Jobb kattintás egy TRIGGER jelölőn:** akkordsablonok (hármas- és szeptimhangzatok). Az a sablon, amelyik
   kilépne a kiválasztott skálából, szürke. A menüben van még *Octave up / down*, *Clear chord* és
   *Fit to scale*.
-- **Írj be egy akkordszimbólumot** a CHORD billentyűzet feletti mezőbe, és nyomj Entert.
-- **Jobb kattintás egy CHORD billentyűn:** az akkordot felfelé vagy lefelé megfordítja.
+- **Írj be egy akkordszimbólumot** a billentyűzet alatti mezőbe, és nyomj Entert.
+- **Jobb kattintás a billentyűzet egy billentyűjén:** az akkordot felfelé vagy lefelé megfordítja.
 - **Learn:** nyomd meg a **Learn** gombot, és játssz egy billentyűt a kontrolleren. Kiválasztja a billentyű
   leképezését (vagy létrehozza).
 
-![Akkordsablonok: jobb kattintás egy INPUT billentyűn](images/chord-templates.png)
+![Akkordsablonok: jobb kattintás egy TRIGGER jelölőn](images/chord-templates.png)
 
 ### Akkordok másolása másik oktávba
 
-Kattints egy oktávra az INPUT billentyűzet feletti sávban, majd a **Copy up** vagy **Copy down** gombra. Az
+Kattints egy oktávra a TRIGGER sáv feletti oktávsávban, majd a **Copy up** vagy **Copy down** gombra. Az
 oktáv akkordjait egy oktávval feljebb vagy lejjebb másolja.
 
 
@@ -76,7 +79,7 @@ A skála-gomb (amíg nem választasz, **Full range** áll rajta) a billentyűzet
 
 ### Velocity-rétegek
 
-Az INPUT billentyűzet feletti rétegmenü azt választja, melyik réteget szerkeszted:
+A TRIGGER sor rétegmenüje azt választja, melyik réteget szerkeszted:
 
 - **Soft layer:** bármilyen erősséggel játszva szól.
 - **Hard layer from velocity 80 / 90 / 100 / 110 / 120:** ugyanahhoz a billentyűhöz egy második akkord, amely
