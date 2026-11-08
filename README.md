@@ -193,10 +193,10 @@ repositories. It is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 ```powershell
 cmake -S . -B build
 cmake --build build --config Release --target mnKord_VST3
-& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.6.0 installer\mnKord.iss
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.6.1 installer\mnKord.iss
 ```
 
-The result is `build\installer\mnKord-1.6.0-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
+The result is `build\installer\mnKord-1.6.1-win-x64-setup.exe`. Use the version in `CMakeLists.txt` for `MyAppVersion`.
 
 ## License
 
