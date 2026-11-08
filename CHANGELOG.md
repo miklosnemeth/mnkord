@@ -4,7 +4,7 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 1.6.1
+## [1.6.1] - 2026-11-08
 
 ### Fixed
 - The undo history no longer reads the mappings without the state lock, so a host state restore or a preset import at the same moment cannot crash the editor.
