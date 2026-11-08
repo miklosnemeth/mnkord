@@ -20,8 +20,8 @@
 <meta property="og:locale:alternate" content="hu_HU">
 <meta property="og:image" content="https://miklosnemeth.github.io/mnkord/images/main.png">
 <meta property="og:image:width" content="980">
-<meta property="og:image:height" content="475">
-<meta property="og:image:alt" content="The mnKord window with the INPUT and CHORD keyboards">
+<meta property="og:image:height" content="371">
+<meta property="og:image:alt" content="The mnKord window with the TRIGGER lane above the keyboard">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="mnKord – free MIDI chord plugin (VST3) for Windows">
 <meta name="twitter:description" content="mnKord is a free MIDI chord plugin (VST3) for Windows: play one key and get a whole chord. Chord symbols, velocity layers, scales and 31 factory presets.">
@@ -235,7 +235,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
    "applicationCategory": "MultimediaApplication",
    "applicationSubCategory": "MIDI effect, VST3 audio plugin",
    "operatingSystem": "Windows 10, Windows 11",
-   "softwareVersion": "1.6.1",
+   "softwareVersion": "1.7.0",
    "downloadUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
    "installUrl": "https://github.com/miklosnemeth/mnkord/releases/latest",
    "fileFormat": "application/vnd.steinberg.vst3",
@@ -259,9 +259,9 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
    ],
    "featureList": [
     "Map any of the 128 MIDI keys to a chord of your own.",
-    "Click the chord tones on the CHORD keyboard, or right-click an INPUT key for chord templates.",
+    "Click the chord tones on the keyboard, or right-click a TRIGGER marker for chord templates.",
     "Type a chord symbol (for example Dm9/G) to replace the selected chord; the name of the chord is shown for the selection.",
-    "Invert a chord up or down with a right-click on a CHORD key.",
+    "Invert a chord up or down with a right-click on a key.",
     "Copy the chords of a whole octave one octave up or down.",
     "Fit a chord to the selected scale, or clear it, from the right-click menu.",
     "Velocity layers: a soft layer for any velocity and a hard layer from velocity 80, 90, 100, 110 or 120.",
@@ -278,7 +278,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
     "Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).",
     "Transpose the whole preset, or only its chords, by a semitone or an octave.",
     "Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.",
-    "A dark, flat window with two keyboards and the version of the plugin under the title.",
+    "A dark, flat window with one keyboard, the TRIGGER lane above it, and the version of the plugin under the title.",
     "Free and open source under the AGPL-3.0."
    ]
   },
@@ -332,7 +332,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
      "name": "How do I make my own chord?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Click a key on the INPUT keyboard, then click the notes on the CHORD keyboard. You can also right-click an INPUT key for chord templates, or type a chord symbol such as Dm9/G in the field above the CHORD keyboard."
+      "text": "Click a marker in the TRIGGER lane above the keys, then click the notes on the keyboard. You can also right-click a marker for chord templates, or type a chord symbol such as Dm9/G in the field under the keyboard."
      }
     },
     {
@@ -399,11 +399,11 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <a class="btn" href="https://github.com/miklosnemeth/mnkord"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>Source on GitHub</a>
       </div>
       <ul class="facts">
-        <li>v1.6.1</li>
+        <li>v1.7.0</li>
         <li>VST3 · Windows x64</li>
         <li>Free and open source (AGPL-3.0)</li>
       </ul>
-      <div class="shot"><img src="images/main.png" width="980" height="475" alt="The mnKord window: INPUT and CHORD keyboards and the preset bar"></div>
+      <div class="shot"><img src="images/main.png" width="980" height="371" alt="The mnKord window: the TRIGGER lane, the keyboard and the preset bar"></div>
     </div>
     <section aria-labelledby="how">
       <h2 id="how" class="display">How it works</h2>
@@ -418,7 +418,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
       <h2 id="feat" class="display">Made for fast chord playing</h2>
       <p class="sub">Everything you need to turn one finger into a full harmony, and nothing that gets in the way.</p>
       <ul class="cards">
-        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8"/></svg></div><h3>Any key to any chord</h3><p>Click an INPUT key, then the chord tones. Or right-click for triad and seventh templates.</p></li>
+        <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v8M12 5v8M16 5v8"/></svg></div><h3>Any key to any chord</h3><p>Click a TRIGGER marker above a key, then the chord tones. Or right-click it for triad and seventh templates.</p></li>
         <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/></svg></div><h3>Chord symbols</h3><p>Type <code>Dm9/G</code>, <code>Bbmaj7</code> or <code>C6/9</code> and the chord is voiced for you.</p></li>
         <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18c3 0 3-12 6-12s3 12 6 12 3-8 6-8"/></svg></div><h3>Velocity layers</h3><p>Play softly for one chord, hit harder and a fuller one takes over.</p></li>
         <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 12 4l8 16M7 14h10"/></svg></div><h3>Scales</h3><p>Limit the keyboard to a scale and fill the whole preset with its triads or sevenths in one click.</p></li>
@@ -426,13 +426,13 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <li class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></svg></div><h3>Learn, undo, transpose</h3><p>MIDI learn from your controller, undo and redo, copy a whole octave, transpose keys or chords.</p></li>
       </ul>
       <h3 class="listh">Everything in the box</h3>
-      <p class="sub">The full feature list of mnKord 1.6.1.</p>
+      <p class="sub">The full feature list of mnKord 1.7.0.</p>
       <div class="featlists">
         <div class="fl"><h4>Building chords</h4><ul>
           <li>Map any of the 128 MIDI keys to a chord of your own.</li>
-          <li>Click the chord tones on the CHORD keyboard, or right-click an INPUT key for chord templates.</li>
+          <li>Click the chord tones on the keyboard, or right-click a TRIGGER marker for chord templates.</li>
           <li>Type a chord symbol (for example <code>Dm9/G</code>) to replace the selected chord; the name of the chord is shown for the selection.</li>
-          <li>Invert a chord up or down with a right-click on a CHORD key.</li>
+          <li>Invert a chord up or down with a right-click on a key.</li>
           <li>Copy the chords of a whole octave one octave up or down.</li>
           <li>Fit a chord to the selected scale, or clear it, from the right-click menu.</li>
         </ul></div>
@@ -455,7 +455,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
           <li>Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).</li>
           <li>Transpose the whole preset, or only its chords, by a semitone or an octave.</li>
           <li>Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.</li>
-          <li>A dark, flat window with two keyboards and the version of the plugin under the title.</li>
+          <li>A dark, flat window with one keyboard, the TRIGGER lane above it, and the version of the plugin under the title.</li>
           <li>Free and open source under the AGPL-3.0.</li>
         </ul></div>
       </div>
@@ -513,7 +513,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
     </section>
     <section id="chords" aria-labelledby="cho">
       <h2 id="cho" class="display">Chord symbols, templates and scales</h2>
-      <p class="sub">Type a chord symbol in the field above the CHORD keyboard and press Enter. Any root works (C, F#, Bb, ...), and a slash adds a bass note.</p>
+      <p class="sub">Type a chord symbol in the field under the keyboard and press Enter. Any root works (C, F#, Bb, ...), and a slash adds a bass note.</p>
       <h3 class="listh">Chord symbol endings</h3>
       <p class="sub">Put one of these after the root note, for example <code>Dm9/G</code>. A slash and a note name add a bass note (<code>G/B</code>).</p>
       <ul class="symbols">
@@ -544,7 +544,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <li><code>C4th</code> <span>quartal chord (stacked fourths)</span></li>
       </ul>
       <div class="twocol">
-        <div><h3 class="listh">Chord templates</h3><p class="sub">In the right-click menu of an INPUT key: triads (Maj, Min, Sus2, Sus4, Dim) and sevenths (7, Maj7, Min7, Add9).</p><ul class="chips">
+        <div><h3 class="listh">Chord templates</h3><p class="sub">In the right-click menu of a TRIGGER marker: triads (Maj, Min, Sus2, Sus4, Dim) and sevenths (7, Maj7, Min7, Add9).</p><ul class="chips">
           <li>Maj</li>
           <li>Min</li>
           <li>Sus2</li>
@@ -567,11 +567,11 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
     </section>
     <section id="screens" aria-labelledby="scr">
       <h2 id="scr" class="display">A look inside</h2>
-      <p class="sub">A dark, flat window with two keyboards: the keys you play, and the chord they make.</p>
+      <p class="sub">A dark, flat window with one keyboard: the markers above it choose the key you play, the keys show its chord.</p>
       <div class="gallery">
-        <figure><img src="images/chord-templates.png" loading="lazy" width="980" height="475" alt="Chord templates in the right-click menu of an INPUT key"><figcaption>Right-click a key for triad and seventh templates</figcaption></figure>
-        <figure><img src="images/preset-browser.png" loading="lazy" width="980" height="475" alt="The preset browser with group, author and style columns"><figcaption>The preset browser: group, author, style, search, favourites</figcaption></figure>
-        <figure><img src="images/velocity-layers.png" loading="lazy" width="980" height="475" alt="The velocity layer menu: soft layer and hard layers from velocity 80 to 120"><figcaption>Velocity layers: a second chord for hard hits</figcaption></figure>
+        <figure><img src="images/chord-templates.png" loading="lazy" width="980" height="371" alt="Chord templates in the right-click menu of a TRIGGER marker"><figcaption>Right-click a TRIGGER marker for triad and seventh templates</figcaption></figure>
+        <figure><img src="images/preset-browser.png" loading="lazy" width="980" height="371" alt="The preset browser with group, author and style columns"><figcaption>The preset browser: group, author, style, search, favourites</figcaption></figure>
+        <figure><img src="images/velocity-layers.png" loading="lazy" width="980" height="371" alt="The velocity layer menu: soft layer and hard layers from velocity 80 to 120"><figcaption>Velocity layers: a second chord for hard hits</figcaption></figure>
       </div>
     </section>
     <section id="requirements" aria-labelledby="req">
@@ -592,7 +592,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
         <details><summary>Does mnKord make sound by itself?</summary><p>No. It is a MIDI effect: it turns one note into a chord, and the synth or sampler after it plays the sound. Put it on an instrument track, before your synth.</p></details>
         <details><summary>Which operating systems does it run on?</summary><p>There is an installer for Windows 10 and 11 (64-bit). On Linux you can build it from the source code. macOS is not supported yet.</p></details>
         <details><summary>Which DAWs can I use it in?</summary><p>mnKord is a standard VST3 plugin, so a DAW that hosts VST3 plugins on Windows can load it. How MIDI is routed to the next plugin differs between DAWs; the user guide has the steps.</p></details>
-        <details><summary>How do I make my own chord?</summary><p>Click a key on the INPUT keyboard, then click the notes on the CHORD keyboard. You can also right-click an INPUT key for chord templates, or type a chord symbol such as <code>Dm9/G</code> in the field above the CHORD keyboard.</p></details>
+        <details><summary>How do I make my own chord?</summary><p>Click a marker in the TRIGGER lane above the keys, then click the notes on the keyboard. You can also right-click a marker for chord templates, or type a chord symbol such as <code>Dm9/G</code> in the field under the keyboard.</p></details>
         <details><summary>Which chord symbols can I type?</summary><p>Triads, suspended, power chords, sixths, sevenths, ninths, add9, altered sevenths (7b9, 7#9), 6/9, quartal chords, and slash chords with a bass note, for any root note. The full list is on this page.</p></details>
         <details><summary>What are velocity layers?</summary><p>A key can have a second, hard layer with its own chord. It plays instead of the soft layer when you hit the key at least as hard as the threshold you choose (80, 90, 100, 110 or 120).</p></details>
         <details><summary>Where are my presets saved?</summary><p>Your presets are files in <code>Documents\MNAudio\mnKord\User</code>, shared by every project. A DAW project also stores the preset it used, with its edits, so it sounds the same on another computer.</p></details>
@@ -604,7 +604,7 @@ ol.steps, ul.cards { margin: 0; padding: 0; }
       <p class="sub">Free, with the source code open. The Windows installer is the quick way in.</p>
       <div class="get">
         <div class="box"><h3>Windows (64-bit)</h3><ol>
-          <li>Download <strong>mnKord-1.6.1-win-x64-setup.exe</strong> from the latest release.</li>
+          <li>Download <strong>mnKord-1.7.0-win-x64-setup.exe</strong> from the latest release.</li>
           <li>Run it. The VST3 goes to <code>Common Files\VST3\MNAudio</code>.</li>
           <li>Rescan plugins in your DAW and put mnKord on an instrument track, before your synth.</li>
         </ol><a class="btn primary" href="https://github.com/miklosnemeth/mnkord/releases/latest">Latest release</a></div>

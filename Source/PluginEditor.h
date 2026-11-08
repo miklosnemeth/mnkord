@@ -415,8 +415,9 @@ private:
     juce::Label chordNotesLabel;
 
     static constexpr int TriggerLaneHeight = 26;
-    // trigger row 24 + strip 14 + lane + keyboard 140 + chord row 24, with the gaps and the card's padding
-    static constexpr int keysCardHeight = 20 + 24 + 2 + 14 + 2 + TriggerLaneHeight + 1 + 140 + 6 + 24;
+    // trigger row 24 + strip 14 + lane (8 px of room above and below it) + keyboard 140 + chord row 24, with the gaps
+    // and the card's padding
+    static constexpr int keysCardHeight = 20 + 24 + 2 + 14 + 8 + TriggerLaneHeight + 8 + 140 + 6 + 24;
 
     // Keyboard editor: one keyboard for the chord notes, with the trigger lane above it.
     juce::MidiKeyboardState outputKeyboardState;

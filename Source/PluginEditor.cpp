@@ -1080,9 +1080,9 @@ void MnKordAudioProcessorEditor::resized()
 
     panel.removeFromTop(2);
     octaveStrip.setBounds(panel.removeFromTop(14));
-    panel.removeFromTop(2);
+    panel.removeFromTop(8);   // room around the trigger lane, so that its small markers stand apart
     triggerLane.setBounds(panel.removeFromTop(TriggerLaneHeight));
-    panel.removeFromTop(1);
+    panel.removeFromTop(8);
     outputKeyboard.setBounds(panel);
     // 5 octaves (7 white keys each) fill the visible width exactly; the rest of the range is reachable with
     // the scroll buttons. Starting at C2 puts A4/440Hz (MIDI 69) roughly in the middle.
@@ -2077,6 +2077,9 @@ void MnKordAudioProcessorEditor::showPresetBrowser()
     // Parented to the editor so the box stays inside the plugin window.
     auto content = std::make_unique<PresetBrowserContent>(*this);
     content->setLookAndFeel(&flatLookAndFeel);
+    // As tall as fits under the header of the (one-keyboard, short) window.
+    content->setSize(content->getWidth(),
+                     juce::jlimit(200, 330, getHeight() - presetSummaryButton.getBottom() - 24));
     auto& box = juce::CallOutBox::launchAsynchronously(std::move(content), presetSummaryButton.getBounds(), this);
     box.setLookAndFeel(&flatLookAndFeel);
     activePresetPopup = &box;
