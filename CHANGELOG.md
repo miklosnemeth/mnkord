@@ -6,6 +6,10 @@ and the version numbers follow [Semantic Versioning](https://semver.org/) as des
 
 ## [Unreleased] - 1.6.1
 
+### Fixed
+- The undo history no longer reads the mappings without the state lock, so a host state restore or a preset import at the same moment cannot crash the editor.
+- Copy up / Copy down no longer gives every copied chord note its own velocity entry; only notes that had one keep it, so the copy does not make the preset look changed and its file stays small.
+
 ### Changed
 - The plugin is built as C++23 (it was C++17), the same as mnArpee. Nothing changes for users.
 

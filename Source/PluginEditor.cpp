@@ -1195,7 +1195,10 @@ void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
                     continue;
 
                 copy.outputNotes.push_back(shifted);
-                copy.outputVelocities[shifted] = mapping.velocityFor(note);
+
+                // Only a note with its own velocity gets one; the others keep the default.
+                if (const auto it = mapping.outputVelocities.find(note); it != mapping.outputVelocities.end())
+                    copy.outputVelocities[shifted] = it->second;
             }
 
             if (! copy.outputNotes.empty())
@@ -2244,6 +2247,9 @@ void MnKordAudioProcessorEditor::updateHistoryButtons()
 
 void MnKordAudioProcessorEditor::trackHistory()
 {
+    // The mappings are read here, and a host state restore or an import can replace them.
+    const juce::ScopedLock lock(audioProcessor.getStateLock());
+
     const auto& presets = audioProcessor.getPresets();
     const int index = audioProcessor.getActivePresetIndex();
     if (index < 0 || index >= (int) presets.size())
