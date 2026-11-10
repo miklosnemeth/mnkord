@@ -4,7 +4,7 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
-## [Unreleased] - 1.8.0
+## [1.8.0] - 2026-11-10
 
 ### Added
 - **Transpose** in the TRIGGER row: moves the whole preset (the trigger keys and their chords, and the scale's root) up or down an octave or a semitone.
