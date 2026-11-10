@@ -387,6 +387,8 @@ private:
     // Velocity layers: which layer of a key the INPUT keyboard edits. The hard layer plays when the
     // input velocity reaches hardLayerThreshold.
     juce::TextButton layerButton;
+    // The two transpose menus: the whole preset (TRIGGER row) and the chord notes (CHORD row).
+    juce::TextButton presetTransposeButton, chordTransposeButton;
     bool hardLayerEditing = false;
     int hardLayerThreshold = 100;
     // Typing a chord symbol ("Dm9/G") and pressing Enter replaces the selected mapping's chord.
@@ -500,10 +502,17 @@ private:
     // Selects the previous (-1) / next (+1) preset, wrapping around.
     void stepPreset(int delta);
     void showLayerMenu();
+    // Transposing is an edit of the preset (with Undo), not a live setting.
+    // The whole preset: the trigger keys and their chords move together (the scale's root too).
+    void showPresetTransposeMenu();
+    // The chord notes only (the OUTPUT keyboard): of the selected chord, or of every chord.
+    void showChordTransposeMenu();
+    // Both return false (and change nothing) when a note would leave the MIDI range. With apply false
+    // they only tell whether it would work (for the menus).
+    bool transposePreset(int semitones, bool apply = true);
+    bool transposeChords(int semitones, bool allChords, bool apply = true);
     void updateLayerButton();
     void applyChordSymbol();
-    // Shifts the active preset's INPUT keys and/or chord notes; refuses if a note would leave 0-127.
-    void transposePreset(int semitones, bool inputs, bool outputs);
     // Shows an OK-only message dialog inside the plugin window.
     void showMessage(const juce::String& title, const juce::String& message);
     void showSaveFailedWarning();

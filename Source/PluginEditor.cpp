@@ -949,6 +949,14 @@ MnKordAudioProcessorEditor::MnKordAudioProcessorEditor(MnKordAudioProcessor& p)
     layerButton.addListener(this);
     layerButton.setTooltip("Velocity layers: edit the soft layer, or a hard layer played at higher velocities");
     addAndMakeVisible(layerButton);
+    presetTransposeButton.setButtonText("Transpose");
+    presetTransposeButton.setTooltip("Transpose the whole preset: the trigger keys and their chords move together");
+    presetTransposeButton.addListener(this);
+    addAndMakeVisible(presetTransposeButton);
+    chordTransposeButton.setButtonText("Transpose");
+    chordTransposeButton.setTooltip("Transpose the chord notes (the keys stay): the selected chord, or every chord");
+    chordTransposeButton.addListener(this);
+    addAndMakeVisible(chordTransposeButton);
     updateLayerButton();
     learnButton.setButtonText("Learn");
     learnButton.setTooltip("MIDI learn: play a key on your controller to select its mapping");
@@ -1069,12 +1077,17 @@ void MnKordAudioProcessorEditor::resized()
     learnButton.setBounds(triggerRow.removeFromRight(56));
     triggerRow.removeFromRight(6);
     layerButton.setBounds(triggerRow.removeFromRight(112));
+    triggerRow.removeFromRight(6);
+    presetTransposeButton.setBounds(triggerRow.removeFromRight(84));
+    triggerRow.removeFromRight(6);
     selectedInputLabel.setBounds(triggerRow);
 
     auto chordRow = panel.removeFromBottom(24);
     outputKeyboardLabel.setBounds(chordRow.removeFromLeft(86));
     chordSymbolEditor.setBounds(chordRow.removeFromRight(190).reduced(0, 1));
     chordRow.removeFromRight(8);
+    chordTransposeButton.setBounds(chordRow.removeFromRight(84));
+    chordRow.removeFromRight(6);
     chordNotesLabel.setBounds(chordRow);
     panel.removeFromBottom(6);
 
@@ -1236,10 +1249,127 @@ void MnKordAudioProcessorEditor::copySelectedOctave(int semitones)
 }
 
 //==============================================================================
+namespace
+{
+// The steps of the transpose menus, in menu order.
+constexpr std::array<std::pair<int, const char*>, 4> transposeSteps { {
+    { 12, "Up an octave" }, { 1, "Up a semitone" }, { -1, "Down a semitone" }, { -12, "Down an octave" } } };
+
+}
+
+bool MnKordAudioProcessorEditor::transposePreset(int semitones, bool apply)
+{
+    if (apply)
+    {
+        trackHistory();
+        lastEditTimeMs = 0;   // a step of its own for Undo
+    }
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return false;
+
+        auto mappings = presets[(size_t) presetIndex].mappings;
+        if (! MnKordAudioProcessor::transposeMappings(mappings, semitones, true))
+            return false;
+        if (! apply)
+            return true;
+        presets[(size_t) presetIndex].mappings = std::move(mappings);
+    }
+
+    // The scale moves with the preset, so the same keys stay in it.
+    scaleRoot = ((scaleRoot + semitones) % 12 + 12) % 12;
+    updateScaleSummaryText();
+    if (octaveStrip.selectedStart >= 0)
+        octaveStrip.selectedStart += semitones;
+    updateOctaveCopyButtons();
+    octaveStrip.repaint();
+    triggerLane.repaint();
+
+    trackHistory();
+    setSelectedMappingIndex(selectedMappingIndex);   // the mappings keep their order: the selection moves along
+    refreshSummaryLabels();
+    return true;
+}
+
+bool MnKordAudioProcessorEditor::transposeChords(int semitones, bool allChords, bool apply)
+{
+    if (apply)
+    {
+        trackHistory();
+        lastEditTimeMs = 0;
+    }
+    {
+        const juce::ScopedLock lock(audioProcessor.getStateLock());
+        auto& presets = audioProcessor.getPresets();
+        const int presetIndex = audioProcessor.getActivePresetIndex();
+        if (presetIndex < 0 || presetIndex >= (int) presets.size())
+            return false;
+
+        auto mappings = presets[(size_t) presetIndex].mappings;
+        if (! allChords && selectedMappingIndex < 0)
+            return false;
+        if (! MnKordAudioProcessor::transposeMappings(mappings, semitones, false, allChords ? -1 : selectedMappingIndex))
+            return false;
+        if (! apply)
+            return true;
+        presets[(size_t) presetIndex].mappings = std::move(mappings);
+    }
+
+    trackHistory();
+    setSelectedMappingIndex(selectedMappingIndex);
+    refreshSummaryLabels();
+    return true;
+}
+
+void MnKordAudioProcessorEditor::showPresetTransposeMenu()
+{
+    auto menu = makeStyledMenu();
+    menu.addSectionHeader("Whole preset (keys and chords)");
+    for (int i = 0; i < (int) transposeSteps.size(); ++i)
+        menu.addItem(1 + i, transposeSteps[(size_t) i].second, transposePreset(transposeSteps[(size_t) i].first, false));
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetTransposeButton).withParentComponent(this),
+                       [safeThis](int result)
+                       {
+                           if (safeThis != nullptr && result > 0)
+                               safeThis->transposePreset(transposeSteps[(size_t) (result - 1)].first);
+                       });
+}
+
+void MnKordAudioProcessorEditor::showChordTransposeMenu()
+{
+    auto menu = makeStyledMenu();
+    menu.addSectionHeader("Selected chord");
+    for (int i = 0; i < (int) transposeSteps.size(); ++i)
+        menu.addItem(1 + i, transposeSteps[(size_t) i].second, transposeChords(transposeSteps[(size_t) i].first, false, false));
+    menu.addSectionHeader("Every chord (the keys stay)");
+    for (int i = 0; i < (int) transposeSteps.size(); ++i)
+        menu.addItem(11 + i, transposeSteps[(size_t) i].second, transposeChords(transposeSteps[(size_t) i].first, true, false));
+
+    juce::Component::SafePointer<MnKordAudioProcessorEditor> safeThis(this);
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&chordTransposeButton).withParentComponent(this),
+                       [safeThis](int result)
+                       {
+                           if (safeThis == nullptr || result <= 0)
+                               return;
+                           const bool all = result >= 11;
+                           safeThis->transposeChords(transposeSteps[(size_t) (result - (all ? 11 : 1))].first, all);
+                       });
+}
+
+//==============================================================================
 void MnKordAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
     if (button == &layerButton)
         showLayerMenu();
+    else if (button == &presetTransposeButton)
+        showPresetTransposeMenu();
+    else if (button == &chordTransposeButton)
+        showChordTransposeMenu();
     else if (button == &copyOctaveUpButton)
         copySelectedOctave(12);
     else if (button == &copyOctaveDownButton)
@@ -2386,64 +2516,6 @@ void MnKordAudioProcessorEditor::mouseDown(const juce::MouseEvent&)
     grabKeyboardFocus();
 }
 
-void MnKordAudioProcessorEditor::transposePreset(int semitones, bool inputs, bool outputs)
-{
-    bool outOfRange = false;
-
-    {
-        const juce::ScopedLock lock(audioProcessor.getStateLock());
-
-        auto& presets = audioProcessor.getPresets();
-        const int presetIndex = audioProcessor.getActivePresetIndex();
-        if (presetIndex < 0 || presetIndex >= (int) presets.size())
-            return;
-
-        auto& mappings = presets[(size_t) presetIndex].mappings;
-        auto fits = [semitones](int note) { return note + semitones >= 0 && note + semitones <= 127; };
-
-        for (const auto& mapping : mappings)
-        {
-            if (inputs && ! fits(mapping.inputNote))
-                outOfRange = true;
-
-            if (outputs)
-                for (const int note : mapping.outputNotes)
-                    if (! fits(note))
-                        outOfRange = true;
-        }
-
-        // All or nothing: a transposition that pushes a note off the keyboard changes nothing.
-        if (! outOfRange)
-        {
-            for (auto& mapping : mappings)
-            {
-                if (inputs)
-                    mapping.inputNote += semitones;
-
-                if (outputs)
-                {
-                    for (auto& note : mapping.outputNotes)
-                        note += semitones;
-
-                    std::map<int, int> shifted;
-                    for (const auto& [note, velocity] : mapping.outputVelocities)
-                        shifted[note + semitones] = velocity;
-                    mapping.outputVelocities = std::move(shifted);
-                }
-            }
-        }
-    }
-
-    if (outOfRange)
-    {
-        showMessage("Can't transpose", "Some notes would end up outside the MIDI range (0-127).");
-        return;
-    }
-
-    setSelectedMappingIndex(selectedMappingIndex);
-    refreshSummaryLabels();
-}
-
 void MnKordAudioProcessorEditor::applyChordSymbol()
 {
     const auto chord = ChordSymbol::parseChord(chordSymbolEditor.getText());
@@ -2682,18 +2754,6 @@ void MnKordAudioProcessorEditor::showPresetMenu()
     menu.addItem(2, "Revert to saved", dirty && audioProcessor.canRevertPreset(index));
     menu.addItem(3, "Rename / edit info...", valid && ! isFactory);
 
-    auto transposeMenu = makeStyledMenu();
-    transposeMenu.addItem(10, "Key up a semitone (keys and chords)");
-    transposeMenu.addItem(11, "Key down a semitone (keys and chords)");
-    transposeMenu.addItem(12, "Key up an octave (keys and chords)");
-    transposeMenu.addItem(13, "Key down an octave (keys and chords)");
-    transposeMenu.addSeparator();
-    transposeMenu.addItem(14, "Chords up a semitone");
-    transposeMenu.addItem(15, "Chords down a semitone");
-    transposeMenu.addItem(16, "Chords up an octave");
-    transposeMenu.addItem(17, "Chords down an octave");
-    menu.addSubMenu("Transpose", transposeMenu, valid);
-
     menu.addSeparator();
     menu.addItem(4, "Import...");
     menu.addItem(5, "Export...", valid);
@@ -2733,14 +2793,6 @@ void MnKordAudioProcessorEditor::showPresetMenu()
                                    break;
                                }
                                case 7: editor.deleteActivePreset(); break;
-                               case 10: editor.transposePreset(1, true, true); break;
-                               case 11: editor.transposePreset(-1, true, true); break;
-                               case 12: editor.transposePreset(12, true, true); break;
-                               case 13: editor.transposePreset(-12, true, true); break;
-                               case 14: editor.transposePreset(1, false, true); break;
-                               case 15: editor.transposePreset(-1, false, true); break;
-                               case 16: editor.transposePreset(12, false, true); break;
-                               case 17: editor.transposePreset(-12, false, true); break;
                                default: break;
                            }
                        });
@@ -2917,7 +2969,7 @@ void MnKordAudioProcessorEditor::applyColours()
     flatLookAndFeel.setColour(juce::PopupMenu::highlightedTextColourId, textColour);
 
     for (auto* button : { &newPresetButton, &savePresetButton, &presetMenuButton, &learnButton, &layerButton,
-                          &copyOctaveUpButton, &copyOctaveDownButton })
+                          &copyOctaveUpButton, &copyOctaveDownButton, &presetTransposeButton, &chordTransposeButton })
     {
         button->setColour(juce::TextButton::buttonColourId, control);
         button->setColour(juce::TextButton::buttonOnColourId, getAccentColour().darker(0.2f));

@@ -332,6 +332,45 @@ void MnKordAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     midiMessages.swapWith(outputMessages);
 }
 
+bool MnKordAudioProcessor::transposeMappings(std::vector<NoteMapping>& mappings, int semitones, bool moveKeys,
+                                             int onlyIndex)
+{
+    if (onlyIndex >= (int) mappings.size())
+        return false;
+
+    const auto inRange = [](int note) { return note >= 0 && note <= 127; };
+    auto result = mappings;
+
+    for (int i = 0; i < (int) result.size(); ++i)
+    {
+        if (onlyIndex >= 0 && i != onlyIndex)
+            continue;
+
+        auto& mapping = result[(size_t) i];
+        if (moveKeys)
+        {
+            mapping.inputNote += semitones;
+            if (! inRange(mapping.inputNote))
+                return false;
+        }
+
+        for (auto& note : mapping.outputNotes)
+        {
+            note += semitones;
+            if (! inRange(note))
+                return false;
+        }
+
+        std::map<int, int> velocities;
+        for (const auto& [note, velocity] : mapping.outputVelocities)
+            velocities[note + semitones] = velocity;
+        mapping.outputVelocities = std::move(velocities);
+    }
+
+    mappings = std::move(result);
+    return true;
+}
+
 void MnKordAudioProcessor::publishActiveNotes()
 {
     NoteBits input, output;

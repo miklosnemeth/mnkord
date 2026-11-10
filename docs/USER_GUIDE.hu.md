@@ -41,10 +41,10 @@ Eltávolítás: *Beállítások → Alkalmazások → mnKord → Eltávolítás*
 | Terület | Mi ez |
 |---------|-------|
 | Fejléc | A mnKord felirat alatta a plugin verziójával, a preset neve **< >** nyilakkal, **New**, **Save**, **Menu** gomb és **Undo / Redo**. A név bal oldalán lévő pont azt jelzi, hogy a presetnek mentetlen változásai vannak. |
-| **TRIGGER** sor | A kiválasztott trigger-billentyű, a rétegmenü, a **Learn**, a **Copy up / down** és a skála-gomb. Alatta egy sáv az oktávokat mutatja. |
+| **TRIGGER** sor | A kiválasztott trigger-billentyű, a **Transpose** (az egész preset), a rétegmenü, a **Learn**, a **Copy up / down** és a skála-gomb. Alatta egy sáv az oktávokat mutatja. |
 | **TRIGGER** sáv | Kis jelölők a billentyűk felett, mindegyik a saját billentyűje fölött. Az akkorddal rendelkező billentyű jelölője piros, a kiválasztotté világít, a kontrolleren játszott billentyűé felizzik. |
 | Billentyűzet | A kiválasztott akkord hangjai, zölden. Az akkord trigger-billentyűjének tetején piros sáv van, és játék közben a megszólaló hangok is látszanak. |
-| **CHORD** sor | A billentyűzet alatt: az akkord neve és hangjai, és egy mező, ahová akkordszimbólumot írhatsz (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), ez a kiválasztott akkord helyére kerül. |
+| **CHORD** sor | A billentyűzet alatt: az akkord neve és hangjai, a **Transpose** (az akkordhangok), és egy mező, ahová akkordszimbólumot írhatsz (`Dm9/G`, `Bbmaj7`, `C6/9`, ...), ez a kiválasztott akkord helyére kerül. |
 
 Az ablak szélesebbre húzható (848 és 1600 képpont között), ahol a DAW engedi a pluginablak átméretezését; a billentyűk is szélesebbek lesznek.
 
@@ -71,6 +71,19 @@ Gyorsabb módok:
 Kattints egy oktávra a TRIGGER sáv feletti oktávsávban, majd a **Copy up** vagy **Copy down** gombra. Az
 oktáv akkordjait egy oktávval feljebb vagy lejjebb másolja.
 
+### Transzponálás
+
+A transzponálás magát a presetet változtatja meg (visszavonható); az élő játékot nem transzponálja. Mindkét
+menü egy oktávval vagy egy félhanggal visz feljebb vagy lejjebb. Az a lépés, amelyik egy hangot kivinne a
+MIDI-tartományból (0–127), szürke.
+
+- **Transpose a TRIGGER sorban:** az egész presetet mozgatja, a trigger-billentyűket és az akkordjaikat
+  együtt, velük a skála alaphangját is. A preset ugyanúgy szól, csak feljebb vagy lejjebb a billentyűzeten.
+- **Transpose a CHORD sorban:** csak az akkordhangokat, a kimenő billentyűzetet mozgatja, a **kiválasztott
+  akkordét** (*Selected chord*) vagy **minden akkordét** (*Every chord*). A trigger-billentyűk maradnak, így
+  ugyanazok a billentyűk játsszák feljebb vagy lejjebb az akkordokat.
+
+![A CHORD sor Transpose menüje](images/transpose.png)
 
 ### Skála
 
@@ -109,8 +122,7 @@ A preset billentyű–akkord leképezések halmaza, névvel, csoporttal, szerző
   akarod tartani).
 - A **New** új presetet hoz létre. Kitöltheted egy skála akkordjaival (akkordméret, fordítás, oktáv és az
   egyes akkordszerepek velocity-je).
-- A **Menu** gomb: *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (a billentyűk és az
-  akkordok együtt, vagy csak az akkordok), *Import* (egy preset vagy egy teljes bank-fájl), *Export* és
+- A **Menu** gomb: *Save as*, *Revert to saved*, *Rename / edit info*, *Import* (egy preset vagy egy teljes bank-fájl), *Export* és
   *Show in folder*.
 
 ![A preset-böngésző](images/preset-browser.png)

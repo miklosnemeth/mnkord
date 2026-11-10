@@ -38,10 +38,10 @@ To remove it, use *Settings → Apps → mnKord → Uninstall*. Your presets (se
 | Area | What it is |
 |------|------------|
 | Header | The mnKord title with the plugin's version under it, the preset name with **< >** arrows, **New**, **Save**, **Menu** button, and **Undo / Redo**. A dot at the left of the name means the preset has unsaved changes. |
-| **TRIGGER** row | The selected trigger key, the layer menu, **Learn**, **Copy up / down** and the scale button. Under it, a strip shows the octaves. |
+| **TRIGGER** row | The selected trigger key, **Transpose** (the whole preset), the layer menu, **Learn**, **Copy up / down** and the scale button. Under it, a strip shows the octaves. |
 | **TRIGGER** lane | Small markers above the keys, one per key, in line with it. A key that has a chord is marked red, the selected one is lit, and a key you play on your controller glows. |
 | Keyboard | The notes of the selected chord, in green. The chord's trigger key has a red band at its top, and the notes that sound are marked as you play. |
-| **CHORD** row | Under the keyboard: the chord's name and notes, and a field to type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) that replaces the selected chord. |
+| **CHORD** row | Under the keyboard: the chord's name and notes, **Transpose** (the chord notes), and a field to type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) that replaces the selected chord. |
 
 The window can be made wider (848 to 1600 pixels) where the DAW lets you resize a plugin window; the keys get wider.
 
@@ -66,6 +66,18 @@ Faster ways:
 Click an octave in the strip above the TRIGGER lane, then **Copy up** or **Copy down**. It copies that
 octave's chords one octave higher or lower.
 
+### Transpose
+
+Transposing changes the preset itself (it can be undone); it does not transpose what you play live.
+Each menu moves notes up or down an octave or a semitone. A step that would take a note out of the MIDI
+range (0 to 127) is greyed out.
+
+- **Transpose in the TRIGGER row** moves the whole preset: the trigger keys and their chords together, and
+  the scale's root with them. The preset plays the same, only higher or lower on your keyboard.
+- **Transpose in the CHORD row** moves only the chord notes, the output keyboard: of the **selected chord**,
+  or of **every chord**. The trigger keys stay, so the same keys play the chords higher or lower.
+
+![The Transpose menu of the CHORD row](images/transpose.png)
 
 ### Scale
 
@@ -101,8 +113,7 @@ A preset is a set of key-to-chord mappings, with a name, a group, an author and 
   them. For a factory preset the choices are *Discard* or *Cancel* (use *Save as* first to keep them).
 - **New** creates a preset. You can fill it with the chords of a scale (chord size, inversion, octave and the
   velocity of each chord role).
-- The **Menu** button has *Save as*, *Revert to saved*, *Rename / edit info*, **Transpose** (the keys and
-  chords together, or only the chords), *Import* (a preset or a whole bank file), *Export* and *Show in folder*.
+- The **Menu** button has *Save as*, *Revert to saved*, *Rename / edit info*, *Import* (a preset or a whole bank file), *Export* and *Show in folder*.
 
 ![The preset browser](images/preset-browser.png)
 

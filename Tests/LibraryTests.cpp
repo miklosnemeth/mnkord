@@ -651,6 +651,43 @@ int main()
         CHECK(indexOfName(p, "Beta Dropped", false) == (int) p.getPresets().size() - 1);
     }
 
+    {
+        // Transposing as an edit: the whole preset, every chord, or one chord.
+        NoteMapping c;
+        c.inputNote = 60;
+        c.outputNotes = { 60, 64, 67 };
+        c.outputVelocities[64] = 90;
+        NoteMapping d = c;
+        d.inputNote = 62;
+        d.outputNotes = { 62, 65, 69 };
+        d.outputVelocities = {};
+        const std::vector<NoteMapping> original { c, d };
+
+        auto mappings = original;
+        CHECK(MnKordAudioProcessor::transposeMappings(mappings, 2, true));
+        CHECK(mappings[0].inputNote == 62 && mappings[0].outputNotes == std::vector<int>({ 62, 66, 69 }));
+        CHECK(mappings[0].outputVelocities.size() == 1 && mappings[0].outputVelocities.at(66) == 90);
+        CHECK(mappings[1].inputNote == 64 && mappings[1].outputNotes == std::vector<int>({ 64, 67, 71 }));
+
+        mappings = original;
+        CHECK(MnKordAudioProcessor::transposeMappings(mappings, -12, false));
+        CHECK(mappings[0].inputNote == 60 && mappings[0].outputNotes == std::vector<int>({ 48, 52, 55 }));
+        CHECK(mappings[1].inputNote == 62 && mappings[1].outputNotes == std::vector<int>({ 50, 53, 57 }));
+
+        mappings = original;
+        CHECK(MnKordAudioProcessor::transposeMappings(mappings, 1, false, 1));
+        CHECK(mappings[0].outputNotes == original[0].outputNotes);
+        CHECK(mappings[1].inputNote == 62 && mappings[1].outputNotes == std::vector<int>({ 63, 66, 70 }));
+
+        // A note leaving the MIDI range: nothing changes.
+        mappings = original;
+        mappings[1].outputNotes.push_back(120);
+        const auto before = mappings;
+        CHECK(! MnKordAudioProcessor::transposeMappings(mappings, 12, false));
+        CHECK(mappings[1].outputNotes == before[1].outputNotes && mappings[0].outputNotes == before[0].outputNotes);
+        CHECK(! MnKordAudioProcessor::transposeMappings(mappings, 1, false, 5));
+    }
+
     root.deleteRecursively();
     std::printf("%d checks, %d failures\n", checks, failures);
     return failures == 0 ? 0 : 1;

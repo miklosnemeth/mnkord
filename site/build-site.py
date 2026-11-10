@@ -174,6 +174,7 @@ T = {
                 "Type a chord symbol (for example {c1}) to replace the selected chord; the name of the chord is shown for the selection.",
                 "Invert a chord up or down with a right-click on a key.",
                 "Copy the chords of a whole octave one octave up or down.",
+                "Transpose the whole preset, or only the chord notes (of the selected chord or every chord), by an octave or a semitone, with Undo.",
                 "Fit a chord to the selected scale, or clear it, from the right-click menu.",
             ]),
             ("Playing", [
@@ -193,7 +194,6 @@ T = {
             ]),
             ("Workflow", [
                 "Undo and redo for every mapping edit (Ctrl+Z, Ctrl+Y).",
-                "Transpose the whole preset, or only its chords, by a semitone or an octave.",
                 "Restrict the keyboard to a scale and fill a preset with its triads or seventh chords.",
                 "A dark, flat window with one keyboard, the TRIGGER lane above it, and the version of the plugin under the title.",
                 "Free and open source under the AGPL-3.0.",
@@ -216,6 +216,7 @@ T = {
             ("chord-templates.png", "Chord templates in the right-click menu of a TRIGGER marker", "Right-click a TRIGGER marker for triad and seventh templates"),
             ("preset-browser.png", "The preset browser with group, author and style columns", "The preset browser: group, author, style, search, favourites"),
             ("velocity-layers.png", "The velocity layer menu: soft layer and hard layers from velocity 80 to 120", "Velocity layers: a second chord for hard hits"),
+            ("transpose.png", "The Transpose menu of the CHORD row: the selected chord or every chord, by an octave or a semitone", "Transpose the chord notes, or the whole preset"),
         ],
         "req_h": "System requirements",
         "reqs": [
@@ -296,6 +297,7 @@ T = {
                 "Írj be egy akkordszimbólumot (például {c1}), és az a kiválasztott akkord helyére kerül; a kijelölés akkordjának nevét a program kiírja.",
                 "Az akkordot jobb kattintással felfelé vagy lefelé megfordíthatod egy billentyűn.",
                 "Egy egész oktáv akkordjait egy oktávval feljebb vagy lejjebb másolhatod.",
+                "Az egész presetet, vagy csak az akkordhangokat (a kiválasztott vagy minden akkordét) egy oktávval vagy félhanggal transzponálhatod, visszavonhatóan.",
                 "Az akkordot a jobb kattintású menüből a kiválasztott skálához igazíthatod, vagy törölheted.",
             ]),
             ("Játék", [
@@ -315,7 +317,6 @@ T = {
             ]),
             ("Munkafolyamat", [
                 "Visszavonás és újra minden leképezés-szerkesztéshez (Ctrl+Z, Ctrl+Y).",
-                "A teljes preset, vagy csak az akkordjai transzponálása félhanggal vagy oktávval.",
                 "A billentyűzet korlátozása egy skálára, és a preset kitöltése a skála hármas- vagy szeptimhangzataival.",
                 "Sötét, letisztult ablak egy billentyűzettel, felette a TRIGGER sávval, a cím alatt a plugin verziójával.",
                 "Ingyenes és nyílt forráskódú, AGPL-3.0 alatt.",
@@ -338,6 +339,7 @@ T = {
             ("chord-templates.png", "Akkordsablonok egy TRIGGER jelölő jobb kattintású menüjében", "Jobb kattintás egy TRIGGER jelölőn: hármas- és szeptimhangzat-sablonok"),
             ("preset-browser.png", "A preset-böngésző csoport, szerző és stílus oszlopokkal", "A preset-böngésző: csoport, szerző, stílus, keresés, kedvencek"),
             ("velocity-layers.png", "A velocity-réteg menü: soft réteg és hard rétegek 80-tól 120 velocity-ig", "Velocity-rétegek: második akkord erős ütésre"),
+            ("transpose.png", "A CHORD sor Transpose menüje: a kiválasztott vagy minden akkord, oktávval vagy félhanggal", "Az akkordhangok vagy az egész preset transzponálása"),
         ],
         "req_h": "Rendszerkövetelmények",
         "reqs": [
@@ -757,7 +759,7 @@ def main():
         css = f.read()
 
     shots = {}
-    for fn in ("main.png", "chord-templates.png", "preset-browser.png", "velocity-layers.png", "preset-menu.png"):
+    for fn in ("main.png", "chord-templates.png", "preset-browser.png", "velocity-layers.png", "preset-menu.png", "transpose.png"):
         shots[fn] = png_size(os.path.join(DOCS, "images", fn))
 
     groups = factory_presets()

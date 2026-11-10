@@ -4,6 +4,16 @@ All notable changes to mnKord. The format follows [Keep a Changelog](https://kee
 and the version numbers follow [Semantic Versioning](https://semver.org/) as described in the README
 ("Versioning").
 
+## [Unreleased] - 1.8.0
+
+### Added
+- **Transpose** in the TRIGGER row: moves the whole preset (the trigger keys and their chords, and the scale's root) up or down an octave or a semitone.
+- **Transpose** in the CHORD row, for the output keyboard: moves only the chord notes (the trigger keys stay), of the selected chord or of every chord, up or down an octave or a semitone.
+- Both are edits of the preset with Undo, not live settings: what you play is not transposed. A step that would take a note out of the MIDI range is greyed out.
+
+### Changed
+- Transposing moved from the preset **Menu** (its *Transpose* submenu is gone) to these two buttons, which can also transpose only the selected chord.
+
 ## [1.7.0] - 2026-11-08
 
 ### Changed

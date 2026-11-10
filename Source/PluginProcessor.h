@@ -140,6 +140,11 @@ public:
     // while structurally mutating presets/mappings obtained via getPresets().
     juce::CriticalSection& getStateLock() { return stateLock; }
 
+    // Transposes mappings by semitones, as an edit: the chord notes (their velocities with them) and, with
+    // moveKeys, the trigger keys too. Every mapping, or only the one at onlyIndex (>= 0). Returns false and
+    // leaves mappings unchanged when a note would leave 0..127 (or onlyIndex is not a mapping).
+    static bool transposeMappings(std::vector<NoteMapping>& mappings, int semitones, bool moveKeys, int onlyIndex = -1);
+
     // File I/O. Import saves every recognised preset in the file as a new user preset and
     // selects the last one. Returns how many presets were added (0 = invalid/empty file).
     int importPresetsFromFile(const juce::File& file);

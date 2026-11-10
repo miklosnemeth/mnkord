@@ -15,8 +15,8 @@ Built with [JUCE](https://juce.com) 9 as **VST3** and **Standalone**.
 - Type a chord symbol (`Dm9/G`, `Bbmaj7`, `C6/9`, ...) in the field under the keyboard to replace the selected chord; the chord's name is shown for the selection
 - **Learn**: play a key on your MIDI controller to select (or create) its mapping
 - **Undo / Redo** (buttons or Ctrl+Z / Ctrl+Y) for mapping edits
+- **Transpose** (preset editing, with Undo; live playing is not transposed): the whole preset (trigger keys and chords) from the TRIGGER row, or only the chord notes of the selected chord or every chord from the CHORD row
 - **Velocity layers**: a key can have a second, hard layer that plays when the input velocity reaches a threshold (pick Soft / Hard from the layer menu in the TRIGGER row)
-- **Transpose** the whole preset (keys and chords) or only its chords, from the Menu
 - Preset library: read-only factory presets (about 30: diatonic, pop, jazz and soul, cinematic, dark, quartal, chromatic utility sets)
   plus your own presets, saved as files shared by every project (see below)
 - Preset browser with GROUP / AUTHOR / STYLE (tag) columns, search and favourites (star, shared by all projects, kept in `favorites.txt`); unsaved-changes marker, Save, Revert
