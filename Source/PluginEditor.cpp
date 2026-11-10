@@ -3766,9 +3766,11 @@ juce::Rectangle<float> MnKordAudioProcessorEditor::TriggerLane::cellFor(int note
     const auto& keyboard = owner.outputKeyboard;
     const auto key = keyboard.getRectangleForKey(note).translated((float) (keyboard.getX() - getX()), 0.0f);
     const bool black = juce::MidiMessage::isMidiNoteBlack(note);
-    const float half = (float) getHeight() / 2.0f;
-    return black ? juce::Rectangle<float>(key.getX() + 1.0f, 0.0f, key.getWidth() - 2.0f, half - 1.0f)
-                 : juce::Rectangle<float>(key.getX() + 1.5f, half, key.getWidth() - 3.0f, half - 1.0f);
+    // The two rows of markers, black keys above, with a clear gap between them.
+    constexpr float gap = 4.0f;
+    const float rowHeight = ((float) getHeight() - gap) / 2.0f;
+    return black ? juce::Rectangle<float>(key.getX() + 1.0f, 0.0f, key.getWidth() - 2.0f, rowHeight)
+                 : juce::Rectangle<float>(key.getX() + 1.5f, rowHeight + gap, key.getWidth() - 3.0f, rowHeight);
 }
 
 int MnKordAudioProcessorEditor::TriggerLane::noteAt(juce::Point<float> position) const
